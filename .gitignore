@@ -1,0 +1,11 @@
+# Claude Code memory (machine-specific, not for sharing)
+.claude/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
