@@ -1,0 +1,51 @@
+{
+  "_description": "Schema reference for workspace-specific pipeline_cards.json files. Agents read this to understand the expected structure when generating a pipeline_cards.json for a new workspace.",
+
+  "_generation_instructions": [
+    "1. Call list_pipelines for the target workspace, paginating until all pages are retrieved.",
+    "2. For each pipeline, fetch its source from: https://raw.githubusercontent.com/BLSQ/snt_development/main/{id}/pipeline.py",
+    "3. Extract @parameter decorators top-to-bottom as the parameters array.",
+    "4. Use the OpenHEXA display name from list_pipelines as `name`. If it is just the Python function name (no human-readable name), derive one from the standard SNT naming convention and confirm with the user before building a UI card.",
+    "5. Save to <workspace_folder>/pipeline_cards.json alongside workspace_config.json.",
+    "6. If a GitHub source returns 404, include the entry with an empty parameters array and set parameters_source to 'unavailable'.",
+    "7. If multiple instances of the same pipeline exist (duplicate Python function names), include all entries and use openhexa_code to distinguish them."
+  ],
+
+  "_type_mapping": {
+    "bool":             "Checkbox in the UI.",
+    "int":              "Number input (integer).",
+    "float":            "Number input (decimal).",
+    "str":              "Dropdown if choices present; text input otherwise.",
+    "str+multiple":     "Group of checkboxes when choices present; passes an array in the config object.",
+    "DHIS2Connection":  "Dropdown populated from workspace DHIS2 connections; pass the connection slug.",
+    "CustomConnection": "Dropdown populated from workspace custom connections; pass the connection slug.",
+    "File":             "File path input."
+  },
+
+  "_schema": {
+    "workspace_slug":  "string — the OpenHEXA workspace slug",
+    "generated_at":    "string — ISO date when this file was generated (YYYY-MM-DD)",
+    "pipelines": [
+      {
+        "id":                "string — Python function name; stable key across workspaces",
+        "name":              "string — human-readable display name for the UI card header",
+        "description":       "string — subtitle shown below the card title",
+        "uuid":              "string — workspace-specific pipeline UUID; NEVER copy across workspaces",
+        "openhexa_code":     "string — OpenHEXA pipeline code/slug; useful when multiple instances of the same pipeline exist in one workspace",
+        "parameters_source": "string — 'github_main' or 'unavailable' (GitHub 404)",
+        "parameters": [
+          {
+            "key":      "string — parameter key matching the @parameter decorator; used verbatim in the config object",
+            "label":    "string — display label",
+            "help":     "string — help text",
+            "type":     "string — bool | int | float | str | DHIS2Connection | CustomConnection | File",
+            "required": "boolean — omit if false",
+            "multiple": "boolean — omit if false; when true and type is str, the config value is an array",
+            "default":  "any — omit if null/None",
+            "choices":  "array — omit if absent"
+          }
+        ]
+      }
+    ]
+  }
+}
