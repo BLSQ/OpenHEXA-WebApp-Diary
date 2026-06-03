@@ -1,0 +1,46 @@
+{
+  "_description": "Schema reference for pipeline_map.json — the WORKSPACE-INDEPENDENT definition of the full SNT pipeline flow map. It declares every pipeline node, its 2D grid position, classification, mutual-exclusion grouping, and the directed dependency edges between nodes. The SNT Pipelines Orchestrator webapp renders this map identically across all workspaces. Which nodes are ACTIVE vs GREYED-OUT is decided at runtime by joining node `id` against the workspace's pipeline_cards.json — it is NOT defined here. There is a single pipeline_map.json at the repo root, shared by all workspaces.",
+
+  "_generation_instructions": [
+    "1. This file is hand-authored and maintained, not auto-generated. It changes only when the official set of SNT pipelines or their logical relationships change.",
+    "2. Node `id` MUST equal the pipeline's Python function name (the first argument of @pipeline / the repo folder name, e.g. snt_dhis2_extract). This is the join key to pipeline_cards.json and workspace_config.json.",
+    "3. Place each node on the grid with `row` (execution stage, top-to-bottom; lower row = earlier) and `col` (horizontal position within the grid, left-to-right). Use distinct columns to separate parallel tracks (A / B / D).",
+    "4. Add one entry to `edges` per direct dependency (a required predecessor / data-flow link). Endpoints reference node `id`. The webapp derives lock/unlock state from edges — do NOT add a separate `req` field on nodes.",
+    "5. For mutually-exclusive alternatives (only one of the set may run), give every member the same `group` string and set type to 'alternative'.",
+    "6. Do NOT duplicate parameter definitions here — those live in pipeline_cards.json. The map carries only `label`/`code`/`description` for display, so that greyed-out nodes (absent from the workspace's pipeline_cards.json) still render a name.",
+    "7. `label`/`code`/`description` are the canonical display strings. When a node is active, the workspace card's `name` may override `label` for display."
+  ],
+
+  "_node_types": {
+    "mandatory":   "Core step expected in every analysis.",
+    "alternative": "One of a mutually-exclusive set; members share a `group`. Running one marks the others not-run.",
+    "facultative": "Optional add-on; never required by downstream nodes."
+  },
+
+  "_schema": {
+    "version":      "string — date (YYYY-MM-DD) or semver, bumped when the map changes",
+    "grid": {
+      "cols": "int — total number of columns, for canvas sizing (optional)"
+    },
+    "nodes": [
+      {
+        "id":          "string — Python function name; join key to pipeline_cards.json. REQUIRED",
+        "code":        "string — short human code shown as a tag, e.g. 'A.1', 'A.3.1'. REQUIRED",
+        "label":       "string — canonical display title, e.g. 'A.1 DHIS2 Extract'. REQUIRED",
+        "description": "string — short subtitle shown in the sidebar (optional)",
+        "type":        "string — mandatory | alternative | facultative. REQUIRED",
+        "row":         "int — execution stage, top-to-bottom (lower = earlier). REQUIRED",
+        "col":         "int — horizontal position in the grid, left-to-right. REQUIRED",
+        "group":       "string — mutual-exclusion group id; REQUIRED only when type == 'alternative', omit otherwise",
+        "track":       "string — optional visual grouping/color hint, e.g. 'A' | 'B' | 'D'"
+      }
+    ],
+    "edges": [
+      {
+        "from": "string — upstream node id (the prerequisite)",
+        "to":   "string — downstream node id (depends on `from`)",
+        "type": "string — optional styling hint: 'solid' (hard dependency) | 'optional' (soft link); omit for default"
+      }
+    ]
+  }
+}

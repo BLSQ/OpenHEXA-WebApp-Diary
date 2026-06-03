@@ -14,6 +14,104 @@ Invoke-WebRequest -Uri "https://raw.githubusercontent.com/BLSQ/openhexa-app/main
 
 ---
 
+## SNT Pipelines Orchestrator (end goal)
+
+The end goal of this project is a single, rich static webapp per workspace — the **SNT
+Pipelines Orchestrator** — that renders the *complete* flow diagram of all official SNT
+pipelines (~20, from the `snt_development` repo) as an interactive 2D map with a
+configuration/run sidebar. The current small single-pipeline webapps are stepping stones
+toward it.
+
+The visual and UX target is `examples/orchestration-prototype_2.html`: a scrollable canvas
+showing the pipeline map on the left, and a sidebar on the right that — when a node is
+selected — shows its description, a generated parameters form, a **Run** button, and (after a
+run) the data outputs and HTML report links. Node tags mark each pipeline as mandatory,
+alternative, or facultative.
+
+**The map is identical across all workspaces.** Every workspace's orchestrator shows the same
+full diagram. What differs per workspace is only which nodes are *active* — pipelines not
+available in a given workspace appear greyed-out and unclickable.
+
+### Data architecture
+
+The orchestrator separates concerns across four files. The stable join key everywhere is the
+node `id` == the pipeline's Python function name (e.g. `snt_dhis2_extract`).
+
+| File | Scope | Holds |
+| ---- | ----- | ----- |
+| `pipeline_map.json` | **workspace-independent** (repo root, one shared file) | all nodes, grid position (`row`/`col`), `type`, mutex `group`, directed `edges` (dependencies) |
+| `<ws>/pipeline_cards.json` | per-workspace | which pipelines exist + `uuid` + `parameters` (drives *active vs greyed*) |
+| `<ws>/workspace_config.json` | per-workspace | IDs, `deployed_apps`, connection slugs |
+| `index.html` + `app.js` + `styles.css` | shared app shell (multi-file) | renders the map, merges it with the workspace cards, runs/polls pipelines |
+
+`pipeline_map_schema.json` (repo root) documents the structure of `pipeline_map.json` — read
+it when authoring or interpreting the map. The map is **hand-authored** (a separate task); it
+is not generated from the GraphQL API.
+
+### Node states
+
+The webapp computes three independent state axes per node:
+
+- **available vs greyed** — *static*: a node is available iff its `id` is present in the
+  workspace's `pipeline_cards.json` (with a `uuid`). Otherwise it renders greyed-out and is
+  unclickable. This is how the same full map adapts to each workspace.
+- **locked vs unlocked** — *dynamic*: derived from `edges`. A node unlocks once every upstream
+  prerequisite (each edge whose `to` equals this node) has a completed run in the current
+  session.
+- **completed** — ran successfully in the current session.
+
+**Mutual exclusion:** nodes of `type: "alternative"` that share the same `group` are mutually
+exclusive — running one marks the others in the group not-run (mirrors the prototype's A.3.x /
+A.4.x logic, but data-driven via `group` instead of hardcoded `if` statements).
+
+### Map format
+
+Positions and arrows are **explicit**, with no graph-layout library or CDN dependency:
+
+- Each node carries an explicit `row` (execution stage, top→bottom) and `col` (horizontal
+  position, used to separate parallel A / B / D tracks).
+- `edges` is a list of `{from, to}` pairs referencing node `id`s; the webapp draws one SVG
+  arrow per edge between node centers.
+- Dependencies are expressed **only** as `edges` — this replaces the prototype's per-node
+  `req` array, its `rows` layout array, and its hardcoded mutual-exclusion `if` statements.
+- **Outputs are not stored in the map or cards.** They are fetched at runtime from
+  `pipelineRun.outputs` after a run (see the polling pattern below). The prototype's hardcoded
+  `outputs` arrays were mock data only.
+
+### Multi-file app architecture
+
+OpenHEXA static webapps serve more than just `index.html`. Per the OpenHEXA docs:
+
+> *"`index.html` is the entry point; everything else (CSS, JS, images, JSON fixtures) is
+> served as-is from the same origin... Reference assets with relative paths
+> (`<script src="app.js">`, `<link href="style.css">`). The injection only touches `text/html`
+> responses; CSS, JS, and JSON files are untouched."*
+
+So the orchestrator is a **multi-file bundle**, not one giant file:
+
+- `index.html` — minimal shell (canvas + sidebar containers, `<link>` to CSS, `<script>` to JS)
+- `styles.css` — all styling (cards, node states, sidebar, SVG arrows)
+- `app.js` — render the grid + SVG edges, merge map with cards, run + poll pipelines
+- `pipeline_map.json` — the shared map (deployed alongside the app), fetched at runtime
+- `pipeline_cards.json` — the workspace's card catalog (deployed alongside the app), fetched
+  at runtime
+
+`app.js` loads the two JSON files with same-origin `fetch("./pipeline_map.json")` etc. All the
+shared runtime patterns below (the `gql` helper, status polling, `prepareObjectDownload`,
+prefixed element handling) still apply — they just live in `app.js` rather than inline.
+
+### Build / deploy workflow
+
+- Deploy via `mcp__claude_ai_OpenHEXA__update_static_webapp` with `files_json` as the
+  multi-file array: one `{path, content}` object per file in the bundle above.
+- `allowed_operations`: at minimum `PIPELINES_READ, PIPELINES_RUN, FILES_READ`. Add
+  `USER_READ` if the app queries workspace connections at runtime (to populate
+  `DHIS2Connection` dropdowns).
+- After every deploy, mirror **all** deployed files locally under `<ws>/<app_key>/` (not just
+  `index.html`), so the local copy stays in sync.
+
+---
+
 ## OpenHEXA Static Webapp Runtime Patterns
 
 These patterns apply to any static webapp deployed on OpenHEXA. They are non-obvious and must not be guessed from the schema alone.
@@ -214,14 +312,14 @@ Do **not** look inside a `pipelines/` folder — it does not contain the correct
 Each workspace has its own folder in this repo, named after the workspace slug with hyphens replaced by underscores (e.g. `snt_testing/`, `snt_drc_workshop_demo/`). Every workspace folder contains:
 
 - **`workspace_config.json`** — resolved IDs for that workspace (pipeline UUIDs, webapp IDs under `deployed_apps`, connection slugs). Looked up via MCP tools. Never copy these IDs from another workspace's folder.
-- **One subfolder per deployed webapp**, each containing exactly one `index.html` — the HTML as it was last deployed to OpenHEXA. The subfolder name is a short, descriptive snake_case identifier that matches the corresponding key in `deployed_apps` (e.g. `dhis2_reporting_rate/index.html`, `population_transformation/index.html`).
+- **One subfolder per deployed webapp**, mirroring every file as it was last deployed to OpenHEXA. A simple single-pipeline webapp is a single `index.html`; the SNT Pipelines Orchestrator is a multi-file bundle (`index.html` + `styles.css` + `app.js` + `pipeline_map.json` + `pipeline_cards.json` — see the multi-file app architecture above). The subfolder name is a short, descriptive snake_case identifier that matches the corresponding key in `deployed_apps` (e.g. `dhis2_reporting_rate/index.html`, `population_transformation/index.html`).
 
 **There is no MCP tool to read or download existing webapp code from OpenHEXA.** The only available tools are for creating or updating webapps. This means:
 
 - The local `<workspace>/<app_key>/index.html` is the sole source of truth the agent can read. Always read it before making any changes.
 - If tasked with updating an existing webapp, the user must manually download the current version from OpenHEXA and save it as `<workspace>/<app_key>/index.html` before the session. If no local file exists, the agent must build from scratch.
 - Never assume the live webapp on OpenHEXA matches the local file — only the user can verify this by checking the deployed URL.
-- After every deploy, always write the deployed HTML to `<workspace>/<app_key>/index.html` so the local copy stays in sync.
+- After every deploy, always write the deployed file(s) to `<workspace>/<app_key>/` so the local copy stays in sync — `index.html` for a single-file webapp, or the full bundle for a multi-file one.
 
 ### How to build or update the webapp for a workspace
 
@@ -236,7 +334,13 @@ When building or updating `<workspace>/<app_key>/index.html`:
 2. Use `<workspace>/workspace_config.json` to fill in the pipeline UUIDs in the `PIPELINE_CONFIG` JS object.
 3. Follow the runtime patterns above (prefixed IDs, shared functions, `allowed_operations`, etc.).
 4. Deploy via `mcp__claude_ai_OpenHEXA__update_static_webapp` using `deployed_apps.<app_key>.id` from the workspace config.
-5. Write the deployed HTML to `<workspace>/<app_key>/index.html`.
+5. Write the deployed file(s) to `<workspace>/<app_key>/`.
+
+> For the **SNT Pipelines Orchestrator** specifically, follow the multi-file architecture in
+> *SNT Pipelines Orchestrator (end goal)* above: the map (`pipeline_map.json`, validated
+> against `pipeline_map_schema.json`) supplies layout and dependencies, the workspace's
+> `pipeline_cards.json` supplies which nodes are active plus their params/UUIDs, and the app
+> is deployed as a bundle rather than a single inlined `index.html`.
 
 ### Session start workflow
 

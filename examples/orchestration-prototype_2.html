@@ -1,0 +1,791 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>OpenHEXA Pipeline Orchestrator Prototype</title>
+    <style>
+      body {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        background-color: #f4f7f6;
+        margin: 0;
+        display: flex;
+        height: 100vh;
+      }
+      .canvas {
+        flex: 2;
+        padding: 40px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        overflow-y: auto;
+      }
+      .sidebar {
+        flex: 1;
+        background: white;
+        padding: 25px;
+        box-shadow: -2px 0 5px rgba(0, 0, 0, 0.1);
+        overflow-y: auto;
+        border-left: 1px solid #ddd;
+        display: flex;
+        flex-direction: column;
+      }
+      h1,
+      h2,
+      h3,
+      h4 {
+        color: #333;
+        margin-top: 0;
+      }
+
+      /* Flowchart Styles */
+      .flow-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        width: 100%;
+        margin-top: 20px;
+      }
+      .row {
+        display: flex;
+        gap: 40px;
+        justify-content: center;
+        position: relative;
+        z-index: 2;
+      }
+      .arrow {
+        font-size: 24px;
+        color: #888;
+        margin: 10px 0;
+        z-index: 1;
+        font-weight: bold;
+      }
+
+      .node {
+        background: #fff;
+        border: 2px solid #005a9c;
+        border-radius: 8px;
+        padding: 25px 20px 15px;
+        width: 220px;
+        text-align: center;
+        cursor: pointer;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+        transition: all 0.2s ease;
+        position: relative;
+      }
+      .node:hover:not(.disabled) {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1);
+      }
+      .node.disabled {
+        background: #e9ecef;
+        border-color: #ced4da;
+        color: #6c757d;
+        cursor: not-allowed;
+      }
+      .node.completed {
+        border-color: #28a745;
+        background: #f0fff4;
+      }
+
+      .node-tag {
+        font-size: 0.6rem;
+        text-transform: uppercase;
+        font-weight: bold;
+        padding: 3px 6px;
+        border-radius: 4px;
+        position: absolute;
+        top: 5px;
+        right: 5px;
+      }
+      .tag-mandatory {
+        background: #ffeeba;
+        color: #856404;
+      }
+      .tag-alternative {
+        background: #b8daff;
+        color: #004085;
+      }
+      .tag-facultative {
+        background: #e2e3e5;
+        color: #383d41;
+      }
+
+      /* Sidebar Styles */
+      .params-form {
+        background: #f8f9fa;
+        padding: 15px;
+        border-radius: 6px;
+        border: 1px solid #ddd;
+        margin-bottom: 15px;
+      }
+      .param-group {
+        margin-bottom: 10px;
+        display: flex;
+        flex-direction: column;
+      }
+      .param-group label {
+        font-size: 0.85rem;
+        font-weight: bold;
+        margin-bottom: 4px;
+        color: #444;
+      }
+      .param-group .help-text {
+        font-size: 0.75rem;
+        color: #666;
+        margin-bottom: 4px;
+      }
+      .param-group input[type="text"],
+      .param-group input[type="number"],
+      .param-group input[type="file"] {
+        padding: 6px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+      }
+      .param-group-checkbox {
+        flex-direction: row;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .btn {
+        background: #005a9c;
+        color: white;
+        border: none;
+        padding: 12px 15px;
+        border-radius: 5px;
+        cursor: pointer;
+        width: 100%;
+        font-size: 1rem;
+        font-weight: bold;
+        transition: background 0.2s;
+      }
+      .btn:hover {
+        background: #004080;
+      }
+
+      .output-section {
+        margin-top: 25px;
+        display: none;
+      }
+      .output-section.visible {
+        display: block;
+      }
+      .data-files {
+        padding: 15px;
+        background: #eef2f5;
+        border-radius: 6px;
+        border: 1px solid #c8d8e4;
+        margin-bottom: 15px;
+      }
+      .report-file {
+        padding: 15px;
+        background: #fff3cd;
+        border-radius: 6px;
+        border: 1px solid #ffeeba;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .file-list {
+        list-style-type: none;
+        padding-left: 0;
+        margin: 10px 0 0 0;
+      }
+      .file-list li {
+        margin-bottom: 6px;
+        font-size: 0.85rem;
+        padding-left: 20px;
+        position: relative;
+      }
+      .file-list li::before {
+        content: "📄";
+        position: absolute;
+        left: 0;
+        top: 0;
+        font-size: 0.8rem;
+      }
+      .file-list a {
+        color: #005a9c;
+        text-decoration: none;
+        word-break: break-all;
+      }
+      .file-list a:hover {
+        text-decoration: underline;
+      }
+
+      .btn-report {
+        background: transparent;
+        border: 1px solid #856404;
+        color: #856404;
+        padding: 6px 12px;
+        border-radius: 4px;
+        font-size: 0.85rem;
+        cursor: pointer;
+        text-decoration: none;
+      }
+      .btn-report:hover {
+        background: #856404;
+        color: white;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="canvas">
+      <h1>Pipeline Flow Map</h1>
+
+      <div class="flow-container" id="flow-container"></div>
+    </div>
+
+    <div class="sidebar" id="sidebar">
+      <h2>Pipeline Details</h2>
+      <div id="panel-content" style="display: none">
+        <h3 id="panel-title"></h3>
+        <p id="panel-desc" style="font-size: 0.9rem; color: #555"></p>
+
+        <div id="params-container" class="params-form">
+          <h4 style="margin-bottom: 10px">Parameters</h4>
+          <div id="params-list"></div>
+        </div>
+
+        <button id="run-btn" class="btn">Run Pipeline</button>
+
+        <div id="output-container" class="output-section">
+          <div class="data-files">
+            <h4>Data Outputs</h4>
+            <p style="font-size: 0.75rem; color: #666; margin: 0">
+              Stored in OH Datasets
+            </p>
+            <ul class="file-list" id="panel-outputs"></ul>
+          </div>
+
+          <div class="report-file">
+            <div>
+              <h4 style="margin: 0; color: #856404">HTML Report</h4>
+              <p style="font-size: 0.75rem; color: #856404; margin: 0">
+                Pipeline execution summary
+              </p>
+            </div>
+            <a href="#" class="btn-report">View Report</a>
+          </div>
+        </div>
+      </div>
+      <div id="empty-state">
+        <p style="color: #888">
+          Select a node from the map to view configuration.
+        </p>
+      </div>
+    </div>
+
+    <script>
+      // Exact mapping from the JSON
+      const pipelineData = {
+        "A.1": {
+          id: "snt_dhis2_extract",
+          name: "A.1 DHIS2 Extract",
+          type: "mandatory",
+          req: [],
+          run: false,
+          desc: "Extracts DHIS2 pyramid, routine analytics, population, shapes, and reporting rates based on a defined period.",
+          params: [
+            {
+              name: "dhis2_connection",
+              help: "DHIS2 connection ID",
+              type: "text",
+              required: true,
+            },
+            {
+              name: "start",
+              help: "Start of DHIS2 period (YYYYMM)",
+              type: "number",
+              required: true,
+            },
+            {
+              name: "end",
+              help: "End of DHIS2 period (YYYYMM)",
+              type: "number",
+              required: true,
+            },
+            {
+              name: "overwrite",
+              help: "Overwrite existing files",
+              type: "bool",
+              default: true,
+            },
+            {
+              name: "pull_scripts",
+              help: "Pull the latest scripts",
+              type: "bool",
+              default: false,
+            },
+            {
+              name: "run_report_only",
+              help: "Execute reporting notebook only",
+              type: "bool",
+              default: false,
+            },
+          ],
+          outputs: [
+            "{country_code}_dhis2_raw_analytics.parquet",
+            "{country_code}_dhis2_raw_population.parquet",
+            "{country_code}_dhis2_raw_shapes.parquet",
+            "{country_code}_dhis2_raw_pyramid.parquet",
+            "{country_code}_dhis2_raw_reporting.parquet",
+            "Pipeline execution parameters file",
+          ],
+        },
+        "A.2": {
+          id: "snt_dhis2_formatting",
+          name: "A.2 DHIS2 Formatting",
+          type: "mandatory",
+          req: ["A.1"],
+          run: false,
+          desc: "Formats DHIS2 raw extracts (analytics, population, shapes, pyramid, and reporting rates) into standard SNT formats.",
+          params: [
+            {
+              name: "run_report_only",
+              help: "Execute reporting notebook only",
+              type: "bool",
+              default: false,
+            },
+            {
+              name: "pull_scripts",
+              help: "Pull scripts from repo",
+              type: "bool",
+              default: false,
+            },
+          ],
+          outputs: [
+            "{country_code}_routine.parquet",
+            "{country_code}_routine.csv",
+            "{country_code}_population.parquet",
+            "{country_code}_population.csv",
+            "{country_code}_shapes.geojson",
+            "{country_code}_pyramid.parquet",
+            "{country_code}_pyramid.csv",
+            "{country_code}_reporting.parquet",
+            "{country_code}_reporting.csv",
+            "Pipeline execution parameters file",
+            "{country_code}_population_template.csv",
+            "{country_code}_adm_template.csv",
+          ],
+        },
+        "A.3.1": {
+          id: "snt_dhis2_outliers_imputation_mean",
+          name: "Outliers Imputation (Mean)",
+          type: "alternative",
+          req: ["A.2"],
+          run: false,
+          desc: "Outliers imputation pipeline Mean method (mean ± k*SD) for SNT DHIS2 data.",
+          params: [
+            {
+              name: "deviation_mean",
+              help: "Number of SD around the mean",
+              type: "number",
+              default: 3,
+            },
+            {
+              name: "push_db",
+              help: "Push outliers table to DB",
+              type: "bool",
+              default: true,
+            },
+            {
+              name: "run_report_only",
+              help: "Execute reporting notebook only",
+              type: "bool",
+              default: false,
+            },
+            {
+              name: "pull_scripts",
+              help: "Pull scripts from repo",
+              type: "bool",
+              default: false,
+            },
+          ],
+          outputs: [
+            "{country_code}_routine_outliers_detected.parquet",
+            "{country_code}_routine_outliers_imputed.parquet",
+            "{country_code}_routine_outliers_removed.parquet",
+            "Pipeline execution parameters file",
+            "outliers_detected (DB Table)",
+          ],
+        },
+        "A.3.2": {
+          id: "snt_dhis2_outliers_imputation_median",
+          name: "Outliers Imputation (Median)",
+          type: "alternative",
+          req: ["A.2"],
+          run: false,
+          desc: "Outliers imputation pipeline Median method (median ± k*MAD) for SNT DHIS2 data.",
+          params: [
+            {
+              name: "deviation_median",
+              help: "Number of MAD around the median",
+              type: "number",
+              default: 3,
+            },
+            {
+              name: "push_db",
+              help: "Push outliers table to DB",
+              type: "bool",
+              default: true,
+            },
+            {
+              name: "run_report_only",
+              help: "Execute reporting notebook only",
+              type: "bool",
+              default: false,
+            },
+            {
+              name: "pull_scripts",
+              help: "Pull scripts from repo",
+              type: "bool",
+              default: false,
+            },
+          ],
+          outputs: [
+            "{country_code}_routine_outliers_detected.parquet",
+            "{country_code}_routine_outliers_imputed.parquet",
+            "{country_code}_routine_outliers_removed.parquet",
+            "Pipeline execution parameters file",
+            "outliers_detected (DB Table)",
+          ],
+        },
+        "A.4.1": {
+          id: "snt_dhis2_reporting_rate_dataelement",
+          name: "A.4 Reporting Rate (Data Element)",
+          type: "alternative",
+          req: ["A.2"],
+          run: false,
+          desc: "Calculate Reporting Rate (method: Data Element) Based on facilities reporting data for malaria-related indicators.",
+          params: [
+            {
+              name: "routine_data_choice",
+              help: "Routine data source (raw, imputed, outliers_removed)",
+              type: "text",
+              default: "imputed",
+            },
+            {
+              name: "activity_indicators",
+              help: "Facility Activity indicators",
+              type: "text",
+              default: "CONF, PRES",
+            },
+            {
+              name: "volume_activity_indicators",
+              help: "Volume activity indicators",
+              type: "text",
+              default: "CONF, PRES",
+            },
+            {
+              name: "dataelement_method_denominator",
+              help: "Denominator method",
+              type: "text",
+              default: "ROUTINE_ACTIVE_FACILITIES",
+            },
+            {
+              name: "use_weighted_reporting_rates",
+              help: "Use weighted reporting rates",
+              type: "bool",
+              default: false,
+            },
+            {
+              name: "run_report_only",
+              help: "Execute reporting notebook only",
+              type: "bool",
+              default: false,
+            },
+            {
+              name: "pull_scripts",
+              help: "Pull notebooks from repository",
+              type: "bool",
+              default: false,
+            },
+          ],
+          outputs: [
+            "{country_code}_reporting_rate_dataelement.parquet",
+            "{country_code}_reporting_rate_dataelement.csv",
+            "Pipeline execution parameters file",
+          ],
+        },
+        "A.4.2": {
+          id: "snt_dhis2_reporting_rate_dataset",
+          name: "A.4 Reporting Rate (Dataset)",
+          type: "alternative",
+          req: ["A.2"],
+          run: false,
+          desc: "Calculates reporting rates based on actual vs. expected reports from DHIS2 extracted dataset.",
+          params: [
+            {
+              name: "routine_data_choice",
+              help: "Routine data source",
+              type: "text",
+              default: "imputed",
+            },
+            {
+              name: "run_report_only",
+              help: "Execute reporting notebook only",
+              type: "bool",
+              default: false,
+            },
+            {
+              name: "pull_scripts",
+              help: "Pull notebooks from repository",
+              type: "bool",
+              default: false,
+            },
+          ],
+          outputs: [
+            "{country_code}_reporting_rate_dataset.parquet",
+            "{country_code}_reporting_rate_dataset.csv",
+            "Pipeline execution parameters file",
+          ],
+        },
+        "A.5": {
+          id: "snt_dhis2_population_transformation",
+          name: "DHIS2 Pop Transformation",
+          type: "facultative",
+          req: ["A.2"],
+          run: false,
+          desc: "Projects population size, applies total population adjustment and disaggregations.",
+          params: [
+            {
+              name: "adjust_population",
+              help: "Adjust using population totals",
+              type: "bool",
+              default: false,
+            },
+            {
+              name: "disaggregation_file",
+              help: "Use disaggregation proportions (.csv)",
+              type: "file",
+            },
+            {
+              name: "run_report_only",
+              help: "Execute reporting notebook only",
+              type: "bool",
+              default: false,
+            },
+            {
+              name: "pull_scripts",
+              help: "Pull scripts from repository",
+              type: "bool",
+              default: false,
+            },
+          ],
+          outputs: [
+            "{country_code}_population.parquet",
+            "{country_code}_population.csv",
+            "Pipeline execution parameters file",
+          ],
+        },
+        "A.6": {
+          id: "snt_dhis2_incidence",
+          name: "A.6 DHIS2 Incidence",
+          type: "mandatory",
+          req: ["A.2"],
+          run: false,
+          desc: "Calculates malaria incidence (N1, N2, N3) adjusted for testing gaps, reporting rates, and care-seeking behaviour.",
+          params: [
+            {
+              name: "n1_method",
+              help: "Method for N1 calculations",
+              type: "text",
+              default: "PRES",
+            },
+            {
+              name: "routine_data_choice",
+              help: "Routine data to use",
+              type: "text",
+              default: "imputed",
+            },
+            {
+              name: "use_adjusted_population",
+              help: "Use adjusted population",
+              type: "bool",
+              default: false,
+            },
+            {
+              name: "disaggregation_selection",
+              help: "Disaggregation selection",
+              type: "text",
+            },
+            {
+              name: "careseeking_file_path",
+              help: "CSB data file (.csv)",
+              type: "file",
+            },
+            {
+              name: "run_report_only",
+              help: "Execute reporting notebook only",
+              type: "bool",
+              default: false,
+            },
+            {
+              name: "pull_scripts",
+              help: "Pull notebooks from repository",
+              type: "bool",
+              default: false,
+            },
+          ],
+          outputs: [
+            "{country_code}_incidence.parquet",
+            "{country_code}_incidence.csv",
+            "Pipeline execution parameters file",
+          ],
+        },
+      };
+
+      let selectedNode = null;
+
+      function renderFlowchart() {
+        const container = document.getElementById("flow-container");
+        container.innerHTML = "";
+
+        const rows = [
+          ["A.1"],
+          ["A.2"],
+          ["A.3.1", "A.3.2"],
+          ["A.4.1", "A.4.2"],
+          ["A.5"],
+          ["A.6"],
+        ];
+
+        rows.forEach((rowKeys, index) => {
+          const rowDiv = document.createElement("div");
+          rowDiv.className = "row";
+
+          rowKeys.forEach((key) => {
+            const data = pipelineData[key];
+            const isEnabled =
+              data.req.length === 0 ||
+              data.req.every((reqKey) => pipelineData[reqKey].run);
+
+            const node = document.createElement("div");
+            node.className = `node ${isEnabled ? "" : "disabled"} ${data.run ? "completed" : ""}`;
+            node.onclick = () => isEnabled && openSidebar(key);
+
+            let tagClass =
+              data.type === "mandatory"
+                ? "tag-mandatory"
+                : data.type === "alternative"
+                  ? "tag-alternative"
+                  : "tag-facultative";
+
+            node.innerHTML = `
+                    <span class="node-tag ${tagClass}">${data.type}</span>
+                    <strong>${data.name}</strong>
+                `;
+            rowDiv.appendChild(node);
+          });
+          container.appendChild(rowDiv);
+
+          // Add downward arrow if not the last row
+          if (index < rows.length - 1) {
+            const arrow = document.createElement("div");
+            arrow.className = "arrow";
+            arrow.innerHTML = "&#8595;"; // Downward arrow character
+            container.appendChild(arrow);
+          }
+        });
+      }
+
+      function generateParamsForm(params) {
+        const formDiv = document.getElementById("params-list");
+        formDiv.innerHTML = "";
+
+        if (!params || params.length === 0) {
+          formDiv.innerHTML =
+            '<p style="font-size: 0.85rem; color: #888;">No parameters required.</p>';
+          return;
+        }
+
+        params.forEach((param) => {
+          const group = document.createElement("div");
+
+          if (param.type === "bool") {
+            group.className = "param-group param-group-checkbox";
+            group.innerHTML = `
+                    <input type="checkbox" id="${param.name}" ${param.default ? "checked" : ""}>
+                    <div>
+                        <label for="${param.name}" style="margin:0;">${param.name.replace(/_/g, " ")}</label>
+                        <div class="help-text">${param.help}</div>
+                    </div>
+                `;
+          } else {
+            group.className = "param-group";
+            let inputType =
+              param.type === "file"
+                ? "file"
+                : param.type === "number"
+                  ? "number"
+                  : "text";
+            let defaultVal =
+              param.default !== undefined && param.default !== null
+                ? `value="${param.default}"`
+                : "";
+
+            group.innerHTML = `
+                    <label for="${param.name}">${param.name.replace(/_/g, " ")} ${param.required ? '<span style="color:red">*</span>' : ""}</label>
+                    <div class="help-text">${param.help}</div>
+                    <input type="${inputType}" id="${param.name}" ${defaultVal}>
+                `;
+          }
+          formDiv.appendChild(group);
+        });
+      }
+
+      function openSidebar(key) {
+        selectedNode = key;
+        const data = pipelineData[key];
+
+        document.getElementById("empty-state").style.display = "none";
+        document.getElementById("panel-content").style.display = "block";
+        document.getElementById("panel-title").innerText = data.name;
+        document.getElementById("panel-desc").innerText = data.desc;
+
+        generateParamsForm(data.params);
+
+        const runBtn = document.getElementById("run-btn");
+        const outContainer = document.getElementById("output-container");
+
+        if (data.run) {
+          runBtn.innerText = "Re-run Pipeline";
+          runBtn.style.background = "#e0a800"; // Warning color for rerun
+          outContainer.classList.add("visible");
+
+          const outList = document.getElementById("panel-outputs");
+          outList.innerHTML = "";
+          data.outputs.forEach((file) => {
+            const li = document.createElement("li");
+            li.innerHTML = `<a href="#">${file}</a>`;
+            outList.appendChild(li);
+          });
+        } else {
+          runBtn.innerText = "Run Pipeline";
+          runBtn.style.background = "#005A9C";
+          outContainer.classList.remove("visible");
+        }
+      }
+
+      document.getElementById("run-btn").onclick = () => {
+        if (!selectedNode) return;
+        pipelineData[selectedNode].run = true;
+
+        // Handle "alternative" replacement logic visually
+        if (selectedNode === "A.3.1") pipelineData["A.3.2"].run = false;
+        if (selectedNode === "A.3.2") pipelineData["A.3.1"].run = false;
+        if (selectedNode === "A.4.1") pipelineData["A.4.2"].run = false;
+        if (selectedNode === "A.4.2") pipelineData["A.4.1"].run = false;
+
+        renderFlowchart();
+        openSidebar(selectedNode);
+      };
+
+      // Initial render
+      renderFlowchart();
+    </script>
+  </body>
+</html>
