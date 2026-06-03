@@ -142,13 +142,17 @@ Pipeline **UUIDs** and **codes/slugs** both differ across workspaces for the sam
 
 ## SNT Pipeline Definitions
 
-`pipeline_cards_template.json` documents the expected JSON structure with one worked example (A.1). It is a reference only.
+`pipeline_cards_schema.json` (repo root) documents the expected structure for workspace-specific `pipeline_cards.json` files — field definitions, type mapping, and generation instructions. Read it when generating or interpreting pipeline data.
 
-`pipeline_cards.json` is the working file used when building `index.html`. It contains the full definitions for every pipeline the user has requested cards for. Build or update it using the instructions below.
+Each workspace folder contains a `pipeline_cards.json` — a cached catalog of every pipeline available in that workspace, with display names, UUIDs, and full parameter definitions fetched from GitHub.
 
-`pipelines_a1-a6.json` is an **obsolete** file — ignore it.
+**At session start, check whether `<workspace>/pipeline_cards.json` exists:**
+- **If yes** — use it as the pipeline catalog. No need to call `list_pipelines` or fetch GitHub sources.
+- **If no** — generate it following the `_generation_instructions` in `pipeline_cards_schema.json`, save it to `<workspace>/pipeline_cards.json`, then proceed.
 
-### How to build or update `pipeline_cards.json`
+`pipeline_cards.json` is the primary source for: which pipelines exist in the workspace (with UUIDs) and what parameters each pipeline accepts (for building UI cards).
+
+### How to add or update a pipeline definition
 
 The user will specify which pipelines to include. For each one, fetch its source code from GitHub and extract the parameter definitions directly from the `@parameter` decorators.
 
@@ -187,8 +191,10 @@ Do **not** look inside a `pipelines/` folder — it does not contain the correct
 |---|---|
 | `bool` | `"bool"` |
 | `int` | `"int"` |
+| `float` | `"float"` |
 | `str` | `"str"` |
 | `DHIS2Connection` | `"DHIS2Connection"` |
+| `CustomConnection` | `"CustomConnection"` |
 | `File` | `"File"` |
 
 **Rules:**
@@ -202,31 +208,32 @@ Do **not** look inside a `pipelines/` folder — it does not contain the correct
 
 ## Workspace-Specific Configuration
 
-`workspace_config.json` files store the resolved IDs for a specific OpenHEXA workspace (pipeline UUIDs, webapp ID, connection slugs). There is one file per target workspace. These IDs are looked up via MCP tools and must never be copied from another workspace's config.
+Each workspace has its own folder in this repo, named after the workspace slug with hyphens replaced by underscores (e.g. `snt_testing/`, `snt_drc_workshop_demo/`). Every workspace folder contains exactly two files:
 
-### What `index.html` is
-
-`index.html` is the actual webapp file as it was last deployed to OpenHEXA. It contains hardcoded pipeline UUIDs specific to the workspace it was last deployed to (currently `snt-drc-workshop-demo`). It is **not** a generic template — it is a working file that must be built or updated by the agent for each target workspace.
+- **`workspace_config.json`** — resolved IDs for that workspace (pipeline UUIDs, webapp ID, connection slugs). Looked up via MCP tools. Never copy these IDs from another workspace's folder.
+- **`index.html`** — the webapp as it was last deployed to OpenHEXA for that workspace. Contains hardcoded pipeline UUIDs and is not a generic template.
 
 **There is no MCP tool to read or download existing webapp code from OpenHEXA.** The only available tools are for creating or updating webapps. This means:
 
-- The local `index.html` is the sole source of truth the agent can read. Always read it before making any changes.
-- If tasked with updating an existing webapp, the user must manually download the current version from OpenHEXA and save it as `index.html` in this directory before the session. If no local `index.html` exists, the agent must build from scratch.
+- The local `<workspace>/index.html` is the sole source of truth the agent can read. Always read it before making any changes.
+- If tasked with updating an existing webapp, the user must manually download the current version from OpenHEXA and save it as `<workspace>/index.html` before the session. If no local file exists, the agent must build from scratch.
 - Never assume the live webapp on OpenHEXA matches the local file — only the user can verify this by checking the deployed URL.
+- After every deploy, always write the deployed HTML to `<workspace>/index.html` so the local copy stays in sync.
 
 ### How to build or update the webapp for a workspace
 
-The agent's job is to produce the correct `index.html` for a given workspace and deploy it. The two source files are:
+The agent's job is to produce the correct `<workspace>/index.html` for a given workspace and deploy it. The two source files are:
 
-- **`pipeline_cards_template.json`** — canonical pipeline definitions: which parameters to expose, their types, defaults, and help text. Read this to know what UI to build.
-- **`workspace_config.json`** — workspace-specific UUIDs to embed in the JavaScript (`PIPELINE_CONFIG` object). Read this to get the correct `id` values for each pipeline card.
+- **`pipeline_cards_template.json`** (repo root) — canonical pipeline definitions: which parameters to expose, their types, defaults, and help text. Read this to know what UI to build.
+- **`<workspace>/workspace_config.json`** — workspace-specific UUIDs to embed in the JavaScript (`PIPELINE_CONFIG` object). Read this to get the correct `id` values for each pipeline card.
 
-When building or updating `index.html`:
+When building or updating `<workspace>/index.html`:
 
 1. Use `pipeline_cards_template.json` to determine the parameters and card layout for each pipeline.
-2. Use `workspace_config.json` to fill in the pipeline UUIDs in the `PIPELINE_CONFIG` JS object.
+2. Use `<workspace>/workspace_config.json` to fill in the pipeline UUIDs in the `PIPELINE_CONFIG` JS object.
 3. Follow the runtime patterns above (prefixed IDs, shared functions, `allowed_operations`, etc.).
-4. Deploy via `mcp__claude_ai_OpenHEXA__update_static_webapp` using `webapp.id` from `workspace_config.json`.
+4. Deploy via `mcp__claude_ai_OpenHEXA__update_static_webapp` using `webapp.id` from the workspace config.
+5. Write the deployed HTML to `<workspace>/index.html`.
 
 ### Session start workflow
 
@@ -234,13 +241,13 @@ When building or updating `index.html`:
 
 Then:
 
-1. Check whether a `workspace_config.json` already exists for that workspace in this directory.
-2. If yes — read it and use the IDs it contains.
-3. If no — use `mcp__claude_ai_OpenHEXA__list_workspaces` to find the workspace slug, then `mcp__claude_ai_OpenHEXA__list_pipelines` and `mcp__claude_ai_OpenHEXA__list_static_webapps` to resolve all UUIDs, then write a new `workspace_config.json` before proceeding.
+1. Check whether a folder for that workspace already exists (e.g. `snt_testing/`).
+2. If yes — read `<workspace>/workspace_config.json` and use the IDs it contains.
+3. If no — use `mcp__claude_ai_OpenHEXA__list_workspaces` to find the workspace slug, then `mcp__claude_ai_OpenHEXA__list_pipelines` and `mcp__claude_ai_OpenHEXA__list_static_webapps` to resolve all UUIDs, then create the workspace folder and write `workspace_config.json` before proceeding.
 
 Keys used in `workspace_config.json`:
 
 - `workspace_slug` — used in all MCP tool calls
 - `webapp.id` — passed to `update_static_webapp` to deploy
-- `pipelines` — keyed by pipeline code (slug), value is the UUID passed to `runPipeline`
+- `pipelines` — keyed by Python function name, value is the UUID passed to `runPipeline`
 - `connections` — keyed by type (e.g. `"dhis2"`), value is the connection slug passed as a `DHIS2Connection` parameter

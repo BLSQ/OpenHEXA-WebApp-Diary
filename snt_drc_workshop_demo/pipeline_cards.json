@@ -1,0 +1,288 @@
+{
+  "workspace_slug": "snt-drc-workshop-demo",
+  "generated_at": "2026-06-03",
+  "_notes": "Parameters are sourced from GitHub main branch and may differ from the version currently deployed in this workspace (e.g. A.4 Data Element and A.6 Incidence have been updated since deployment).",
+  "pipelines": [
+    {
+      "id": "snt_dhis2_extract",
+      "name": "A.1 DHIS2 Extract",
+      "description": "Extracts DHIS2 pyramid, routine analytics, population, shapes, and reporting rates based on a defined period.",
+      "uuid": "d8af0ccc-b897-4d7b-bdee-5963bc5b98c4",
+      "openhexa_code": "a-1-dhis2-extract",
+      "parameters_source": "github_main",
+      "parameters": [
+        { "key": "dhis2_connection", "label": "DHIS2 connection", "help": "DHIS2 instance to extract data from.", "type": "DHIS2Connection", "required": true },
+        { "key": "start", "label": "Period (start)", "help": "Start of DHIS2 period in YYYYMM format.", "type": "int", "required": true },
+        { "key": "end", "label": "Period (end)", "help": "End of DHIS2 period in YYYYMM format.", "type": "int", "required": true },
+        { "key": "overwrite", "label": "Overwrite", "help": "Overwrite existing files in the output dataset.", "type": "bool", "default": true },
+        { "key": "pull_scripts", "label": "Pull scripts", "help": "Pull the latest scripts from the repository before execution.", "type": "bool", "default": false },
+        { "key": "run_report_only", "label": "Run reporting only", "help": "Skip all data extraction steps and only execute the reporting notebook.", "type": "bool", "default": false }
+      ]
+    },
+    {
+      "id": "snt_dhis2_formatting",
+      "name": "A.2 DHIS2 Formatting",
+      "description": "Processes and formats DHIS2 data extracts for the SNT workflow.",
+      "uuid": "5f97e648-ab88-40e4-ab13-5e3d33161bca",
+      "openhexa_code": "a-2-dhis2-formatting",
+      "parameters_source": "github_main",
+      "parameters": [
+        { "key": "run_report_only", "label": "Run reporting only", "help": "This will only execute the reporting notebook.", "type": "bool", "default": false },
+        { "key": "pull_scripts", "label": "Pull scripts", "help": "Pull the latest scripts from the repository.", "type": "bool", "default": false }
+      ]
+    },
+    {
+      "id": "snt_dhis2_outliers_imputation_magic_glasses",
+      "name": "A.3.1 DHIS2 Outlier Detection and Imputation (Magic Glasses)",
+      "description": "Outlier detection and imputation using the Magic Glasses (MAD-based) method.",
+      "uuid": "08a1e64e-cd5b-4397-8600-17a067b10726",
+      "openhexa_code": "a-3-1-dhis2-outlier-detection-and-imputation-magic-glasses",
+      "parameters_source": "github_main",
+      "parameters": [
+        { "key": "mode", "label": "Detection mode", "help": "Partial: fast (~7 min, MAD15 then MAD10). Complete: Partial + seasonal detection, can take several hours.", "type": "str", "default": "partial", "choices": ["partial", "complete"] },
+        { "key": "push_db", "label": "Push to Shiny database", "help": "Send the outliers table to the database for the Shiny app.", "type": "bool", "default": false },
+        { "key": "run_report_only", "label": "Run reporting only", "help": "Run only the reporting notebook (no recomputation).", "type": "bool", "default": false },
+        { "key": "pull_scripts", "label": "Pull scripts", "help": "Pull the latest scripts from the repository before running.", "type": "bool", "default": false }
+      ]
+    },
+    {
+      "id": "snt_dhis2_outliers_imputation_mean",
+      "name": "A.3.1 DHIS2 Outlier Detection and Imputation (Mean)",
+      "description": "Outlier detection and imputation using the mean ± k×SD method.",
+      "uuid": "5b6214b0-687c-4cd9-8824-aa15168dc354",
+      "openhexa_code": "a-3-1-dhis2-outlier-detection-and-imputation-mean",
+      "parameters_source": "github_main",
+      "parameters": [
+        { "key": "deviation_mean", "label": "Number of SD around the mean", "help": "Number of standard deviations around the mean (default is 3).", "type": "int", "default": 3 },
+        { "key": "push_db", "label": "Push outliers table to DB", "help": "Push outliers table to DB.", "type": "bool", "default": true },
+        { "key": "run_report_only", "label": "Run reporting only", "help": "This will only execute the reporting notebook.", "type": "bool", "default": false },
+        { "key": "pull_scripts", "label": "Pull scripts", "help": "Pull the latest scripts from the repository.", "type": "bool", "default": false }
+      ]
+    },
+    {
+      "id": "snt_dhis2_outliers_imputation_median",
+      "name": "A.3.1 DHIS2 Outlier Detection and Imputation (Median)",
+      "description": "Outlier detection and imputation using the median ± k×MAD method.",
+      "uuid": "a8cc0b88-787a-4f22-85c3-6ef34eb7e3e3",
+      "openhexa_code": "a-3-1-dhis2-outlier-detection-and-imputation-median",
+      "parameters_source": "github_main",
+      "parameters": [
+        { "key": "deviation_median", "label": "Number of MAD around the median", "help": "Number of MAD around the median (default is 3).", "type": "int", "default": 3 },
+        { "key": "push_db", "label": "Push outliers table to DB", "help": "Push outliers table to DB.", "type": "bool", "default": true },
+        { "key": "run_report_only", "label": "Run reporting only", "help": "This will only execute the reporting notebook.", "type": "bool", "default": false },
+        { "key": "pull_scripts", "label": "Pull scripts", "help": "Pull the latest scripts from the repository.", "type": "bool", "default": false }
+      ]
+    },
+    {
+      "id": "snt_dhis2_reporting_rate_dataelement",
+      "name": "A.4 DHIS2 Reporting Rate (Data Element)",
+      "description": "Calculates facility reporting rates by data element based on routine data.",
+      "uuid": "106b7c63-49b7-44fe-b1db-51a9e150c9ea",
+      "openhexa_code": "a-4-dhis2-reporting-rate-data-element",
+      "parameters_source": "github_main",
+      "parameters": [
+        { "key": "routine_data_choice", "label": "Routine data source", "help": "Select which routine data to use. 'raw' loads formatted routine data, 'imputed' loads outliers-imputed routine data, 'outliers_removed' loads routine data with outliers removed.", "type": "str", "required": true, "default": "imputed", "choices": ["raw", "imputed", "outliers_removed"] },
+        { "key": "activity_indicators", "label": "Facility Activity indicators", "help": "Define which data elements will be used to determine the activity of a facility.", "type": "str", "required": true, "multiple": true, "default": ["CONF", "PRES"], "choices": ["CONF", "SUSP", "TEST", "PRES"] },
+        { "key": "volume_activity_indicators", "label": "Volume activity indicators", "help": "Define which data elements will be used to determine the volume of activity at a facility.", "type": "str", "required": true, "multiple": true, "default": ["CONF", "PRES"], "choices": ["CONF", "SUSP", "TEST", "PRES"] },
+        { "key": "dataelement_method_denominator", "label": "Denominator method", "help": "How to calculate the total number of facilities expected to report.", "type": "str", "required": true, "default": "ROUTINE_ACTIVE_FACILITIES", "choices": ["ROUTINE_ACTIVE_FACILITIES", "PYRAMID_OPEN_FACILITIES"] },
+        { "key": "use_weighted_reporting_rates", "label": "Use weighted reporting rates", "help": "If checked, weighted rates populate the REPORTING_RATE column; otherwise unweighted rates are used.", "type": "bool", "default": false },
+        { "key": "run_report_only", "label": "Run reporting only", "help": "This will only execute the reporting notebook.", "type": "bool", "default": false },
+        { "key": "pull_scripts", "label": "Pull notebooks from repository", "help": "Pull the latest notebooks from the GitHub repository.", "type": "bool", "default": false }
+      ]
+    },
+    {
+      "id": "snt_dhis2_reporting_rate_dataset",
+      "name": "A.4 DHIS2 Reporting Rate (Dataset)",
+      "description": "Calculates reporting rates using DHIS2 dataset-level reporting rate indicators.",
+      "uuid": "539fc962-0ee8-48ab-82b1-eb2ef7868a18",
+      "openhexa_code": "a-4-dhis2-reporting-rate-dataset",
+      "parameters_source": "github_main",
+      "parameters": [
+        { "key": "routine_data_choice", "label": "Routine data source", "help": "Select which routine data to use.", "type": "str", "required": true, "default": "imputed", "choices": ["raw", "imputed", "outliers_removed"] },
+        { "key": "run_report_only", "label": "Run reporting notebook only", "help": "This will execute only the reporting notebook.", "type": "bool", "default": false },
+        { "key": "pull_scripts", "label": "Pull notebooks from repository", "help": "Pull the latest notebooks from the GitHub repository.", "type": "bool", "default": false }
+      ]
+    },
+    {
+      "id": "snt_dhis2_population_transformation",
+      "name": "A.5 DHIS2 Population Transformation",
+      "description": "Processes DHIS2 population data: scaling, projections, and disaggregation by demographic group.",
+      "uuid": "b79669f5-cba8-4a88-a1c7-ae34e199588f",
+      "openhexa_code": "a-5-dhis2-population-transformation",
+      "parameters_source": "github_main",
+      "parameters": [
+        { "key": "tot_pop_reference", "label": "Part 1: Population reference", "help": "Total population for scaling DHIS2 data proportionally.", "type": "int" },
+        { "key": "tot_pop_reference_year", "label": "Part 1: Population year reference", "help": "Year matching the population reference.", "type": "int" },
+        { "key": "pop_under_5", "label": "Part 2: Proportion population under 5", "help": "Proportion of population aged under 5.", "type": "float" },
+        { "key": "pop_pregnant_women", "label": "Part 2: Proportion population pregnant women", "help": "Proportion of pregnant women population.", "type": "float" },
+        { "key": "pop_0_1_y", "label": "Part 2: Proportion population 0-1 years", "help": "Proportion of population aged 0-1.", "type": "float" },
+        { "key": "pop_1_2_y", "label": "Part 2: Proportion population 1-2 years", "help": "Proportion of population aged 1-2.", "type": "float" },
+        { "key": "pop_5_10_y", "label": "Part 2: Proportion population 5-10 years", "help": "Proportion of population aged 5-10.", "type": "float" },
+        { "key": "pop_5_36_m", "label": "Part 2: Proportion population 5-36 months", "help": "Proportion of population aged 5-36 months.", "type": "float" },
+        { "key": "disaggregation_file", "label": "Part 2: Use disaggregation proportions (.csv)", "help": "User-uploaded file with population disaggregations at ADM2 level.", "type": "File" },
+        { "key": "growth_factor", "label": "Part 3: Projection growth rate", "help": "Annual growth rate for projecting population figures.", "type": "float", "required": true },
+        { "key": "year_reference", "label": "Part 3: Projection reference year", "help": "Base year for population projections.", "type": "int", "required": true },
+        { "key": "run_report_only", "label": "Run reporting only", "help": "Execute only the reporting notebook.", "type": "bool", "default": false },
+        { "key": "pull_scripts", "label": "Pull scripts", "help": "Fetch latest scripts from repository.", "type": "bool", "default": false }
+      ]
+    },
+    {
+      "id": "snt_dhis2_population_transformation",
+      "name": "A.5 DHIS2 Population Transformation (legacy instance)",
+      "description": "Duplicate instance — prefer the entry with openhexa_code 'a-5-dhis2-population-transformation' for new runs.",
+      "uuid": "ab48c716-3b89-4050-a858-cfa7fc10911f",
+      "openhexa_code": "a-5-dhis2-population-transformation-65c1cd",
+      "parameters_source": "github_main",
+      "parameters": [
+        { "key": "tot_pop_reference", "label": "Part 1: Population reference", "help": "Total population for scaling DHIS2 data proportionally.", "type": "int" },
+        { "key": "tot_pop_reference_year", "label": "Part 1: Population year reference", "help": "Year matching the population reference.", "type": "int" },
+        { "key": "pop_under_5", "label": "Part 2: Proportion population under 5", "help": "Proportion of population aged under 5.", "type": "float" },
+        { "key": "pop_pregnant_women", "label": "Part 2: Proportion population pregnant women", "help": "Proportion of pregnant women population.", "type": "float" },
+        { "key": "pop_0_1_y", "label": "Part 2: Proportion population 0-1 years", "help": "Proportion of population aged 0-1.", "type": "float" },
+        { "key": "pop_1_2_y", "label": "Part 2: Proportion population 1-2 years", "help": "Proportion of population aged 1-2.", "type": "float" },
+        { "key": "pop_5_10_y", "label": "Part 2: Proportion population 5-10 years", "help": "Proportion of population aged 5-10.", "type": "float" },
+        { "key": "pop_5_36_m", "label": "Part 2: Proportion population 5-36 months", "help": "Proportion of population aged 5-36 months.", "type": "float" },
+        { "key": "disaggregation_file", "label": "Part 2: Use disaggregation proportions (.csv)", "help": "User-uploaded file with population disaggregations at ADM2 level.", "type": "File" },
+        { "key": "growth_factor", "label": "Part 3: Projection growth rate", "help": "Annual growth rate for projecting population figures.", "type": "float", "required": true },
+        { "key": "year_reference", "label": "Part 3: Projection reference year", "help": "Base year for population projections.", "type": "int", "required": true },
+        { "key": "run_report_only", "label": "Run reporting only", "help": "Execute only the reporting notebook.", "type": "bool", "default": false },
+        { "key": "pull_scripts", "label": "Pull scripts", "help": "Fetch latest scripts from repository.", "type": "bool", "default": false }
+      ]
+    },
+    {
+      "id": "snt_dhis2_incidence",
+      "name": "A.6 DHIS2 Incidence",
+      "description": "Calculates monthly malaria case metrics and yearly incidence rates from routine HMIS data, adjusting for incomplete testing, reporting, and careseeking.",
+      "uuid": "94b984d6-b977-4e8f-8c9a-6d2422468a54",
+      "openhexa_code": "a-6-dhis2-incidence",
+      "parameters_source": "github_main",
+      "parameters": [
+        { "key": "n1_method", "label": "Method for N1 calculations", "help": "Calculate N1 using PRES or SUSP-TEST.", "type": "str", "required": true, "default": "PRES", "choices": ["PRES", "SUSP-TEST"] },
+        { "key": "routine_data_choice", "label": "Routine data to use", "help": "Which routine data to use: 'raw', 'raw_without_outliers', or 'imputed'.", "type": "str", "required": true, "default": "imputed", "choices": ["raw", "raw_without_outliers", "imputed"] },
+        { "key": "use_transformed_population", "label": "Use Transformed Population Data", "help": "Use population from the A.5 Population Transformation pipeline (enabled) or A.2 Formatting (disabled).", "type": "bool", "required": true, "default": false },
+        { "key": "disaggregation_selection", "label": "Analyze by Population Group (only if available)", "help": "Select population group for disaggregated incidence computation.", "type": "str", "choices": ["Children Under 5 Years Old", "Pregnant Women"] },
+        { "key": "careseeking_file_path", "label": "Care seeking behaviour (CSB) data file (.csv)", "help": "Path to CSB data file. Falls back to DHS data if not provided.", "type": "File" },
+        { "key": "run_report_only", "label": "Run Report only", "help": "Execute only the reporting notebook.", "type": "bool", "default": false },
+        { "key": "pull_scripts", "label": "Pull notebooks from repository", "help": "Fetch latest notebooks from GitHub repository.", "type": "bool", "default": false }
+      ]
+    },
+    {
+      "id": "snt_dhis2_seasonality_cases",
+      "name": "A.7 DHIS2 Seasonality - Cases",
+      "description": "SNT-specific pipeline for cases seasonality computation using DHIS2 data.",
+      "uuid": "568de710-8fa1-4d55-b2a6-9814a32ff0c4",
+      "openhexa_code": "a-7-dhis2-seasonality-cases",
+      "parameters_source": "unavailable",
+      "parameters": []
+    },
+    {
+      "id": "snt_worldpop_extract",
+      "name": "B.1 WorldPop Extract",
+      "description": "Extracts WorldPop population raster data for the workspace country.",
+      "uuid": "97b2adde-3fd4-48ce-8132-809162fab848",
+      "openhexa_code": "b-1-worldpop-extract",
+      "parameters_source": "github_main",
+      "parameters": [
+        { "key": "overwrite", "label": "Overwrite", "help": "Overwrite existing population files.", "type": "bool", "default": false },
+        { "key": "pull_scripts", "label": "Pull scripts", "help": "Pull the latest scripts from the repository.", "type": "bool", "default": false },
+        { "key": "year", "label": "Year", "help": "Year of population data to extract from WorldPop.", "type": "int", "default": 2020 }
+      ]
+    },
+    {
+      "id": "snt_map_extracts",
+      "name": "B.2 MAP Extracts",
+      "description": "Extracts raster data from the Malaria Atlas Project (MAP) and computes zonal statistics.",
+      "uuid": "5f391281-8ba4-4c56-9910-9e7f3c9c2b6a",
+      "openhexa_code": "b-2-map-extracts",
+      "parameters_source": "github_main",
+      "parameters": [
+        { "key": "pop_raster_selection", "label": "Population raster selection (.tif)", "help": "Select the population raster (.tif) used for population-weighted calculations.", "type": "File" },
+        { "key": "target_year", "label": "Target Year", "help": "Target year for indicator selection (e.g. 2022). Defaults to latest if unavailable or not specified.", "type": "str", "required": true },
+        { "key": "run_report_only", "label": "Run reporting only", "help": "This will only execute the reporting notebook.", "type": "bool", "default": false },
+        { "key": "pull_scripts", "label": "Pull scripts", "help": "Pull the latest scripts from the repository.", "type": "bool", "default": false }
+      ]
+    },
+    {
+      "id": "snt_healthcare_access",
+      "name": "B.3 Access to Healthcare",
+      "description": "Computes access to healthcare metrics based on facility locations, population, and catchment areas.",
+      "uuid": "690da7c7-4a49-42ba-8b72-a7f0cd4a1acb",
+      "openhexa_code": "b-3-access-to-health-care",
+      "parameters_source": "github_main",
+      "parameters": [
+        { "key": "input_fosa_file", "label": "FOSA location file (.csv)", "help": "If not provided, the DHIS2 pyramid metadata file will be used.", "type": "File" },
+        { "key": "input_radius_meters", "label": "Radius around FOSA (meters)", "help": "Catchment radius in meters.", "type": "int", "default": 5000 },
+        { "key": "input_pop_file", "label": "Population raster file (.tif)", "help": "If not provided, the default WorldPop raster will be used.", "type": "File" },
+        { "key": "input_shapes_file", "label": "Shapes file (.geojson)", "help": "If not provided, the default HMIS/NMDR shapes file will be used.", "type": "File" },
+        { "key": "run_report_only", "label": "Run reporting only", "help": "This will only execute the reporting notebook.", "type": "bool", "default": false },
+        { "key": "pull_scripts", "label": "Pull scripts", "help": "Pull the latest scripts from the repository.", "type": "bool", "default": false }
+      ]
+    },
+    {
+      "id": "snt_era5_climate_data",
+      "name": "D.1 ERA5 Climate Data",
+      "description": "Extracts ERA5 climate data from the Copernicus Climate Data Store for the workspace country.",
+      "uuid": "f9b64c12-369c-4841-81b3-d7f0a5600db5",
+      "openhexa_code": "d-1-era5-climate-data",
+      "parameters_source": "github_main",
+      "parameters": [
+        { "key": "start_date", "label": "Start date", "help": "Start date of extraction period.", "type": "str", "required": true, "default": "2018-01-01" },
+        { "key": "end_date", "label": "End date", "help": "End date of extraction period. Latest available by default.", "type": "str" },
+        { "key": "cds_connection", "label": "Climate data store", "help": "Credentials for connection to the Copernicus Climate Data Store.", "type": "CustomConnection", "required": true },
+        { "key": "pull_scripts", "label": "Pull scripts", "help": "Pull the latest scripts from the repository.", "type": "bool", "default": false },
+        { "key": "run_report_only", "label": "Run reporting only", "help": "This will only execute the reporting notebook.", "type": "bool", "default": false }
+      ]
+    },
+    {
+      "id": "snt_seasonality_rainfall",
+      "name": "D.2 ERA5 Seasonality - Rainfall",
+      "description": "Computes rainfall seasonality metrics from ERA5 climate data.",
+      "uuid": "5f9ba155-9040-4835-aa6d-ebca9a194344",
+      "openhexa_code": "d-2-era5-seasonality-rainfall",
+      "parameters_source": "github_main",
+      "parameters": [
+        { "key": "get_minimum_month_block_size", "label": "Minimum number of months per block", "help": "Minimum duration of the seasonal block (in months).", "type": "int", "required": true, "default": 3, "choices": [3, 4, 5] },
+        { "key": "get_maximum_month_block_size", "label": "Maximum number of months per block", "help": "Maximum duration of the seasonal block (in months).", "type": "int", "required": true, "default": 5, "choices": [3, 4, 5] },
+        { "key": "get_threshold_for_seasonality", "label": "Minimal proportion of rainfall for seasonality", "help": "The proportion of annual rainfall that must fall within the block.", "type": "float", "required": true, "default": 0.6 },
+        { "key": "get_threshold_proportion_seasonal_years", "label": "Minimal proportion of seasonal years", "help": "The proportion of years that must be classified as seasonal.", "type": "float", "default": 0.5 },
+        { "key": "use_calendar_year_denominator", "label": "Use calendar year as denominator", "help": "Method to define 'annual' rainfall for the denominator.", "type": "bool", "default": false },
+        { "key": "run_report_only", "label": "Run reporting only", "help": "Skip calculations and only execute the reporting notebook.", "type": "bool", "default": false },
+        { "key": "pull_scripts", "label": "Pull scripts", "help": "Pull the latest scripts from the repository before execution.", "type": "bool", "default": false }
+      ]
+    },
+    {
+      "id": "snt_seasonality_rainfall",
+      "name": "D.2 ERA5 Seasonality - Rainfall (duplicate instance)",
+      "description": "Duplicate instance — prefer the entry with openhexa_code 'd-2-era5-seasonality-rainfall' for new runs.",
+      "uuid": "d956aeda-8b02-43c1-a75b-c478df70be43",
+      "openhexa_code": "d-2-era5-seasonality-rainfall-915302",
+      "parameters_source": "github_main",
+      "parameters": [
+        { "key": "get_minimum_month_block_size", "label": "Minimum number of months per block", "help": "Minimum duration of the seasonal block (in months).", "type": "int", "required": true, "default": 3, "choices": [3, 4, 5] },
+        { "key": "get_maximum_month_block_size", "label": "Maximum number of months per block", "help": "Maximum duration of the seasonal block (in months).", "type": "int", "required": true, "default": 5, "choices": [3, 4, 5] },
+        { "key": "get_threshold_for_seasonality", "label": "Minimal proportion of rainfall for seasonality", "help": "The proportion of annual rainfall that must fall within the block.", "type": "float", "required": true, "default": 0.6 },
+        { "key": "get_threshold_proportion_seasonal_years", "label": "Minimal proportion of seasonal years", "help": "The proportion of years that must be classified as seasonal.", "type": "float", "default": 0.5 },
+        { "key": "use_calendar_year_denominator", "label": "Use calendar year as denominator", "help": "Method to define 'annual' rainfall for the denominator.", "type": "bool", "default": false },
+        { "key": "run_report_only", "label": "Run reporting only", "help": "Skip calculations and only execute the reporting notebook.", "type": "bool", "default": false },
+        { "key": "pull_scripts", "label": "Pull scripts", "help": "Pull the latest scripts from the repository before execution.", "type": "bool", "default": false }
+      ]
+    },
+    {
+      "id": "snt_dhis2_reporting_rate_dataelement",
+      "name": "snt_dhis2_reporting_rate_dataelement (unlinked instance)",
+      "description": "Loose instance not linked to the standard SNT pipeline code. Prefer uuid 106b7c63 (openhexa_code: a-4-dhis2-reporting-rate-data-element) for new runs.",
+      "uuid": "6ae96afd-808f-406b-b508-c471ff5ce49b",
+      "openhexa_code": "snt-dhis2-reporting-rate-dataelement",
+      "parameters_source": "github_main",
+      "parameters": [
+        { "key": "routine_data_choice", "label": "Routine data source", "help": "Select which routine data to use.", "type": "str", "required": true, "default": "imputed", "choices": ["raw", "imputed", "outliers_removed"] },
+        { "key": "activity_indicators", "label": "Facility Activity indicators", "help": "Define which data elements determine facility activity.", "type": "str", "required": true, "multiple": true, "default": ["CONF", "PRES"], "choices": ["CONF", "SUSP", "TEST", "PRES"] },
+        { "key": "volume_activity_indicators", "label": "Volume activity indicators", "help": "Define which data elements determine volume of activity.", "type": "str", "required": true, "multiple": true, "default": ["CONF", "PRES"], "choices": ["CONF", "SUSP", "TEST", "PRES"] },
+        { "key": "dataelement_method_denominator", "label": "Denominator method", "help": "How to calculate the total number of facilities expected to report.", "type": "str", "required": true, "default": "ROUTINE_ACTIVE_FACILITIES", "choices": ["ROUTINE_ACTIVE_FACILITIES", "PYRAMID_OPEN_FACILITIES"] },
+        { "key": "use_weighted_reporting_rates", "label": "Use weighted reporting rates", "help": "If checked, weighted rates populate the REPORTING_RATE column.", "type": "bool", "default": false },
+        { "key": "run_report_only", "label": "Run reporting only", "help": "This will only execute the reporting notebook.", "type": "bool", "default": false },
+        { "key": "pull_scripts", "label": "Pull notebooks from repository", "help": "Pull the latest notebooks from the GitHub repository.", "type": "bool", "default": false }
+      ]
+    }
+  ]
+}

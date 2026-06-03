@@ -1,0 +1,30 @@
+{
+  "_comment": "Workspace-specific resolved IDs for SNT DRC Workshop Demo. Never copy UUIDs across workspaces — look them up fresh with MCP tools.",
+  "workspace_slug": "snt-drc-workshop-demo",
+  "workspace_name": "SNT DRC Workshop Demo",
+  "webapp": {
+    "id": "bb05474e-ddf8-49ce-9cee-2ade18e00bc8",
+    "slug": "a-2-dhis2-formatting",
+    "url": "https://a-2-dhis2-formatting.openhexa.io/"
+  },
+  "connections": {
+    "dhis2": "dhis2-nmdr-drc"
+  },
+  "pipelines": {
+    "snt_dhis2_extract":                           "d8af0ccc-b897-4d7b-bdee-5963bc5b98c4",
+    "snt_dhis2_formatting":                        "5f97e648-ab88-40e4-ab13-5e3d33161bca",
+    "snt_dhis2_outliers_imputation_magic_glasses": "08a1e64e-cd5b-4397-8600-17a067b10726",
+    "snt_dhis2_outliers_imputation_mean":          "5b6214b0-687c-4cd9-8824-aa15168dc354",
+    "snt_dhis2_outliers_imputation_median":        "a8cc0b88-787a-4f22-85c3-6ef34eb7e3e3",
+    "snt_dhis2_reporting_rate_dataelement":        "106b7c63-49b7-44fe-b1db-51a9e150c9ea",
+    "snt_dhis2_reporting_rate_dataset":            "539fc962-0ee8-48ab-82b1-eb2ef7868a18",
+    "snt_dhis2_population_transformation":         "b79669f5-cba8-4a88-a1c7-ae34e199588f",
+    "snt_dhis2_incidence":                         "94b984d6-b977-4e8f-8c9a-6d2422468a54",
+    "snt_dhis2_seasonality_cases":                 "568de710-8fa1-4d55-b2a6-9814a32ff0c4",
+    "snt_worldpop_extract":                        "97b2adde-3fd4-48ce-8132-809162fab848",
+    "snt_map_extracts":                            "5f391281-8ba4-4c56-9910-9e7f3c9c2b6a",
+    "snt_healthcare_access":                       "690da7c7-4a49-42ba-8b72-a7f0cd4a1acb",
+    "snt_era5_climate_data":                       "f9b64c12-369c-4841-81b3-d7f0a5600db5",
+    "snt_seasonality_rainfall":                    "5f9ba155-9040-4835-aa6d-ebca9a194344"
+  }
+}
