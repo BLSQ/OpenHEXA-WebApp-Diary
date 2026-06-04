@@ -148,7 +148,7 @@
         { "key": "pop_5_36_m", "label": "Part 2: Proportion population 5-36 months", "help": "Proportion of population aged 5-36 months.", "type": "float" },
         { "key": "disaggregation_file", "label": "Part 2: Use disaggregation proportions (.csv)", "help": "User-uploaded file with population disaggregations at ADM2 level.", "type": "File" },
         { "key": "growth_factor", "label": "Part 3: Projection growth rate", "help": "Annual growth rate for projecting population figures.", "type": "float", "required": true },
-        { "key": "year_reference", "label": "Part 3: Projection reference year", "help": "Base year for population projections.", "type": "int", "required": true },
+        { "key": "growth_reference_year", "label": "Part 3: Projection reference year", "help": "Base year for population projections.", "type": "int", "required": true },
         { "key": "run_report_only", "label": "Run reporting only", "help": "Execute only the reporting notebook.", "type": "bool", "default": false },
         { "key": "pull_scripts", "label": "Pull scripts", "help": "Fetch latest scripts from repository.", "type": "bool", "default": false }
       ]

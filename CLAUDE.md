@@ -251,6 +251,15 @@ Each workspace folder contains a `pipeline_cards.json` — a cached catalog of e
 
 `pipeline_cards.json` is the primary source for: which pipelines exist in the workspace (with UUIDs) and what parameters each pipeline accepts (for building UI cards).
 
+**It is a cache, not live truth — confirm before deploy.** Each file carries a `generated_at`
+date; a pipeline's `@parameter` decorators on GitHub can change after that (a renamed/added/
+removed param makes runs fail with `The provided config contains invalid key(s): …`). So
+before building or deploying any webapp, state the cards' `generated_at` date and ask the user
+whether to re-fetch params for **only the pipeline(s) that app will run** (not the whole
+catalog) from `…/snt_development/main/{pipeline_id}/pipeline.py`. If they confirm, re-extract
+the decorators, patch any drift into both `pipeline_cards.json` (bump `generated_at`) and the
+app's `PIPELINE_CONFIG`/form, then deploy.
+
 ### How to add or update a pipeline definition
 
 The user will specify which pipelines to include. For each one, fetch its source code from GitHub and extract the parameter definitions directly from the `@parameter` decorators.

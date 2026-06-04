@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Run Population Transformation Pipeline</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="cards-container">
+
+      <!-- A.5 DHIS2 Population Transformation -->
+      <div class="card">
+        <span class="badge">Pipeline</span>
+        <h1>A.5 DHIS2 Population Transformation</h1>
+        <p class="subtitle">
+          Processes DHIS2 population data: scaling, projections, and disaggregation by demographic group.
+        </p>
+
+        <div class="params-title">Parameters</div>
+
+        <!-- Part 1: Scaling -->
+        <div class="section-header">Part 1 — Scaling</div>
+
+        <div class="param-field">
+          <div class="param-field-header">
+            <span class="param-field-label">Population reference</span>
+          </div>
+          <div class="param-help">Total population for scaling DHIS2 data proportionally.</div>
+          <input type="number" id="pt_tot_pop_reference" placeholder="Optional" min="0" step="1" />
+        </div>
+
+        <div class="param-field">
+          <div class="param-field-header">
+            <span class="param-field-label">Population year reference</span>
+          </div>
+          <div class="param-help">Year matching the population reference.</div>
+          <input type="number" id="pt_tot_pop_reference_year" placeholder="Optional (e.g. 2022)" min="1900" max="2100" step="1" />
+        </div>
+
+        <!-- Part 2: Disaggregation -->
+        <div class="section-header">Part 2 — Disaggregation</div>
+
+        <div class="param-field">
+          <div class="param-field-header">
+            <span class="param-field-label">Proportion population under 5</span>
+          </div>
+          <div class="param-help">Proportion of population aged under 5.</div>
+          <input type="number" id="pt_pop_under_5" placeholder="Optional (e.g. 0.18)" min="0" max="1" step="any" />
+        </div>
+
+        <div class="param-field">
+          <div class="param-field-header">
+            <span class="param-field-label">Proportion population pregnant women</span>
+          </div>
+          <div class="param-help">Proportion of pregnant women population.</div>
+          <input type="number" id="pt_pop_pregnant_women" placeholder="Optional (e.g. 0.045)" min="0" max="1" step="any" />
+        </div>
+
+        <div class="param-field">
+          <div class="param-field-header">
+            <span class="param-field-label">Proportion population 0–1 years</span>
+          </div>
+          <div class="param-help">Proportion of population aged 0–1.</div>
+          <input type="number" id="pt_pop_0_1_y" placeholder="Optional" min="0" max="1" step="any" />
+        </div>
+
+        <div class="param-field">
+          <div class="param-field-header">
+            <span class="param-field-label">Proportion population 1–2 years</span>
+          </div>
+          <div class="param-help">Proportion of population aged 1–2.</div>
+          <input type="number" id="pt_pop_1_2_y" placeholder="Optional" min="0" max="1" step="any" />
+        </div>
+
+        <div class="param-field">
+          <div class="param-field-header">
+            <span class="param-field-label">Proportion population 5–10 years</span>
+          </div>
+          <div class="param-help">Proportion of population aged 5–10.</div>
+          <input type="number" id="pt_pop_5_10_y" placeholder="Optional" min="0" max="1" step="any" />
+        </div>
+
+        <div class="param-field">
+          <div class="param-field-header">
+            <span class="param-field-label">Proportion population 5–36 months</span>
+          </div>
+          <div class="param-help">Proportion of population aged 5–36 months.</div>
+          <input type="number" id="pt_pop_5_36_m" placeholder="Optional" min="0" max="1" step="any" />
+        </div>
+
+        <div class="param-field">
+          <div class="param-field-header">
+            <span class="param-field-label">Use disaggregation proportions (.csv)</span>
+          </div>
+          <div class="param-help">Path to a CSV file with population disaggregations at ADM2 level already uploaded to the workspace bucket (e.g. /data/disaggregation.csv). Leave blank to skip.</div>
+          <input type="text" id="pt_disaggregation_file" placeholder="Optional — e.g. /data/disaggregation.csv" />
+        </div>
+
+        <!-- Part 3: Projections -->
+        <div class="section-header">Part 3 — Projections</div>
+
+        <div class="param-field">
+          <div class="param-field-header">
+            <span class="param-field-label">Projection growth rate</span>
+            <span class="param-field-required">required</span>
+          </div>
+          <div class="param-help">Annual growth rate for projecting population figures (e.g. 0.025 for 2.5%).</div>
+          <input type="number" id="pt_growth_factor" placeholder="e.g. 0.025" step="any" />
+        </div>
+
+        <div class="param-field">
+          <div class="param-field-header">
+            <span class="param-field-label">Projection reference year</span>
+            <span class="param-field-required">required</span>
+          </div>
+          <div class="param-help">Base year for population projections.</div>
+          <input type="number" id="pt_year_reference" placeholder="e.g. 2022" min="1900" max="2100" step="1" />
+        </div>
+
+        <!-- Options -->
+        <div class="section-header">Options</div>
+
+        <label class="param">
+          <input type="checkbox" id="pt_run_report_only" />
+          <div>
+            <div class="param-label">Run reporting only</div>
+            <div class="param-help">Execute only the reporting notebook.</div>
+          </div>
+        </label>
+
+        <label class="param">
+          <input type="checkbox" id="pt_pull_scripts" />
+          <div>
+            <div class="param-label">Pull scripts</div>
+            <div class="param-help">Fetch latest scripts from repository.</div>
+          </div>
+        </label>
+
+        <button id="pt_runBtn" onclick="runPipeline('pt')">&#9654; Run pipeline</button>
+
+        <div id="pt_statusBox" class="status">
+          <div class="icon" id="pt_statusIcon"></div>
+          <div class="text">
+            <div id="pt_statusText"></div>
+            <div class="duration" id="pt_statusDuration"></div>
+          </div>
+        </div>
+
+        <div id="pt_outputsSection" class="outputs-section">
+          <div class="outputs-title">Outputs</div>
+          <div id="pt_outputsList"></div>
+        </div>
+      </div>
+
+    </div><!-- /.cards-container -->
+
+    <script src="app.js"></script>
+  </body>
+</html>
