@@ -1,5 +1,12 @@
 # Project Context
 
+## Master plan
+
+The plan of action for the SNT Pipelines Orchestrator lives in `knowledge/PLAN.md` (phased,
+atomic tasks with owner tags) and its visual roadmap in `knowledge/ROADMAP.md`. **Read
+`knowledge/PLAN.md` at the start of any session working toward the orchestrator**, and locate
+the task being worked on (e.g. "do T0.9") there before starting.
+
 ## OpenHEXA GraphQL Schema
 
 A local copy of the OpenHEXA GraphQL schema is stored in this directory as `schema.generated.graphql`.
