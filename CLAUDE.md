@@ -7,6 +7,10 @@ atomic tasks with owner tags) and its visual roadmap in `knowledge/ROADMAP.md`. 
 `knowledge/PLAN.md` at the start of any session working toward the orchestrator**, and locate
 the task being worked on (e.g. "do T0.9") there before starting.
 
+The plan is mirrored to Jira (project `SNT25`, Epic `SNT25-536`). `knowledge/JIRA_ITEMS.md`
+holds the full text of every Jira issue, the creation conventions, and a **resume runbook** —
+read it before creating or updating Jira items for this project.
+
 ## OpenHEXA GraphQL Schema
 
 A local copy of the OpenHEXA GraphQL schema is stored in this directory as `schema.generated.graphql`.

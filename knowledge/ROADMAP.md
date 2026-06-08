@@ -9,7 +9,7 @@
 
 | Colour | Owner | |
 | --- | --- | --- |
-| 🟡 Amber | 🧑 **You** (Giulia) | OpenHEXA actions, map content, reviews |
+| 🟡 Amber | 🤿 **Giulia** | OpenHEXA actions, map content, reviews |
 | 🔵 Blue | 🤖 **Agent** (Claude Code) | Code & JSON, deploy, mirror files |
 | ⚪ Grey | 👔 **PM** | UI design input, map validation |
 | 🔴 Red | 🛠️ **OH devs** | Platform / MCP / proxy questions |
@@ -26,9 +26,9 @@ flowchart TD
 
     subgraph P0[Phase 0 · Foundations & de-risking — start all three today]
         direction LR
-        TA["Track A · Workspace<br/>🧑 create SNT App Dev,<br/>install + run all pipelines"]
-        TB["Track B · The map<br/>🧑👔 consolidate layout →<br/>🤖 pipeline_map.json"]
-        TC["Track C · Status spike<br/>🤖🧑 prove runs query<br/>through the proxy"]
+        TA["Track A · Workspace<br/>🤿 create SNT App Dev,<br/>install + run all pipelines"]
+        TB["Track B · The map<br/>🤿👔 consolidate layout →<br/>🤖 pipeline_map.json"]
+        TC["Track C · Status spike<br/>🤖🤿 prove runs query<br/>through the proxy"]
     end
 
     P0 --> P1["Phase 1 · Read-only status board<br/>(first shippable webapp)"]
@@ -53,21 +53,21 @@ flowchart TD
     classDef oh fill:#f5c6cb,stroke:#721c24,color:#222;
 
     subgraph P0[Phase 0 · Foundations & de-risking]
-        T00["T0.0 🧑👔🛠️ Validate product spec"]
+        T00["T0.0 🤿👔🛠️ Validate product spec"]
         subgraph TA[Track A · Workspace]
-            T01["T0.1 🧑 Create SNT App Dev ws"]
-            T02["T0.2 🧑 Install ~20 pipelines"]
-            T03["T0.3 🧑 Connections + config + data"]
-            T04["T0.4 🧑 Run each pipeline once"]
+            T01["T0.1 🤿 Create SNT App Dev ws"]
+            T02["T0.2 🤿 Install ~20 pipelines"]
+            T03["T0.3 🤿 Connections + config + data"]
+            T04["T0.4 🤿 Run each pipeline once"]
             T05["T0.5 🤖 Gen config + cards"]
         end
         subgraph TB[Track B · The map]
-            T06["T0.6 🧑👔 Consolidate map content"]
+            T06["T0.6 🤿👔 Consolidate map content"]
             T07["T0.7 🤖 Build pipeline_map.json"]
-            T08["T0.8 🧑👔 Review rendered layout"]
+            T08["T0.8 🤿👔 Review rendered layout"]
         end
         subgraph TC[Track C · Status spike]
-            T09["T0.9 🤖🧑 Spike: runs query via proxy"]
+            T09["T0.9 🤖🤿 Spike: runs query via proxy"]
             T010["T0.10 🛠️ If blocked: ticket to OH devs"]
         end
     end
@@ -79,17 +79,17 @@ flowchart TD
         T14["T1.4 🤖 Available vs greyed"]
         T15["T1.5 🤖 Live status layer"]
         T16["T1.6 🤖 Read-only sidebar"]
-        T17["T1.7 🤖🧑 Deploy + QA"]
-        T18["T1.8 👔🧑 UI review round"]
+        T17["T1.7 🤖🤿 Deploy + QA"]
+        T18["T1.8 👔🤿 UI review round"]
     end
 
     subgraph P2[Phase 2 · Make it runnable]
-        T21["T2.1 🧑🤖 Confirm params not stale"]
+        T21["T2.1 🤿🤖 Confirm params not stale"]
         T22["T2.2 🤖 Param form + config builder"]
         T23["T2.3 🤖 Run + poll"]
         T24["T2.4 🤖 Mutual exclusion"]
         T25["T2.5 🤖 Missing-pipeline message"]
-        T26["T2.6 🤖🧑 Deploy + QA running"]
+        T26["T2.6 🤖🤿 Deploy + QA running"]
     end
 
     subgraph P3[Phase 3 · Locking + polish]
@@ -100,8 +100,8 @@ flowchart TD
 
     subgraph P4[Phase 4 · Generalize]
         T41["T4.1 🤖 Verify generic separation"]
-        T42["T4.2 🤖🧑 Deploy 2nd workspace"]
-        T43["T4.3 🤖🧑 Document runbook"]
+        T42["T4.2 🤖🤿 Deploy 2nd workspace"]
+        T43["T4.3 🤖🤿 Document runbook"]
     end
 
     T01 --> T02
@@ -155,5 +155,5 @@ flowchart TD
   The map (Track B) is the long pole — start it now.
 - **T0.9 (the spike) has only one prerequisite** (a workspace with some runs), so it can go
   first, in parallel, using the existing `snt_testing` workspace.
-- **T0.8 reaches back** into Phase 0 from `T1.2`/`T1.3`: you can only eyeball the rendered
+- **T0.8 reaches back** into Phase 0 from `T1.2`/`T1.3`: Giulia can only eyeball the rendered
   layout once the grid + arrows exist.
