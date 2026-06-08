@@ -151,6 +151,39 @@ The proxy enforces a whitelist of permitted GraphQL operations. Set via `update_
 
 If a query fails with a permission error in the webapp, a scope is missing. The SNT pipeline webapp requires at minimum `PIPELINES_READ, PIPELINES_RUN, FILES_READ`.
 
+### Reading last-run status for all pipelines (cross-session status board)
+
+**Confirmed working through the static-webapp proxy under `PIPELINES_READ` alone** (spike T0.9,
+verified live in `snt-testing`: a pipeline triggered in the OH UI showed up as `running` on the
+next app refresh). This is the query that powers the read-only status board.
+
+Pipelines are fetched via the **top-level `pipelines(workspaceSlug:…)` query** — note the
+`Workspace` type has **no** `pipelines` field, so `workspace { pipelines }` does *not* parse.
+Pass `window.OPENHEXA.workspaceSlug` as the slug. Each `Pipeline` exposes `runs(...)`; ask for
+the single most-recent run with `orderBy: EXECUTION_DATE_DESC, perPage: 1`.
+
+```graphql
+query ($ws: String!) {
+  pipelines(workspaceSlug: $ws, page: 1, perPage: 50) {
+    totalItems
+    items {
+      id
+      code
+      name
+      runs(orderBy: EXECUTION_DATE_DESC, page: 1, perPage: 1) {
+        totalItems
+        items { id status executionDate duration }
+      }
+    }
+  }
+}
+```
+
+`PipelineRunStatus` values: `queued`, `running`, `success`, `failed`, `stopped`, `skipped`,
+`terminating`. A pipeline with no runs returns an empty `runs.items` array (render as greyed /
+"no runs"). This is the *list* status query; to poll a single run you triggered for its outputs,
+use the `pipelineRun(id:)` query below.
+
 ### Running a pipeline
 
 Pass the pipeline **UUID** (not code/slug) as `id`. Parameters go in `config` as a plain JSON object with keys matching the pipeline's parameter names exactly:
