@@ -10,8 +10,8 @@
 A fresh session can continue creating these issues from a cold start by reading this file.
 
 **Coordinates**
-- Site: `bluesquare.atlassian.net` · cloudId `2ad5ec27-65ed-48a6-bc11-ee60d9d52ae3`
-  (re-derive any time with `getAccessibleAtlassianResources`).
+- Site: `bluesquare.atlassian.net`. Get the cloudId at runtime with
+  `getAccessibleAtlassianResources` (do not hardcode it here — public repo).
 - Project: **SNT25** (id 15083) · Epic: **SNT25-536**.
 - Tools: the **Atlassian MCP** (claude.ai connector). Load schemas via `ToolSearch`
   (`createJiraIssue`, `createIssueLink`, `editJiraIssue`, `getTransitionsForJiraIssue`,
