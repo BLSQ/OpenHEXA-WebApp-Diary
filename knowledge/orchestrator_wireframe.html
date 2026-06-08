@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>SNT Pipelines Orchestrator — UI Wireframe</title>
+<style>
+  /* ---------------------------------------------------------------
+     LOW-FIDELITY GREYSCALE WIREFRAME
+     Purpose: communicate layout & UX, not final visual design.
+     Everything is intentionally greyscale.
+  ----------------------------------------------------------------*/
+  :root{
+    --ink:#2b2b2b;
+    --ink-soft:#5c5c5c;
+    --ink-faint:#8a8a8a;
+    --line:#bcbcbc;
+    --line-soft:#d6d6d6;
+    --paper:#ffffff;
+    --bg:#ececed;
+    --panel:#f6f6f6;
+    --greyed-bg:#e6e6e6;
+    --chip:#dadada;
+    --selected:#2b2b2b;
+    --mono:"SFMono-Regular",Consolas,"Liberation Mono",Menlo,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{
+    background:var(--bg);
+    font-family:var(--sans);
+    color:var(--ink);
+    font-size:14px;
+    line-height:1.4;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  /* Wireframe banner */
+  .wf-banner{
+    background:repeating-linear-gradient(45deg,#dcdcdc,#dcdcdc 10px,#d2d2d2 10px,#d2d2d2 20px);
+    color:#444;
+    font-size:11px;
+    letter-spacing:.12em;
+    text-transform:uppercase;
+    text-align:center;
+    padding:5px 8px;
+    border-bottom:1px solid var(--line);
+  }
+
+  /* ---------- App bar ---------- */
+  .appbar{
+    display:flex;align-items:center;gap:16px;
+    padding:12px 20px;
+    background:var(--paper);
+    border-bottom:1px solid var(--line);
+  }
+  .appbar .logo{
+    width:30px;height:30px;border:2px solid var(--ink);border-radius:6px;
+    display:flex;align-items:center;justify-content:center;font-weight:700;color:var(--ink);
+  }
+  .appbar h1{font-size:16px;margin:0;font-weight:700}
+  .appbar .ws{
+    margin-left:auto;font-size:12px;color:var(--ink-soft);
+    border:1px solid var(--line);border-radius:14px;padding:4px 12px;background:var(--panel);
+  }
+  .appbar .ws b{color:var(--ink)}
+
+  /* ---------- Layout ---------- */
+  .shell{display:flex;height:calc(100vh - 36px - 55px);min-height:640px}
+  .canvas-wrap{
+    flex:1 1 auto;overflow:auto;position:relative;
+    background:
+      linear-gradient(var(--bg) 0 0) padding-box,
+      repeating-linear-gradient(0deg,transparent,transparent 23px,#e3e3e3 23px,#e3e3e3 24px),
+      repeating-linear-gradient(90deg,transparent,transparent 23px,#e3e3e3 23px,#e3e3e3 24px);
+    background-color:#efefef;
+  }
+  .canvas-title{
+    position:sticky;top:0;z-index:5;
+    background:rgba(239,239,239,.92);backdrop-filter:blur(2px);
+    padding:10px 20px;border-bottom:1px dashed var(--line);
+    font-size:12px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.08em;
+    display:flex;align-items:center;gap:10px;
+  }
+
+  /* The flow chart positioning context */
+  .flow{position:relative;width:860px;height:980px;margin:24px auto 60px}
+  svg.edges{position:absolute;inset:0;width:100%;height:100%;z-index:0;pointer-events:none}
+
+  /* ---------- Pipeline card ---------- */
+  .card{
+    position:absolute;z-index:1;
+    background:var(--paper);
+    border:1.5px solid var(--line);
+    border-radius:8px;
+    padding:12px 14px 12px;
+    box-shadow:0 1px 0 rgba(0,0,0,.04);
+  }
+  .card .corner-status{
+    position:absolute;top:-11px;left:-11px;
+    width:24px;height:24px;border-radius:50%;
+    border:1.5px solid var(--ink-soft);background:var(--paper);
+    display:flex;align-items:center;justify-content:center;
+    font-size:13px;font-weight:700;color:var(--ink);
+  }
+  .card .type-label{
+    position:absolute;top:10px;right:12px;
+    font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;
+    color:var(--ink-soft);background:var(--chip);
+    border-radius:10px;padding:2px 8px;
+  }
+  .card .ptitle{font-weight:700;font-size:14px;margin:0 70px 3px 4px}
+  .card .pdesc{color:var(--ink-soft);font-size:12px;margin:0 4px 9px;min-height:16px}
+  .card .pmeta{
+    display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+    border-top:1px dashed var(--line-soft);padding-top:8px;margin:0 4px;
+    font-size:11px;color:var(--ink-faint);
+  }
+  .card .pmeta .status{font-weight:600;color:var(--ink-soft)}
+  .card .pmeta .out{color:var(--ink-soft);text-decoration:underline dotted}
+  .card .pmeta .sep{color:var(--line)}
+
+  /* States */
+  .card.s-ok    .corner-status{background:#cfcfcf}
+  .card.s-fail  .corner-status{background:#fff}
+  .card.s-run   .corner-status{border-style:dashed}
+  .card.selected{border:2.5px solid var(--selected);box-shadow:0 0 0 4px rgba(43,43,43,.08)}
+  .card.greyed{
+    background:var(--greyed-bg);border-style:dashed;border-color:#c2c2c2;color:var(--ink-faint);
+    box-shadow:none;
+  }
+  .card.greyed .ptitle{color:var(--ink-faint)}
+  .card.greyed .corner-status{color:var(--ink-faint);border-style:dashed;background:var(--greyed-bg)}
+
+  /* ---------- Alternative group box ---------- */
+  .altgroup{
+    position:absolute;z-index:1;
+    border:1.5px dashed #b3b3b3;border-radius:12px;
+    background:rgba(255,255,255,.45);
+    padding:26px 14px 14px;
+  }
+  .altgroup .grouplbl{
+    position:absolute;top:-11px;left:16px;
+    background:var(--bg);padding:0 8px;
+    font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-soft);
+    font-weight:600;
+  }
+  .altgroup .grouplbl .mutex{color:var(--ink-faint);font-weight:400;text-transform:none;letter-spacing:0}
+  .altrow{display:flex;gap:10px;align-items:stretch}
+
+  /* compact card inside a group */
+  .mini{
+    flex:1 1 0;min-width:0;
+    background:var(--paper);border:1.5px solid var(--line);border-radius:7px;
+    padding:10px 10px 9px;position:relative;
+  }
+  .mini .mini-status{
+    position:absolute;top:-9px;left:-9px;width:20px;height:20px;border-radius:50%;
+    border:1.5px solid var(--ink-soft);background:var(--paper);
+    display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;
+  }
+  .mini.s-ok .mini-status{background:#cfcfcf}
+  .mini .mtitle{font-weight:700;font-size:12px;margin:0 0 4px}
+  .mini .mdesc{font-size:10.5px;color:var(--ink-faint);margin:0 0 7px;line-height:1.35}
+  .mini .mstat{font-size:10px;color:var(--ink-faint);border-top:1px dashed var(--line-soft);padding-top:6px}
+  .mini.greyed{background:var(--greyed-bg);border-style:dashed;border-color:#c2c2c2}
+  .mini.greyed .mtitle,.mini.greyed .mini-status{color:var(--ink-faint)}
+  .mini.greyed .mini-status{border-style:dashed;background:var(--greyed-bg)}
+  .mini.selectable-on{border-color:var(--ink-soft);box-shadow:0 0 0 3px rgba(43,43,43,.06)}
+
+  .missing-tag{
+    display:inline-block;font-size:9px;letter-spacing:.08em;text-transform:uppercase;
+    color:#fff;background:#9a9a9a;border-radius:3px;padding:1px 5px;margin-top:5px;
+  }
+
+  /* ---------- Side panel ---------- */
+  .panel{
+    flex:0 0 396px;background:var(--panel);border-left:1px solid var(--line);
+    overflow:auto;display:flex;flex-direction:column;
+  }
+  .panel .phead{
+    padding:16px 18px 14px;border-bottom:1px solid var(--line);background:var(--paper);
+    position:sticky;top:0;z-index:2;
+  }
+  .panel .phead .row1{display:flex;align-items:center;gap:8px}
+  .panel .phead .row1 .close{
+    margin-left:auto;width:24px;height:24px;border:1px solid var(--line);border-radius:6px;
+    display:flex;align-items:center;justify-content:center;color:var(--ink-soft);background:var(--panel);
+  }
+  .panel .phead h2{font-size:16px;margin:0;font-weight:700}
+  .panel .phead .type-label{
+    position:static;font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;
+    color:var(--ink-soft);background:var(--chip);border-radius:10px;padding:2px 8px;
+  }
+  .panel .statusline{
+    display:flex;align-items:center;gap:8px;margin-top:10px;font-size:12px;color:var(--ink-soft);
+  }
+  .panel .statusline .dot{
+    width:18px;height:18px;border-radius:50%;border:1.5px solid var(--ink-soft);background:#cfcfcf;
+    display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--ink);
+  }
+
+  .panel .pbody{padding:16px 18px 24px;display:flex;flex-direction:column;gap:18px}
+
+  .linkrow{display:flex;flex-direction:column;gap:8px}
+  .extlink{
+    display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--ink);
+    border:1px solid var(--line);background:var(--paper);border-radius:7px;padding:9px 11px;
+  }
+  .extlink .ic{
+    width:20px;height:20px;border:1px solid var(--line);border-radius:4px;
+    display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--ink-soft);
+  }
+  .extlink .arr{margin-left:auto;color:var(--ink-faint)}
+  .extlink small{color:var(--ink-faint);display:block;font-size:10.5px}
+
+  .sec-title{
+    font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-faint);
+    margin:0 0 2px;display:flex;align-items:center;gap:8px;
+  }
+  .sec-title::after{content:"";flex:1;height:1px;background:var(--line-soft)}
+
+  .field{display:flex;flex-direction:column;gap:5px;margin-bottom:13px}
+  .field label{font-size:12.5px;font-weight:600;color:var(--ink)}
+  .field label .req{color:#888;font-weight:700}
+  .field .help{font-size:11px;color:var(--ink-faint);line-height:1.35}
+  .field .help .toggle{
+    cursor:default;color:var(--ink-soft);text-decoration:underline dotted;font-weight:600;
+  }
+  .control{
+    border:1px solid var(--line);background:var(--paper);border-radius:6px;
+    padding:8px 10px;font-size:12.5px;color:var(--ink);display:flex;align-items:center;gap:8px;
+    font-family:var(--mono);
+  }
+  .control.select::after{content:"▾";margin-left:auto;color:var(--ink-faint);font-family:var(--sans)}
+  .control.placeholder{color:var(--ink-faint)}
+  .twocol{display:flex;gap:10px}
+  .twocol .field{flex:1}
+  .check{display:flex;align-items:center;gap:9px;font-size:12.5px;color:var(--ink);margin-bottom:11px}
+  .check .box{width:16px;height:16px;border:1.5px solid var(--ink-soft);border-radius:4px;
+    display:flex;align-items:center;justify-content:center;font-size:11px}
+  .check .box.on{background:#cfcfcf}
+  .check .help{font-size:11px;color:var(--ink-faint)}
+  .check .stack{display:flex;flex-direction:column;gap:1px}
+
+  .runbtn{
+    margin-top:6px;border:2px solid var(--ink);background:var(--ink);color:#fff;
+    border-radius:8px;padding:12px;font-size:14px;font-weight:700;text-align:center;
+    display:flex;align-items:center;justify-content:center;gap:8px;
+  }
+
+  /* ---------- Legend (floating) ---------- */
+  .legend{
+    position:fixed;left:20px;bottom:18px;z-index:20;
+    background:var(--paper);border:1px solid var(--line);border-radius:8px;
+    padding:10px 12px;font-size:11px;color:var(--ink-soft);
+    box-shadow:0 2px 8px rgba(0,0,0,.08);max-width:330px;
+  }
+  .legend h4{margin:0 0 6px;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-faint)}
+  .legend .grid{display:grid;grid-template-columns:1fr 1fr;gap:4px 14px}
+  .legend .li{display:flex;align-items:center;gap:6px}
+  .legend .ic{
+    width:17px;height:17px;border-radius:50%;border:1.5px solid var(--ink-soft);
+    display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex:none;
+  }
+  .legend .ic.ok{background:#cfcfcf}
+  .legend .ic.run{border-style:dashed}
+  .legend .ic.miss{border-style:dashed;background:var(--greyed-bg);color:var(--ink-faint)}
+  .legend .pill{font-size:8.5px;letter-spacing:.08em;text-transform:uppercase;background:var(--chip);
+    border-radius:8px;padding:1px 6px;color:var(--ink-soft);flex:none}
+  .legend hr{border:none;border-top:1px dashed var(--line-soft);margin:8px 0}
+</style>
+</head>
+<body>
+
+  <div class="wf-banner">Wireframe · low-fidelity · greyscale — for UX review only, not final visual design</div>
+
+  <!-- ===================== APP BAR ===================== -->
+  <header class="appbar">
+    <div class="logo">≋</div>
+    <h1>SNT Pipelines Orchestrator</h1>
+    <div class="ws">Workspace: <b>snt-app-dev</b></div>
+  </header>
+
+  <!-- ===================== SHELL ===================== -->
+  <div class="shell">
+
+    <!-- -------- CANVAS (flow chart) -------- -->
+    <div class="canvas-wrap">
+      <div class="canvas-title">Stratification process · top → bottom execution order</div>
+
+      <div class="flow">
+        <!-- dependency arrows drawn behind the cards -->
+        <svg class="edges" viewBox="0 0 860 980" preserveAspectRatio="none">
+          <defs>
+            <marker id="arrow" markerWidth="9" markerHeight="9" refX="6" refY="4.5" orient="auto">
+              <path d="M0,0 L9,4.5 L0,9 z" fill="#9a9a9a"></path>
+            </marker>
+          </defs>
+          <g stroke="#9a9a9a" stroke-width="2" fill="none" marker-end="url(#arrow)">
+            <line x1="430" y1="118" x2="430" y2="150"></line>   <!-- A1 -> A2 -->
+            <line x1="430" y1="244" x2="430" y2="276"></line>   <!-- A2 -> A3.1 group -->
+            <line x1="430" y1="452" x2="430" y2="486"></line>   <!-- A3.1 -> A4 group -->
+            <line x1="430" y1="612" x2="430" y2="646"></line>   <!-- A4 -> A5 -->
+            <line x1="430" y1="752" x2="430" y2="786"></line>   <!-- A5 -> A6 -->
+          </g>
+        </svg>
+
+        <!-- ===== A.1 DHIS2 Extract (SELECTED) ===== -->
+        <div class="card s-ok selected" style="left:230px;top:22px;width:400px">
+          <div class="corner-status" title="Succeeded">✓</div>
+          <div class="type-label">Mandatory</div>
+          <div class="ptitle">A.1 DHIS2 Extract</div>
+          <div class="pdesc">Extracts DHIS2 pyramid, routine analytics, population, shapes and reporting rates for a period.</div>
+          <div class="pmeta">
+            <span class="status">Succeeded</span>
+            <span class="sep">·</span>
+            <span>Last run 2026-06-04 14:22</span>
+            <span class="sep">·</span>
+            <span class="out">HTML report</span>
+            <span class="out">Dataset</span>
+          </div>
+        </div>
+
+        <!-- ===== A.2 DHIS2 Formatting ===== -->
+        <div class="card s-ok" style="left:230px;top:150px;width:400px">
+          <div class="corner-status" title="Succeeded">✓</div>
+          <div class="type-label">Mandatory</div>
+          <div class="ptitle">A.2 DHIS2 Formatting</div>
+          <div class="pdesc">Processes and formats the DHIS2 extracts for the SNT workflow.</div>
+          <div class="pmeta">
+            <span class="status">Succeeded</span>
+            <span class="sep">·</span>
+            <span>Last run 2026-06-04 14:48</span>
+            <span class="sep">·</span>
+            <span class="out">HTML report</span>
+            <span class="out">Dataset</span>
+          </div>
+        </div>
+
+        <!-- ===== A.3.1 Outliers Imputation — ALTERNATIVES ===== -->
+        <div class="altgroup" style="left:20px;top:276px;width:820px;height:176px">
+          <div class="grouplbl">A.3.1 Outliers Imputation &nbsp;<span class="mutex">— choose one method (mutually exclusive)</span></div>
+          <div class="altrow">
+            <div class="mini s-ok selectable-on">
+              <div class="mini-status" title="Succeeded">✓</div>
+              <div class="mtitle">Magic Glasses</div>
+              <div class="mdesc">MAD-based detection &amp; imputation.</div>
+              <div class="mstat">Succeeded · 06-05 09:10</div>
+            </div>
+            <div class="mini">
+              <div class="mini-status" title="Never run">○</div>
+              <div class="mtitle">Mean ± k·SD</div>
+              <div class="mdesc">Mean ± k standard deviations.</div>
+              <div class="mstat">Never run</div>
+            </div>
+            <div class="mini">
+              <div class="mini-status" title="Never run">○</div>
+              <div class="mtitle">Median ± k·MAD</div>
+              <div class="mdesc">Median ± k·MAD method.</div>
+              <div class="mstat">Never run</div>
+            </div>
+            <div class="mini">
+              <div class="mini-status" title="Never run">○</div>
+              <div class="mtitle">IQR</div>
+              <div class="mdesc">Inter-quartile range rule.</div>
+              <div class="mstat">Never run</div>
+            </div>
+            <div class="mini greyed">
+              <div class="mini-status" title="Missing">⦸</div>
+              <div class="mtitle">PATH</div>
+              <div class="mdesc">Mean ± 10·SD.</div>
+              <div class="missing-tag">Not installed</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ===== A.4 Reporting Rate — ALTERNATIVES ===== -->
+        <div class="altgroup" style="left:150px;top:486px;width:560px;height:126px">
+          <div class="grouplbl">A.4 DHIS2 Reporting Rate &nbsp;<span class="mutex">— choose one</span></div>
+          <div class="altrow">
+            <div class="mini s-fail">
+              <div class="mini-status" title="Failed">✕</div>
+              <div class="mtitle">By Data Element</div>
+              <div class="mdesc">Reporting rate from routine data elements.</div>
+              <div class="mstat">Failed · 06-05 10:02</div>
+            </div>
+            <div class="mini">
+              <div class="mini-status" title="Never run">○</div>
+              <div class="mtitle">By Dataset</div>
+              <div class="mdesc">Uses DHIS2 dataset-level rate indicators.</div>
+              <div class="mstat">Never run</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ===== A.5 Population Transformation ===== -->
+        <div class="card s-run" style="left:230px;top:646px;width:400px">
+          <div class="corner-status" title="Running">⟳</div>
+          <div class="type-label">Facultative</div>
+          <div class="ptitle">A.5 DHIS2 Population Transformation</div>
+          <div class="pdesc">Scales, projects and disaggregates population by demographic group.</div>
+          <div class="pmeta">
+            <span class="status">Running…</span>
+            <span class="sep">·</span>
+            <span>Started 2026-06-08 11:05</span>
+          </div>
+        </div>
+
+        <!-- ===== A.6 Incidence ===== -->
+        <div class="card" style="left:230px;top:786px;width:400px">
+          <div class="corner-status" title="Never run">○</div>
+          <div class="type-label">Mandatory</div>
+          <div class="ptitle">A.6 DHIS2 Incidence</div>
+          <div class="pdesc">Computes malaria case metrics and yearly incidence from routine HMIS data.</div>
+          <div class="pmeta">
+            <span class="status">Never run</span>
+            <span class="sep">·</span>
+            <span>No outputs yet</span>
+          </div>
+        </div>
+
+      </div><!-- /flow -->
+    </div><!-- /canvas-wrap -->
+
+    <!-- -------- SIDE PANEL (A.1 selected) -------- -->
+    <aside class="panel">
+      <div class="phead">
+        <div class="row1">
+          <h2>A.1 DHIS2 Extract</h2>
+          <span class="type-label">Mandatory</span>
+          <span class="close" title="Close panel">✕</span>
+        </div>
+        <div class="statusline">
+          <span class="dot" title="Succeeded">✓</span>
+          <span><b>Succeeded</b> · last run 2026-06-04 14:22 · 6 m 12 s</span>
+        </div>
+      </div>
+
+      <div class="pbody">
+
+        <!-- external links -->
+        <div class="linkrow">
+          <div class="extlink">
+            <span class="ic">▤</span>
+            <span>README on GitHub
+              <small>snt_development / snt_dhis2_extract</small>
+            </span>
+            <span class="arr">↗</span>
+          </div>
+          <div class="extlink">
+            <span class="ic">▶</span>
+            <span>Open this run in OpenHEXA
+              <small>logs, messages, full detail</small>
+            </span>
+            <span class="arr">↗</span>
+          </div>
+          <div class="extlink">
+            <span class="ic">▥</span>
+            <span>Latest outputs
+              <small>HTML report · output dataset</small>
+            </span>
+            <span class="arr">↗</span>
+          </div>
+        </div>
+
+        <!-- parameters -->
+        <div>
+          <p class="sec-title">Parameters</p>
+
+          <div class="field">
+            <label>DHIS2 connection <span class="req">*</span></label>
+            <div class="control select placeholder">Select a connection…</div>
+            <div class="help">DHIS2 instance to extract data from.</div>
+          </div>
+
+          <div class="twocol">
+            <div class="field">
+              <label>Period — start <span class="req">*</span></label>
+              <div class="control">202401</div>
+              <div class="help">YYYYMM</div>
+            </div>
+            <div class="field">
+              <label>Period — end <span class="req">*</span></label>
+              <div class="control">202412</div>
+              <div class="help">YYYYMM</div>
+            </div>
+          </div>
+
+          <div class="check">
+            <span class="box on">✓</span>
+            <span class="stack">
+              <b>Overwrite</b>
+              <span class="help">Overwrite existing files in the output dataset.</span>
+            </span>
+          </div>
+
+          <div class="check">
+            <span class="box"></span>
+            <span class="stack">
+              <b>Pull scripts</b>
+              <span class="help">Pull latest scripts from the repository before running. <span class="toggle">▸ more</span></span>
+            </span>
+          </div>
+
+          <div class="check">
+            <span class="box"></span>
+            <span class="stack">
+              <b>Run reporting only</b>
+              <span class="help">Skip extraction; only execute the reporting notebook.</span>
+            </span>
+          </div>
+
+          <div class="runbtn">▶ &nbsp;Run pipeline</div>
+        </div>
+
+      </div><!-- /pbody -->
+    </aside>
+
+  </div><!-- /shell -->
+
+  <!-- ===================== LEGEND ===================== -->
+  <div class="legend">
+    <h4>Status</h4>
+    <div class="grid">
+      <span class="li"><span class="ic ok">✓</span> Succeeded</span>
+      <span class="li"><span class="ic">✕</span> Failed</span>
+      <span class="li"><span class="ic run">⟳</span> Running</span>
+      <span class="li"><span class="ic">○</span> Never run</span>
+      <span class="li"><span class="ic miss">⦸</span> Missing (not installed)</span>
+    </div>
+    <hr>
+    <h4>Type</h4>
+    <div class="grid">
+      <span class="li"><span class="pill">Mandatory</span></span>
+      <span class="li"><span class="pill">Alternative</span></span>
+      <span class="li"><span class="pill">Facultative</span></span>
+    </div>
+  </div>
+
+</body>
+</html>

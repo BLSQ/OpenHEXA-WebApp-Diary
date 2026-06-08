@@ -136,19 +136,24 @@ have *confirmed* the status query works through the static-webapp proxy.
 > A *spike* is a small throwaway experiment to answer one risky question before you build on it.
 
 - **T0.9 — Spike: does the status query work through the proxy?** · 🤖 + 🧑 · Dep: T0.1 (any ws with runs)
-  Deploy a tiny test webapp that runs `workspace { pipelines { runs(orderBy, perPage:1) { … } } }`
-  through the same-origin `/graphql/` proxy under `PIPELINES_READ`, and confirm it returns
-  real last-run status. (The schema supports it — `Pipeline.runs` at
-  `schema.generated.graphql:3349` — but the proxy whitelist must allow it.)
-  *Done when:* the test app prints real statuses for several pipelines, **or** we have proof
-  it's blocked.
+  ✅ **DONE (2026-06-08).** Deployed throwaway app `t0-9-status-proxy-spike` to `snt-testing`
+  (scope `PIPELINES_READ` only). It returned real last-run statuses for all pipelines;
+  manually triggering a pipeline in the OH UI then refreshing showed it as `running`.
+  **Confirmed: cross-session status works through the proxy under `PIPELINES_READ` alone.**
+  Correction to the original sketch: the `Workspace` type has no `pipelines` field, so the
+  query uses the top-level `pipelines(workspaceSlug:…)` query → `items { runs(orderBy:
+  EXECUTION_DATE_DESC, perPage:1) }`. Working query documented in `CLAUDE.md`. Local mirror:
+  `snt_testing/status_spike/index.html`.
+  *Done when:* ~~the test app prints real statuses for several pipelines~~ ✅ — and live status
+  transitions are reflected on refresh.
   *You'll learn:* the proxy + `allowed_operations` model, and how to verify an assumption
   cheaply before committing to it.
 
 - **T0.10 — If blocked: precise ask to OH devs** · 🛠️ · Dep: T0.9
-  Only if T0.9 fails: file a concrete request to the OH devs (the exact query, the scope it
-  needs, the error seen). Otherwise: document the confirmed working query in `CLAUDE.md`.
-  *Done when:* status retrieval is either working or has an owned ticket with the OH team.
+  ✅ **RESOLVED — not blocked.** T0.9 succeeded, so no OH-devs ticket is needed; instead the
+  confirmed working query is documented in `CLAUDE.md` (*"Reading last-run status for all
+  pipelines"*).
+  *Done when:* ~~status retrieval is either working or has an owned ticket~~ ✅ working.
 
 ---
 
@@ -305,6 +310,7 @@ Add entries as they come up; mark resolved ones.
 
 Track here anything the platform/MCP can't currently do, so the OH team can work in parallel.
 
-- **[TO VERIFY]** Status query (`pipelines { runs }`) through the static-webapp proxy under
-  `PIPELINES_READ` — confirmed in T0.9. If blocked, this is the first ticket.
+- **[RESOLVED ✅]** Status query (`pipelines(workspaceSlug:…) { items { runs } }`) through the
+  static-webapp proxy under `PIPELINES_READ` — **confirmed working** in T0.9 (2026-06-08). No
+  ticket needed.
 - *(add more as discovered)*

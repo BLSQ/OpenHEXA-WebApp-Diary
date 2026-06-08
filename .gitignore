@@ -1,6 +1,9 @@
 # Claude Code memory (machine-specific, not for sharing)
 .claude/
 
+# Personal scratch / learning notes (local only, not shared)
+ignore/
+
 # OS
 .DS_Store
 Thumbs.db
