@@ -290,8 +290,8 @@ Add entries as they come up; mark resolved ones.
   the OpenHEXA UI — needed for T1.5/T1.6 links. _Owner: 🤿 confirm with OH devs._
 - **[OPEN]** Does `pipelineRun` expose everything needed for the outputs links on a _historical_
   run (not just one you triggered)? _Owner: 🤖 verify during T1.5._
-- **[OPEN]** Final node count and any pipelines beyond the A.x set in the prototype.
-  _Owner: 🤿 + 👔 during T0.3._
+- **[OPEN]** Final node count and any pipelines beyond the A.x set shown in the wireframe
+  (`knowledge/orchestrator_wireframe.html`). _Owner: 🤿 + 👔 during T0.3._
 
 ## MCP / platform gaps to raise with OH devs
 

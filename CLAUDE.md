@@ -33,11 +33,14 @@ pipelines (~20, from the `snt_development` repo) as an interactive 2D map with a
 configuration/run sidebar. The current small single-pipeline webapps are stepping stones
 toward it.
 
-The visual and UX target is `examples/orchestration-prototype_2.html`: a scrollable canvas
-showing the pipeline map on the left, and a sidebar on the right that — when a node is
-selected — shows its description, a generated parameters form, a **Run** button, and (after a
-run) the data outputs and HTML report links. Node tags mark each pipeline as mandatory,
-alternative, or facultative.
+The visual and UX target is the wireframe `knowledge/orchestrator_wireframe.html` (a
+low-fidelity greyscale layout for UX review), and the product is fully specified in
+`knowledge/PRODUCT_SPEC.md` — **read both at the start of any session working toward the
+orchestrator UI.** The layout is a scrollable canvas showing the pipeline map on the left, and
+a side panel on the right that — when a node is selected — shows its description, a link to the
+pipeline's GitHub README, a generated parameters form, a **Run** button, a link to the live
+OpenHEXA run, and (after a run) the data outputs and HTML report links. Node tags mark each
+pipeline as mandatory, alternative, or facultative.
 
 **The map is identical across all workspaces.** Every workspace's orchestrator shows the same
 full diagram. What differs per workspace is only which nodes are _active_ — pipelines not
@@ -72,8 +75,9 @@ The webapp computes three independent state axes per node:
 - **completed** — ran successfully in the current session.
 
 **Mutual exclusion:** nodes of `type: "alternative"` that share the same `group` are mutually
-exclusive — running one marks the others in the group not-run (mirrors the prototype's A.3.x /
-A.4.x logic, but data-driven via `group` instead of hardcoded `if` statements).
+exclusive — running one marks the others in the group not-run (the wireframe shows this as the
+A.3.1 Outliers Imputation and A.4 Reporting Rate alternative groups; it is data-driven via
+`group`, not hardcoded).
 
 ### Map format
 
@@ -83,11 +87,11 @@ Positions and arrows are **explicit**, with no graph-layout library or CDN depen
   position, used to separate parallel A / B / D tracks).
 - `edges` is a list of `{from, to}` pairs referencing node `id`s; the webapp draws one SVG
   arrow per edge between node centers.
-- Dependencies are expressed **only** as `edges` — this replaces the prototype's per-node
-  `req` array, its `rows` layout array, and its hardcoded mutual-exclusion `if` statements.
+- Dependencies are expressed **only** as `edges` (a list of `{from, to}` pairs). There is no
+  per-node prerequisite array and no separate layout array — layout comes from each node's
+  `row`/`col`, and mutual exclusion from its `group`.
 - **Outputs are not stored in the map or cards.** They are fetched at runtime from
-  `pipelineRun.outputs` after a run (see the polling pattern below). The prototype's hardcoded
-  `outputs` arrays were mock data only.
+  `pipelineRun.outputs` after a run (see the polling pattern below).
 
 ### Multi-file app architecture
 
