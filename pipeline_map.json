@@ -1,0 +1,232 @@
+{
+  "version": "2026-06-10",
+  "_notes": "Workspace-independent SNT pipeline map. Authored for T0.4 from the agreed T0.3 sketch (knowledge/pipeline_map_20260610.png, made in Whimsical) plus Giulia's dependency notes. Conventions: edge type 'solid' = HARD dependency (the 'from' pipeline MUST have run before 'to' can run); edge type 'optional' = SOFT link ('from' output is used by 'to' if available, but 'to' can also run without it via a parameter fallback). Hard A.2 dependents (per Giulia: they need the pyramid and/or shapes): A.3, A.4, A.5, A.6, A.7, B.1, B.2, C.1. Node types: mandatory = A.1/A.2; alternative = A.3 (5 outlier methods, group a3_outliers) and A.4 (2 reporting-rate methods, group a4_reporting_rate); output = produces an SNT Explorer layer (A.6, A.7, B.2, B.3, D.2); facultative = optional add-on that produces no layer (A.5, B.1, C.1, D.1). Modeling decision: optional edges OUT of the alternative groups (A.3/A.4 -> A.6) are drawn per member because only one member runs and lock/unlock must treat optional edges as non-gating (otherwise all five outlier methods would appear required). Open for T0.5 review: the exact set of dashed edges into A.6 and the B.1 -> A.5 soft link were read from the diagram; confirm with Giulia + PM against the rendered layout.",
+  "grid": { "cols": 11 },
+  "nodes": [
+    {
+      "id": "snt_dhis2_extract",
+      "code": "A.1",
+      "label": "A.1 DHIS2 Extract",
+      "description": "Extracts DHIS2 pyramid, routine analytics, population, shapes, and reporting rates for a period.",
+      "type": "mandatory",
+      "row": 0,
+      "col": 5,
+      "track": "A"
+    },
+    {
+      "id": "snt_dhis2_formatting",
+      "code": "A.2",
+      "label": "A.2 DHIS2 Formatting",
+      "description": "Processes and formats the DHIS2 extracts (pyramid, shapes, routine data) for the SNT workflow.",
+      "type": "mandatory",
+      "row": 1,
+      "col": 5,
+      "track": "A"
+    },
+    {
+      "id": "snt_dhis2_outliers_imputation_magic_glasses",
+      "code": "A.3",
+      "label": "A.3 Outliers: Magic Glasses",
+      "description": "Outlier detection and imputation using the Magic Glasses (MAD-based) method.",
+      "type": "alternative",
+      "group": "a3_outliers",
+      "row": 2,
+      "col": 0,
+      "track": "A"
+    },
+    {
+      "id": "snt_dhis2_outliers_imputation_mean",
+      "code": "A.3",
+      "label": "A.3 Outliers: Mean",
+      "description": "Outlier detection and imputation using the mean +/- k x SD method.",
+      "type": "alternative",
+      "group": "a3_outliers",
+      "row": 2,
+      "col": 1,
+      "track": "A"
+    },
+    {
+      "id": "snt_dhis2_outliers_imputation_median",
+      "code": "A.3",
+      "label": "A.3 Outliers: Median",
+      "description": "Outlier detection and imputation using the median +/- k x MAD method.",
+      "type": "alternative",
+      "group": "a3_outliers",
+      "row": 2,
+      "col": 2,
+      "track": "A"
+    },
+    {
+      "id": "snt_dhis2_outliers_imputation_iqr",
+      "code": "A.3",
+      "label": "A.3 Outliers: IQR",
+      "description": "Outlier detection and imputation using the IQR (inter-quartile range) method.",
+      "type": "alternative",
+      "group": "a3_outliers",
+      "row": 2,
+      "col": 3,
+      "track": "A"
+    },
+    {
+      "id": "snt_dhis2_outliers_imputation_path",
+      "code": "A.3",
+      "label": "A.3 Outliers: PATH",
+      "description": "Outlier detection and imputation using the PATH method (mean +/- 10 x SD).",
+      "type": "alternative",
+      "group": "a3_outliers",
+      "row": 2,
+      "col": 4,
+      "track": "A"
+    },
+    {
+      "id": "snt_dhis2_reporting_rate_dataelement",
+      "code": "A.4",
+      "label": "A.4 Reporting Rate: Data element",
+      "description": "Reporting rate computed from routine data elements.",
+      "type": "alternative",
+      "group": "a4_reporting_rate",
+      "row": 3,
+      "col": 3,
+      "track": "A"
+    },
+    {
+      "id": "snt_dhis2_reporting_rate_dataset",
+      "code": "A.4",
+      "label": "A.4 Reporting Rate: Dataset",
+      "description": "Reporting rate from DHIS2 dataset-level rate indicators.",
+      "type": "alternative",
+      "group": "a4_reporting_rate",
+      "row": 3,
+      "col": 4,
+      "track": "A"
+    },
+    {
+      "id": "snt_dhis2_population_transformation",
+      "code": "A.5",
+      "label": "A.5 Population Transformation",
+      "description": "Scales, projects, and disaggregates DHIS2 population by demographic group.",
+      "type": "facultative",
+      "row": 3,
+      "col": 6,
+      "track": "A"
+    },
+    {
+      "id": "snt_dhis2_incidence",
+      "code": "A.6",
+      "label": "A.6 DHIS2 Incidence",
+      "description": "Computes malaria case metrics and yearly incidence from routine HMIS data.",
+      "type": "output",
+      "row": 4,
+      "col": 5,
+      "track": "A"
+    },
+    {
+      "id": "snt_seasonality_cases",
+      "code": "A.7",
+      "label": "A.7 Seasonality - Cases",
+      "description": "Classifies case seasonality at ADM2 from routine confirmed-malaria data.",
+      "type": "output",
+      "row": 4,
+      "col": 6,
+      "track": "A"
+    },
+    {
+      "id": "snt_worldpop_extract",
+      "code": "B.1",
+      "label": "B.1 WorldPop Extract",
+      "description": "Extracts WorldPop population raster data for the country.",
+      "type": "facultative",
+      "row": 2,
+      "col": 7,
+      "track": "B"
+    },
+    {
+      "id": "snt_map_extracts",
+      "code": "B.2",
+      "label": "B.2 MAP Extracts",
+      "description": "Extracts Malaria Atlas Project rasters and computes zonal statistics.",
+      "type": "output",
+      "row": 4,
+      "col": 7,
+      "track": "B"
+    },
+    {
+      "id": "snt_healthcare_access",
+      "code": "B.3",
+      "label": "B.3 Access to Health Care",
+      "description": "Computes access-to-care metrics from facilities, population, and catchments.",
+      "type": "output",
+      "row": 4,
+      "col": 8,
+      "track": "B"
+    },
+    {
+      "id": "snt_dhs_indicators",
+      "code": "C.1",
+      "label": "C.1 DHS Indicators",
+      "description": "Computes DHS survey-based indicators for the SNT process.",
+      "type": "facultative",
+      "row": 2,
+      "col": 9,
+      "track": "C"
+    },
+    {
+      "id": "snt_era5_climate_data",
+      "code": "D.1",
+      "label": "D.1 ERA5 Climate Data",
+      "description": "Extracts ERA5 climate data from the Copernicus Climate Data Store.",
+      "type": "facultative",
+      "row": 2,
+      "col": 10,
+      "track": "D"
+    },
+    {
+      "id": "snt_seasonality_rainfall",
+      "code": "D.2",
+      "label": "D.2 ERA5 Seasonality - Rainfall",
+      "description": "Computes rainfall seasonality metrics from ERA5 climate data.",
+      "type": "output",
+      "row": 4,
+      "col": 10,
+      "track": "D"
+    }
+  ],
+  "edges": [
+    { "from": "snt_dhis2_extract", "to": "snt_dhis2_formatting", "type": "solid" },
+
+    { "from": "snt_dhis2_formatting", "to": "snt_dhis2_outliers_imputation_magic_glasses", "type": "solid" },
+    { "from": "snt_dhis2_formatting", "to": "snt_dhis2_outliers_imputation_mean", "type": "solid" },
+    { "from": "snt_dhis2_formatting", "to": "snt_dhis2_outliers_imputation_median", "type": "solid" },
+    { "from": "snt_dhis2_formatting", "to": "snt_dhis2_outliers_imputation_iqr", "type": "solid" },
+    { "from": "snt_dhis2_formatting", "to": "snt_dhis2_outliers_imputation_path", "type": "solid" },
+
+    { "from": "snt_dhis2_formatting", "to": "snt_dhis2_reporting_rate_dataelement", "type": "solid" },
+    { "from": "snt_dhis2_formatting", "to": "snt_dhis2_reporting_rate_dataset", "type": "solid" },
+
+    { "from": "snt_dhis2_formatting", "to": "snt_dhis2_population_transformation", "type": "solid" },
+    { "from": "snt_dhis2_formatting", "to": "snt_dhis2_incidence", "type": "solid" },
+    { "from": "snt_dhis2_formatting", "to": "snt_seasonality_cases", "type": "solid" },
+    { "from": "snt_dhis2_formatting", "to": "snt_worldpop_extract", "type": "solid" },
+    { "from": "snt_dhis2_formatting", "to": "snt_map_extracts", "type": "solid" },
+    { "from": "snt_dhis2_formatting", "to": "snt_dhs_indicators", "type": "solid" },
+
+    { "from": "snt_era5_climate_data", "to": "snt_seasonality_rainfall", "type": "solid" },
+
+    { "from": "snt_dhis2_outliers_imputation_magic_glasses", "to": "snt_dhis2_incidence", "type": "optional" },
+    { "from": "snt_dhis2_outliers_imputation_mean", "to": "snt_dhis2_incidence", "type": "optional" },
+    { "from": "snt_dhis2_outliers_imputation_median", "to": "snt_dhis2_incidence", "type": "optional" },
+    { "from": "snt_dhis2_outliers_imputation_iqr", "to": "snt_dhis2_incidence", "type": "optional" },
+    { "from": "snt_dhis2_outliers_imputation_path", "to": "snt_dhis2_incidence", "type": "optional" },
+
+    { "from": "snt_dhis2_reporting_rate_dataelement", "to": "snt_dhis2_incidence", "type": "optional" },
+    { "from": "snt_dhis2_reporting_rate_dataset", "to": "snt_dhis2_incidence", "type": "optional" },
+
+    { "from": "snt_dhis2_population_transformation", "to": "snt_dhis2_incidence", "type": "optional" },
+    { "from": "snt_dhs_indicators", "to": "snt_dhis2_incidence", "type": "optional" },
+
+    { "from": "snt_worldpop_extract", "to": "snt_dhis2_population_transformation", "type": "optional" },
+    { "from": "snt_worldpop_extract", "to": "snt_map_extracts", "type": "optional" },
+    { "from": "snt_worldpop_extract", "to": "snt_healthcare_access", "type": "optional" },
+    { "from": "snt_dhis2_formatting", "to": "snt_healthcare_access", "type": "optional" }
+  ]
+}
