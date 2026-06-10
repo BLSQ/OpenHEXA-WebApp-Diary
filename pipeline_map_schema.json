@@ -12,9 +12,10 @@
   ],
 
   "_node_types": {
-    "mandatory":   "Core step expected in every analysis.",
-    "alternative": "One of a mutually-exclusive set; members share a `group`. Running one marks the others not-run.",
-    "facultative": "Optional add-on; never required by downstream nodes."
+    "mandatory":   "Core step expected in every analysis. Only A.1 and A.2.",
+    "alternative": "One of a mutually-exclusive set; members share a `group`. Running one marks the others not-run. The 5 A.3 outlier methods and the 2 A.4 reporting-rate methods.",
+    "output":      "Produces a final layer consumed by the next tool (SNT Explorer): A.6, A.7, B.2, B.3, D.2. Optional to run, but distinguished from plain add-ons because its output is an end-product.",
+    "facultative": "Optional add-on that does not itself produce an SNT Explorer layer (e.g. A.5, B.1, C.1, D.1)."
   },
 
   "_schema": {
@@ -28,7 +29,7 @@
         "code":        "string — short human code shown as a tag, e.g. 'A.1', 'A.3.1'. REQUIRED",
         "label":       "string — canonical display title, e.g. 'A.1 DHIS2 Extract'. REQUIRED",
         "description": "string — short subtitle shown in the sidebar (optional)",
-        "type":        "string — mandatory | alternative | facultative. REQUIRED",
+        "type":        "string — mandatory | alternative | output | facultative. REQUIRED",
         "row":         "int — execution stage, top-to-bottom (lower = earlier). REQUIRED",
         "col":         "int — horizontal position in the grid, left-to-right. REQUIRED",
         "group":       "string — mutual-exclusion group id; REQUIRED only when type == 'alternative', omit otherwise",

@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>SNT Pipeline Map — visual reference</title>
+<style>
+  :root {
+    --ink: #263238;
+    --muted: #607d8b;
+    --line: #455a64;
+    --line-opt: #90a4ae;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    color: var(--ink);
+    background: #fafbfc;
+  }
+  header {
+    padding: 20px 28px 14px;
+    border-bottom: 1px solid #e0e0e0;
+    background: #fff;
+  }
+  h1 { margin: 0 0 4px; font-size: 20px; }
+  .sub { color: var(--muted); font-size: 13px; }
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 18px 26px;
+    align-items: center;
+    margin-top: 14px;
+    font-size: 12.5px;
+  }
+  .legend .group { display: flex; gap: 8px; align-items: center; }
+  .swatch { width: 26px; height: 16px; border-radius: 4px; border: 2px solid; display: inline-block; }
+  .sw-mandatory   { background: #ede7f6; border-color: #7e57c2; }
+  .sw-alternative { background: #e3f2fd; border-color: #1e88e5; }
+  .sw-output      { background: #e8f5e9; border-color: #43a047; }
+  .sw-facultative { background: #f5f5f5; border-color: #9e9e9e; }
+  .lineicon { width: 34px; height: 0; border-top: 2px solid var(--line); display: inline-block; }
+  .lineicon.opt { border-top: 2px dashed var(--line-opt); }
+  .scroller { overflow: auto; padding: 24px 28px 60px; }
+  #canvas { position: relative; }
+  svg.edges { position: absolute; top: 0; left: 0; overflow: visible; }
+  .node {
+    position: absolute;
+    border: 2px solid #9e9e9e;
+    border-radius: 8px;
+    background: #fff;
+    padding: 7px 9px;
+    font-size: 12px;
+    line-height: 1.25;
+    box-shadow: 0 1px 2px rgba(0,0,0,.06);
+    cursor: default;
+    overflow: hidden;
+  }
+  .node .code {
+    display: inline-block;
+    font-weight: 700;
+    font-size: 10.5px;
+    letter-spacing: .3px;
+    padding: 1px 6px;
+    border-radius: 999px;
+    margin-bottom: 4px;
+    background: rgba(0,0,0,.06);
+  }
+  .node .lbl { font-weight: 600; }
+  .node.mandatory   { background: #ede7f6; border-color: #7e57c2; }
+  .node.alternative { background: #e3f2fd; border-color: #1e88e5; }
+  .node.output      { background: #e8f5e9; border-color: #43a047; }
+  .node.facultative { background: #f5f5f5; border-color: #9e9e9e; }
+  .grouplabel { font-size: 11px; font-weight: 700; fill: #1e88e5; letter-spacing: .3px; }
+  .notes {
+    margin: 0 28px 28px;
+    padding: 14px 16px;
+    background: #fff;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    font-size: 12.5px;
+    color: #37474f;
+    line-height: 1.5;
+  }
+  .notes b { color: var(--ink); }
+  .notes code { background: #eceff1; padding: 1px 4px; border-radius: 4px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>SNT Pipeline Map <span class="sub" id="version"></span></h1>
+  <div class="sub">Workspace-independent flow of the official SNT pipelines &mdash; visual reference for review. Hover a node for its description.</div>
+  <div class="legend">
+    <div class="group"><b>Type:</b></div>
+    <div class="group"><span class="swatch sw-mandatory"></span> Mandatory</div>
+    <div class="group"><span class="swatch sw-alternative"></span> Alternative (choose one)</div>
+    <div class="group"><span class="swatch sw-output"></span> Output (feeds SNT Explorer)</div>
+    <div class="group"><span class="swatch sw-facultative"></span> Facultative</div>
+    <div class="group" style="margin-left:10px"><span class="lineicon"></span> Hard dependency</div>
+    <div class="group"><span class="lineicon opt"></span> Optional link</div>
+  </div>
+</header>
+
+<div class="scroller">
+  <div id="canvas"></div>
+</div>
+
+<div class="notes" id="notes"></div>
+
+<script>
+/* ---- Embedded snapshot of pipeline_map.json (version 2026-06-10). ----
+   Self-contained so this file opens directly from disk. If the map changes,
+   re-paste the JSON below (or regenerate this preview). ---------------- */
+const MAP = {
+  "version": "2026-06-10",
+  "_notes": "Workspace-independent SNT pipeline map. Authored for T0.4 from the agreed T0.3 sketch (knowledge/pipeline_map_20260610.png, made in Whimsical) plus Giulia's dependency notes. Conventions: edge type 'solid' = HARD dependency (the 'from' pipeline MUST have run before 'to' can run); edge type 'optional' = SOFT link ('from' output is used by 'to' if available, but 'to' can also run without it via a parameter fallback). Hard A.2 dependents (per Giulia: they need the pyramid and/or shapes): A.3, A.4, A.5, A.6, A.7, B.1, B.2, C.1. Node types: mandatory = A.1/A.2; alternative = A.3 (5 outlier methods, group a3_outliers) and A.4 (2 reporting-rate methods, group a4_reporting_rate); output = produces an SNT Explorer layer (A.6, A.7, B.2, B.3, D.2); facultative = optional add-on that produces no layer (A.5, B.1, C.1, D.1). Modeling decision: optional edges OUT of the alternative groups (A.3/A.4 -> A.6) are drawn per member because only one member runs and lock/unlock must treat optional edges as non-gating (otherwise all five outlier methods would appear required). Open for T0.5 review: the exact set of dashed edges into A.6 and the B.1 -> A.5 soft link were read from the diagram; confirm with Giulia + PM against the rendered layout.",
+  "grid": { "cols": 11 },
+  "nodes": [
+    { "id": "snt_dhis2_extract", "code": "A.1", "label": "A.1 DHIS2 Extract", "description": "Extracts DHIS2 pyramid, routine analytics, population, shapes, and reporting rates for a period.", "type": "mandatory", "row": 0, "col": 5, "track": "A" },
+    { "id": "snt_dhis2_formatting", "code": "A.2", "label": "A.2 DHIS2 Formatting", "description": "Processes and formats the DHIS2 extracts (pyramid, shapes, routine data) for the SNT workflow.", "type": "mandatory", "row": 1, "col": 5, "track": "A" },
+    { "id": "snt_dhis2_outliers_imputation_magic_glasses", "code": "A.3", "label": "A.3 Outliers: Magic Glasses", "description": "Outlier detection and imputation using the Magic Glasses (MAD-based) method.", "type": "alternative", "group": "a3_outliers", "row": 2, "col": 0, "track": "A" },
+    { "id": "snt_dhis2_outliers_imputation_mean", "code": "A.3", "label": "A.3 Outliers: Mean", "description": "Outlier detection and imputation using the mean +/- k x SD method.", "type": "alternative", "group": "a3_outliers", "row": 2, "col": 1, "track": "A" },
+    { "id": "snt_dhis2_outliers_imputation_median", "code": "A.3", "label": "A.3 Outliers: Median", "description": "Outlier detection and imputation using the median +/- k x MAD method.", "type": "alternative", "group": "a3_outliers", "row": 2, "col": 2, "track": "A" },
+    { "id": "snt_dhis2_outliers_imputation_iqr", "code": "A.3", "label": "A.3 Outliers: IQR", "description": "Outlier detection and imputation using the IQR (inter-quartile range) method.", "type": "alternative", "group": "a3_outliers", "row": 2, "col": 3, "track": "A" },
+    { "id": "snt_dhis2_outliers_imputation_path", "code": "A.3", "label": "A.3 Outliers: PATH", "description": "Outlier detection and imputation using the PATH method (mean +/- 10 x SD).", "type": "alternative", "group": "a3_outliers", "row": 2, "col": 4, "track": "A" },
+    { "id": "snt_dhis2_reporting_rate_dataelement", "code": "A.4", "label": "A.4 Reporting Rate: Data element", "description": "Reporting rate computed from routine data elements.", "type": "alternative", "group": "a4_reporting_rate", "row": 3, "col": 3, "track": "A" },
+    { "id": "snt_dhis2_reporting_rate_dataset", "code": "A.4", "label": "A.4 Reporting Rate: Dataset", "description": "Reporting rate from DHIS2 dataset-level rate indicators.", "type": "alternative", "group": "a4_reporting_rate", "row": 3, "col": 4, "track": "A" },
+    { "id": "snt_dhis2_population_transformation", "code": "A.5", "label": "A.5 Population Transformation", "description": "Scales, projects, and disaggregates DHIS2 population by demographic group.", "type": "facultative", "row": 3, "col": 6, "track": "A" },
+    { "id": "snt_dhis2_incidence", "code": "A.6", "label": "A.6 DHIS2 Incidence", "description": "Computes malaria case metrics and yearly incidence from routine HMIS data.", "type": "output", "row": 4, "col": 5, "track": "A" },
+    { "id": "snt_seasonality_cases", "code": "A.7", "label": "A.7 Seasonality - Cases", "description": "Classifies case seasonality at ADM2 from routine confirmed-malaria data.", "type": "output", "row": 4, "col": 6, "track": "A" },
+    { "id": "snt_worldpop_extract", "code": "B.1", "label": "B.1 WorldPop Extract", "description": "Extracts WorldPop population raster data for the country.", "type": "facultative", "row": 2, "col": 7, "track": "B" },
+    { "id": "snt_map_extracts", "code": "B.2", "label": "B.2 MAP Extracts", "description": "Extracts Malaria Atlas Project rasters and computes zonal statistics.", "type": "output", "row": 4, "col": 7, "track": "B" },
+    { "id": "snt_healthcare_access", "code": "B.3", "label": "B.3 Access to Health Care", "description": "Computes access-to-care metrics from facilities, population, and catchments.", "type": "output", "row": 4, "col": 8, "track": "B" },
+    { "id": "snt_dhs_indicators", "code": "C.1", "label": "C.1 DHS Indicators", "description": "Computes DHS survey-based indicators for the SNT process.", "type": "facultative", "row": 2, "col": 9, "track": "C" },
+    { "id": "snt_era5_climate_data", "code": "D.1", "label": "D.1 ERA5 Climate Data", "description": "Extracts ERA5 climate data from the Copernicus Climate Data Store.", "type": "facultative", "row": 2, "col": 10, "track": "D" },
+    { "id": "snt_seasonality_rainfall", "code": "D.2", "label": "D.2 ERA5 Seasonality - Rainfall", "description": "Computes rainfall seasonality metrics from ERA5 climate data.", "type": "output", "row": 4, "col": 10, "track": "D" }
+  ],
+  "edges": [
+    { "from": "snt_dhis2_extract", "to": "snt_dhis2_formatting", "type": "solid" },
+    { "from": "snt_dhis2_formatting", "to": "snt_dhis2_outliers_imputation_magic_glasses", "type": "solid" },
+    { "from": "snt_dhis2_formatting", "to": "snt_dhis2_outliers_imputation_mean", "type": "solid" },
+    { "from": "snt_dhis2_formatting", "to": "snt_dhis2_outliers_imputation_median", "type": "solid" },
+    { "from": "snt_dhis2_formatting", "to": "snt_dhis2_outliers_imputation_iqr", "type": "solid" },
+    { "from": "snt_dhis2_formatting", "to": "snt_dhis2_outliers_imputation_path", "type": "solid" },
+    { "from": "snt_dhis2_formatting", "to": "snt_dhis2_reporting_rate_dataelement", "type": "solid" },
+    { "from": "snt_dhis2_formatting", "to": "snt_dhis2_reporting_rate_dataset", "type": "solid" },
+    { "from": "snt_dhis2_formatting", "to": "snt_dhis2_population_transformation", "type": "solid" },
+    { "from": "snt_dhis2_formatting", "to": "snt_dhis2_incidence", "type": "solid" },
+    { "from": "snt_dhis2_formatting", "to": "snt_seasonality_cases", "type": "solid" },
+    { "from": "snt_dhis2_formatting", "to": "snt_worldpop_extract", "type": "solid" },
+    { "from": "snt_dhis2_formatting", "to": "snt_map_extracts", "type": "solid" },
+    { "from": "snt_dhis2_formatting", "to": "snt_dhs_indicators", "type": "solid" },
+    { "from": "snt_era5_climate_data", "to": "snt_seasonality_rainfall", "type": "solid" },
+    { "from": "snt_dhis2_outliers_imputation_magic_glasses", "to": "snt_dhis2_incidence", "type": "optional" },
+    { "from": "snt_dhis2_outliers_imputation_mean", "to": "snt_dhis2_incidence", "type": "optional" },
+    { "from": "snt_dhis2_outliers_imputation_median", "to": "snt_dhis2_incidence", "type": "optional" },
+    { "from": "snt_dhis2_outliers_imputation_iqr", "to": "snt_dhis2_incidence", "type": "optional" },
+    { "from": "snt_dhis2_outliers_imputation_path", "to": "snt_dhis2_incidence", "type": "optional" },
+    { "from": "snt_dhis2_reporting_rate_dataelement", "to": "snt_dhis2_incidence", "type": "optional" },
+    { "from": "snt_dhis2_reporting_rate_dataset", "to": "snt_dhis2_incidence", "type": "optional" },
+    { "from": "snt_dhis2_population_transformation", "to": "snt_dhis2_incidence", "type": "optional" },
+    { "from": "snt_dhs_indicators", "to": "snt_dhis2_incidence", "type": "optional" },
+    { "from": "snt_worldpop_extract", "to": "snt_dhis2_population_transformation", "type": "optional" },
+    { "from": "snt_worldpop_extract", "to": "snt_map_extracts", "type": "optional" },
+    { "from": "snt_worldpop_extract", "to": "snt_healthcare_access", "type": "optional" },
+    { "from": "snt_dhis2_formatting", "to": "snt_healthcare_access", "type": "optional" }
+  ]
+};
+
+/* ---- layout constants ---- */
+const NODE_W = 142, NODE_H = 64, COL_W = 162, ROW_H = 158, PAD_X = 30, PAD_Y = 30;
+const SVGNS = "http://www.w3.org/2000/svg";
+
+const nodeById = {};
+MAP.nodes.forEach(n => nodeById[n.id] = n);
+
+function nx(n) { return PAD_X + n.col * COL_W; }        // left
+function ny(n) { return PAD_Y + n.row * ROW_H; }        // top
+function ncx(n) { return nx(n) + NODE_W / 2; }          // center x
+function ncy(n) { return ny(n) + NODE_H / 2; }          // center y
+
+const maxCol = Math.max(...MAP.nodes.map(n => n.col));
+const maxRow = Math.max(...MAP.nodes.map(n => n.row));
+const W = PAD_X * 2 + (maxCol + 1) * COL_W;
+const H = PAD_Y * 2 + (maxRow + 1) * ROW_H;
+
+const canvas = document.getElementById("canvas");
+canvas.style.width = W + "px";
+canvas.style.height = H + "px";
+
+/* point on the border of node n in the direction of (tx,ty) */
+function edgePoint(n, tx, ty) {
+  const cx = ncx(n), cy = ncy(n);
+  let dx = tx - cx, dy = ty - cy;
+  if (dx === 0 && dy === 0) return [cx, cy];
+  const hw = NODE_W / 2 + 2, hh = NODE_H / 2 + 2;
+  const sx = dx !== 0 ? hw / Math.abs(dx) : Infinity;
+  const sy = dy !== 0 ? hh / Math.abs(dy) : Infinity;
+  const s = Math.min(sx, sy);
+  return [cx + dx * s, cy + dy * s];
+}
+
+/* ---- SVG layer (groups + edges) ---- */
+const svg = document.createElementNS(SVGNS, "svg");
+svg.setAttribute("class", "edges");
+svg.setAttribute("width", W);
+svg.setAttribute("height", H);
+
+const defs = document.createElementNS(SVGNS, "defs");
+defs.innerHTML =
+  '<marker id="arrow" markerWidth="9" markerHeight="9" refX="7.5" refY="3" orient="auto" markerUnits="userSpaceOnUse">' +
+    '<path d="M0,0 L8,3 L0,6 Z" fill="#455a64"/></marker>' +
+  '<marker id="arrowOpt" markerWidth="9" markerHeight="9" refX="7.5" refY="3" orient="auto" markerUnits="userSpaceOnUse">' +
+    '<path d="M0,0 L8,3 L0,6 Z" fill="#90a4ae"/></marker>';
+svg.appendChild(defs);
+
+/* alternative-group background boxes (drawn first = behind) */
+const groups = {};
+MAP.nodes.forEach(n => {
+  if (n.type === "alternative" && n.group) (groups[n.group] = groups[n.group] || []).push(n);
+});
+Object.entries(groups).forEach(([gid, members]) => {
+  const pad = 12, labelH = 16;
+  const left = Math.min(...members.map(nx)) - pad;
+  const top = Math.min(...members.map(ny)) - pad - labelH;
+  const right = Math.max(...members.map(n => nx(n) + NODE_W)) + pad;
+  const bottom = Math.max(...members.map(n => ny(n) + NODE_H)) + pad;
+  const rect = document.createElementNS(SVGNS, "rect");
+  rect.setAttribute("x", left); rect.setAttribute("y", top);
+  rect.setAttribute("width", right - left); rect.setAttribute("height", bottom - top);
+  rect.setAttribute("rx", 10);
+  rect.setAttribute("fill", "rgba(30,136,229,0.05)");
+  rect.setAttribute("stroke", "#1e88e5");
+  rect.setAttribute("stroke-dasharray", "5,4");
+  rect.setAttribute("stroke-width", "1.3");
+  svg.appendChild(rect);
+  const code = members[0].code;
+  const t = document.createElementNS(SVGNS, "text");
+  t.setAttribute("x", left + 10); t.setAttribute("y", top + 12);
+  t.setAttribute("class", "grouplabel");
+  t.textContent = code + " — choose one";
+  svg.appendChild(t);
+});
+
+/* edges */
+MAP.edges.forEach(e => {
+  const a = nodeById[e.from], b = nodeById[e.to];
+  if (!a || !b) return;
+  const [x1, y1] = edgePoint(a, ncx(b), ncy(b));
+  const [x2, y2] = edgePoint(b, ncx(a), ncy(a));
+  const line = document.createElementNS(SVGNS, "line");
+  line.setAttribute("x1", x1); line.setAttribute("y1", y1);
+  line.setAttribute("x2", x2); line.setAttribute("y2", y2);
+  const opt = e.type === "optional";
+  line.setAttribute("stroke", opt ? "#90a4ae" : "#455a64");
+  line.setAttribute("stroke-width", opt ? 1.5 : 2);
+  if (opt) line.setAttribute("stroke-dasharray", "6,5");
+  line.setAttribute("marker-end", opt ? "url(#arrowOpt)" : "url(#arrow)");
+  svg.appendChild(line);
+});
+
+canvas.appendChild(svg);
+
+/* ---- node boxes (on top) ---- */
+MAP.nodes.forEach(n => {
+  const div = document.createElement("div");
+  div.className = "node " + n.type;
+  div.style.left = nx(n) + "px";
+  div.style.top = ny(n) + "px";
+  div.style.width = NODE_W + "px";
+  div.style.minHeight = NODE_H + "px";
+  div.title = (n.description || "") + "\n\n[" + n.type + "]  id: " + n.id;
+  // strip the leading code from the label to avoid duplication with the pill
+  const lblText = n.label.replace(new RegExp("^" + n.code.replace(".", "\\.") + "\\s*"), "");
+  div.innerHTML = '<span class="code">' + n.code + '</span><div class="lbl">' + lblText + '</div>';
+  canvas.appendChild(div);
+});
+
+/* ---- header + notes ---- */
+document.getElementById("version").textContent = "· v" + MAP.version;
+document.getElementById("notes").innerHTML =
+  '<b>How to read this map.</b> Rows = execution stage (top &rarr; bottom); columns separate the parallel tracks ' +
+  '(A = DHIS2, B = WorldPop + MAP, C = DHS, D = ERA5). ' +
+  '<b>Solid arrow</b> = hard dependency: the upstream pipeline must have run first. ' +
+  '<b>Dashed arrow</b> = optional link: the output is used if present, but the downstream pipeline can also run without it. ' +
+  'Dashed boxes group <b>alternative</b> pipelines &mdash; run one (running another overrides it). ' +
+  '<br><br><b>Points to confirm in review:</b> (1) the dashed links converging on <b>A.6 Incidence</b> ' +
+  '(from the A.3 outlier methods, A.4 reporting rate, A.5 population, and C.1 DHS) &mdash; are all correct and complete? ' +
+  '(2) the <b>B.1 WorldPop &rarr; A.5 Population</b> optional link. ' +
+  '(3) the <b>output</b> type (green) for the five layer-producing pipelines (A.6, A.7, B.2, B.3, D.2).';
+</script>
+</body>
+</html>
