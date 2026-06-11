@@ -32,11 +32,13 @@ origin.
 │   ├── JIRA_ITEMS.md                #   Full text of every Jira issue + resume runbook (project SNT25)
 │   ├── PRODUCT_SPEC.md              #   Product specification
 │   ├── Product_description_endgoal.md
-│   └── orchestrator_wireframe.html  #   UX/visual target for the orchestrator
+│   ├── orchestrator_wireframe.html  #   UX/visual target for the orchestrator
+│   └── pipeline_map_preview.html    #   Standalone visual render of pipeline_map.json (for review)
 │
 ├── schema.generated.graphql         # OpenHEXA GraphQL schema — query reference for agents
 ├── pipeline_cards_schema.json       # Schema + instructions for generating pipeline_cards.json files
 ├── pipeline_map_schema.json         # Schema for the shared orchestrator map (pipeline_map.json)
+├── pipeline_map.json                # Shared, hand-authored orchestrator map (layout + dependency edges)
 │
 ├── snt_testing/                     # One folder per workspace (slug, hyphens → underscores)
 │   ├── workspace_config.json        #   Resolved IDs (pipeline UUIDs, deployed_apps, connection slugs)
@@ -50,10 +52,14 @@ origin.
 │       ├── styles.css
 │       └── app.js
 │
-└── snt_drc_workshop_demo/
-    ├── workspace_config.json
-    ├── pipeline_cards.json
-    └── index.html                   #   (older flat single-file layout)
+├── snt_drc_workshop_demo/
+│   ├── workspace_config.json
+│   ├── pipeline_cards.json
+│   └── index.html                   #   (older flat single-file layout)
+│
+└── snt_app_dev/                     # Dedicated orchestrator build/test workspace (all ~18 pipelines)
+    ├── workspace_config.json        #   (no webapp deployed yet — orchestrator is built here next)
+    └── pipeline_cards.json
 ```
 
 **Global files** (root + `knowledge/`) apply to all workspaces. **Workspace folders** contain
@@ -171,3 +177,7 @@ Invoke-WebRequest -Uri "https://raw.githubusercontent.com/BLSQ/openhexa-app/main
 
 URLs and IDs come from each workspace's `workspace_config.json` — that file, not this table, is
 the source of truth.
+
+> The **SNT Pipelines Orchestrator** will be built and deployed in the dedicated **`snt_app_dev`**
+> workspace (all ~18 pipelines installed). It has no deployed webapp yet — a row will be added here
+> once the orchestrator bundle ships.
