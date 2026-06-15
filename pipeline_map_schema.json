@@ -31,7 +31,7 @@
         "description": "string — short subtitle shown in the sidebar (optional)",
         "type":        "string — mandatory | alternative | output | facultative. REQUIRED",
         "row":         "int — execution stage, top-to-bottom (lower = earlier). REQUIRED",
-        "col":         "int — horizontal position in the grid, left-to-right. REQUIRED",
+        "col":         "number — horizontal position in the grid, left-to-right (usually an int; fractional values are allowed to centre a node/group between columns, e.g. A.4 at 1.5/2.5 to sit under the A.3 group). REQUIRED",
         "group":       "string — mutual-exclusion group id; REQUIRED only when type == 'alternative', omit otherwise",
         "track":       "string — optional visual grouping/color hint, e.g. 'A' | 'B' | 'D'"
       }
