@@ -1,14 +1,15 @@
 # SNT Pipelines Orchestrator — User Persona & Functional-Scope Questionnaire
 
-> **Status:** For PM review · 2026-06-11
-> **Companion to:** `PRODUCT_SPEC.md` (this sharpens §3 "Target user" and §5/§9 scope into
-> decisions).
+> **Status:** For PM review · 2026-06-14
+>
+> **Companion to:** [`PRODUCT_SPEC.md`](https://github.com/BLSQ/OpenHEXA-WebApp-Diary/blob/main/knowledge/PRODUCT_SPEC.md) (this sharpens §3 "Target user" and §5/§9 scope into
+> decisions) and [`orchestrator_wireframe.html`](https://github.com/BLSQ/OpenHEXA-WebApp-Diary/blob/main/knowledge/orchestrator_wireframe.html)
 >
 > **Purpose (two audiences):**
 >
-> 1. **PM:** pin down a concrete user persona and confirm the functional scope boundaries.
+> 1. 👔 **PM:** pin down a concrete user persona and confirm the functional scope boundaries.
 >    Every question is **Yes / No** on purpose — binary forces a decision instead of "it depends."
-> 2. **Future build agents:** once answered, this file is **reference context** for whoever
+> 2. 🤖 **Future build agents:** once answered, this file is **reference context** for whoever
 >    (human or agent) builds the app — it records _who we are building for_ and _what is in/out
 >    of scope for v1_.
 
@@ -39,7 +40,7 @@ overrides it:
   (DHIS2 has monthly periodicity).
 - **Skill ceiling:** assume **Excel-level**; some users are DHIS2 power-analysts. Design for the floor.
 - **Process literacy:** user **needs guidance throughout** — does not inherently know what to run or in what order.
-- **Language:** **English only** for v1.
+- **Language:** **English only** for v1 and testing; **French required long term** (nearly all users are French-speaking, so French must eventually come first).
 - **Connections:** **BLSQ holds the credentials** and creates connections during setup.
 - **`SNT_config.json`:** **hand-edited today**; a user-friendly config UI is a **long-term vision**, not built yet.
 - **Install from template:** **one-click in the OpenHEXA UI** (no Git/CLI needed).
@@ -63,7 +64,7 @@ overrides it:
    - [ ] Yes (all run)
    - [ ] No (one runs)
    - [ ] Open
-4. The user holds an **M&E / surveillance** role specifically. **EDIT THIS**
+4. The user holds a **Monitoring & Evaluation (M&E) / surveillance** role specifically — i.e. their job centres on tracking and reporting on health-program data.
    - [ ] Yes
    - [ ] No
    - [ ] Open
@@ -78,7 +79,7 @@ overrides it:
 
 ## B. Skills & tooling comfort ⭐
 
-7. **Excel** is the high-water mark we must assume. **EDIT THIS**
+7. **Excel** is the most advanced data tool we can assume they know (nothing more technical than spreadsheets).
    - [ ] Yes
    - [ ] No
    - [ ] Open
@@ -94,15 +95,15 @@ overrides it:
     - [ ] Yes
     - [ ] No
     - [ ] Open
-11. They are comfortable with the concept of **parameters/arguments**.
+11. They are comfortable with the concept of **parameters** — the settings/options a user chooses **before running** a pipeline that change how it behaves (e.g. which year of data to extract, which imputation method to use, a threshold value).
     - [ ] Yes
     - [ ] No
     - [ ] Open
-12. They know what a **"pipeline" / DAG** is as a concept.
+12. They understand what a **pipeline** is — an automated, multi-step data process that runs as one unit (takes input data → processes it → produces outputs), and that pipelines link into a chain where one pipeline's output feeds the next.
     - [ ] Yes
     - [ ] No
     - [ ] Open
-13. **English** is sufficient for the actual NMP users (not just BLSQ). _(expected: Yes for v1.)_
+13. **English** is sufficient for **v1 and early testing** (real users trying it out and giving feedback). _(Long term the answer is **No**: French is required — nearly all our users are French-speaking, so eventually everything must be offered in French first.)_
     - [ ] Yes
     - [ ] No
     - [ ] Open
@@ -119,15 +120,15 @@ overrides it:
     - [ ] No
     - [ ] Open
     - **Notes:**
-16. User already understands **what each pipeline produces**. **WORK ON THIS: basically about how to display README...**
+16. User already understands **what each pipeline produces** (vs. relying on the app to surface it). _(Design implication — this is really a question about how much the app must explain: if **No**, the app has to make each pipeline's purpose/outputs discoverable, e.g. the one-line description on the card plus a link to the pipeline's GitHub README in the side panel (see Q67). Given the "needs guidance throughout" persona, this is likely **No** → the README/description display matters.)_
     - [ ] Yes
     - [ ] No
     - [ ] Open
-17. User knows the **mandatory / alternative / facultative** distinction without being told.
+17. User understands the pipeline **type labels** without being told — **mandatory** (always required), **alternative** (one of a mutually-exclusive group — pick exactly one), **facultative** (optional), and **output** (a final/terminal step whose role is to produce data layers that could be imported in the IASO SNT Explorer).
     - [ ] Yes
     - [ ] No
     - [ ] Open
-18. User can judge whether a run **succeeded meaningfully** (beyond a green check).
+18. User can judge whether a run **succeeded meaningfully** — i.e. inspect the outputs/report, decide whether they're happy with their parameter choices, and decide whether to move on to the next pipeline or re-run this one with different parameters (not just see a green check).
     - [ ] Yes
     - [ ] No
     - [ ] Open
@@ -144,12 +145,13 @@ overrides it:
     - [ ] No
     - [ ] Open
     - **Notes:**
-22. On failure, it's acceptable that the user's only recourse is **"contact BLSQ."** ⭐
+22. When a **pipeline run fails**, it's acceptable that the user's only recourse is **"contact BLSQ."** ⭐
+    _Caveat: a more technical user could self-troubleshoot via the pipeline's detailed description and logic (incl. what each parameter means) in the `snt_development` GitHub repo — also mirrored on the OpenHEXA "Pipelines" run page._
     - [ ] Yes
     - [ ] No
     - [ ] Open
     - **Notes:**
-23. App should **explain failures in plain language** (vs. just mirror OpenHEXA's status).
+23. When a **pipeline run fails**, the app should **re-cast the pipeline's own run Messages** (which we already write to be human-readable in the main code) **inside the app**, rather than sending the user to the OpenHEXA UI to read them there (which assumes more technical comfort). _(Note: the app can't invent its own plain-language diagnosis — these existing Messages are the most human-readable signal available.)_
     - [ ] Yes
     - [ ] No
     - [ ] Open
@@ -157,7 +159,7 @@ overrides it:
     - [ ] Yes
     - [ ] No
     - [ ] Open
-25. It's acceptable that the user **cannot self-recover** from a misconfigured parameter.
+25. It's acceptable that the user **struggles to fix a misconfigured parameter on their own.** _(Nothing is technically broken — any parameter can be changed and the pipeline re-run. The real difficulty is **understanding what each parameter means** and how to choose or correctly enter a value.)_
     - [ ] Yes
     - [ ] No
     - [ ] Open
@@ -181,7 +183,7 @@ overrides it:
     - [ ] Yes
     - [ ] No
     - [ ] Open
-30. The user already has an **OpenHEXA account** with "run" permissions (**"Editor" role**; granted by someone else).
+30. The user already has an **OpenHEXA account** with "run" permissions ([**"Editor" role**](https://docs.openhexa.com/workspaces/#roles-and-permissions); granted by someone else).
     - [ ] Yes
     - [ ] No
     - [ ] Open
@@ -197,7 +199,7 @@ overrides it:
     - [ ] Yes
     - [ ] No
     - [ ] Open
-33. User typically has a **stable internet connection**.
+33. User typically has an internet connection **reliable enough to open the app and trigger/check runs**. _(Limited relevance: pipelines run on OpenHEXA's servers, so the user does **not** need to stay connected while a run executes — they can close the app and check back later. "Reliable" here just means able to load the page and submit a run, not high-bandwidth or always-on.)_
     - [ ] Yes
     - [ ] No
     - [ ] Open
@@ -213,14 +215,14 @@ overrides it:
     - [ ] Yes
     - [ ] No
     - [ ] Open
-37. User works **in the same room/timezone** as the rest of their team.
+37. The small team sharing the workspace works **closely / at overlapping hours**, so they can coordinate who runs what. _(Why it matters: they share one workspace and one set of runs — if they work independently/asynchronously, two people might run the same pipeline at once or overwrite each other's outputs, which affects whether the app needs to show "who is running what".)_
     - [ ] Yes
     - [ ] No
     - [ ] Open
 
 ## G. Goals, motivation & success
 
-38. Primary goal is to **produce the stratification data layers** (not explore/analyze here).
+38. Primary goal is to **produce the stratification data layers — with "ownership", not as a black box.** _(The point isn't just to spit out results: the core processing logic of each pipeline stays accessible (R code in `.ipynb` notebooks), and parameters expose the context-specific decisions the analyst should make — rather than a generic, pre-defined approach. Each pipeline produces output data **plus a report** with deeper insights, so the analyst can evaluate the results and decide whether to re-run with different parameter choices.)_
     - [ ] Yes
     - [ ] No
     - [ ] Open
@@ -233,11 +235,11 @@ overrides it:
     - [ ] Yes
     - [ ] No
     - [ ] Open
-41. User is **accountable** for output correctness (vs. just executing on request). **TO THINK ABOUT THIS**
+41. The user is **accountable for the soundness of the outputs** — they own the parameter decisions and judge whether results are acceptable — rather than just mechanically running pipelines on someone else's instructions. _(Follows from the "ownership, not a black box" goal in Q38 and the "judge meaningful success" ability in Q18: the analyst is meant to make context-specific choices and stand behind the results. If **No** — they only execute and someone else validates — the app needs far less inline guidance/reporting for decision-making, which would reshape its purpose.)_
     - [ ] Yes
     - [ ] No
     - [ ] Open
-42. App is a success if it only **orchestrates existing pipelines** (no new analysis).
+42. App is a success if it only **orchestrates the existing, mapped pipelines** — it does **not** need to support custom/user-created pipelines outside the standard SNT map. _("No new analysis" = no building of new pipelines or analyses inside the app; running and configuring the standard ones is enough.)_
     - [ ] Yes
     - [ ] No
     - [ ] Open
@@ -278,7 +280,7 @@ overrides it:
     - [ ] Yes
     - [ ] No
     - [ ] Open
-49. Since install is **one-click in OH**, the app should **deep-link** to that screen for a missing pipeline (vs. just "ask BLSQ"). ⭐
+49. For a missing pipeline, the app should give a **direct link that takes the user straight to the OpenHEXA screen where the pipeline can be installed** (one click there), instead of just telling them to "ask BLSQ." ⭐
     - [ ] Yes
     - [ ] No
     - [ ] Open
@@ -316,7 +318,7 @@ overrides it:
 
 ## I.3 Connections & credentials
 
-56. Since **BLSQ holds credentials**, creating/editing connections is **always** pre-user setup. Acceptable?
+56. Since **BLSQ holds the credentials**, connections are **always created/edited by BLSQ during setup, before the user ever opens the app.** Acceptable?
     - [ ] Yes
     - [ ] No
     - [ ] Open
@@ -336,16 +338,16 @@ overrides it:
 
 ## I.4 Setup-gap detection (cross-cutting ⭐ — currently undecided)
 
-60. On load, app should **diagnose readiness** ("connection X missing", "config not set", "pipeline not installed") and link out. ⭐
+60. On load, the app should **check whether the workspace is ready** ("connection X missing", "config not set", "pipeline not installed") and, if not, **send the user to the relevant OpenHEXA page to fix it.** ⭐ _("Link out" = the app shows a message with a link that opens the right OpenHEXA screen in a new tab; the app doesn't fix it itself.)_
     - [ ] Yes
     - [ ] No
     - [ ] Open
     - **Notes:**
-61. If yes: **link-out + plain-language explanation** is sufficient (no in-app fixing).
+61. If yes: it's enough for the app to **explain the problem in plain language and link the user to the OpenHEXA page to fix it** — the app itself never fixes anything (no in-app editing of config, connections, or pipelines).
     - [ ] Yes
     - [ ] No
     - [ ] Open
-62. Acceptable for v1 to **skip all gap-detection** and show setup problems as ordinary pipeline failures.
+62. Acceptable for v1 to **not check readiness at all** — if something isn't set up (a missing connection, missing config, or uninstalled pipeline), the user only finds out when they try to run a pipeline and it fails like any other error, with no special up-front warning.
     - [ ] Yes
     - [ ] No
     - [ ] Open
@@ -388,9 +390,10 @@ overrides it:
     - [ ] Yes
     - [ ] No
     - [ ] Open
-71. Acceptable that status reflects only the **current session's** runs (vs. full persistent history). ⭐
-    - [ ] Yes (session-only OK)
-    - [ ] No (must persist)
+71. Acceptable that the app shows status only for runs **launched in the current browser session** — i.e. if you close and reopen the app (or a teammate opens it), it shows nothing until a new run is triggered? ⭐
+    _Clarification: the alternative ("must persist") is that every time anyone opens the app it asks OpenHEXA for the **actual last run of each pipeline** and shows the true, up-to-date state — so you and your teammates always see what's been done, even after closing the app or days later. Given the small-team / leave-and-return / monthly-refresh usage, "must persist" is likely what's wanted; this question just confirms it._
+    - [ ] Yes (session-only is OK)
+    - [ ] No (must persist across reloads and users)
     - [ ] Open
     - **Notes:**
 
