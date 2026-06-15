@@ -119,7 +119,7 @@ overrides it:
     - [ ] No
     - [ ] Open
     - **Notes:**
-16. User understands **what each pipeline produces**.
+16. User already understands **what each pipeline produces**. **WORK ON THIS: basically about how to display README...**
     - [ ] Yes
     - [ ] No
     - [ ] Open
@@ -136,10 +136,6 @@ overrides it:
     - [ ] No (display only)
     - [ ] Open
     - **Notes:**
-20. User will know which pipeline to pick among **alternative** ones.
-    - [ ] Yes
-    - [ ] No
-    - [ ] Open
 
 ## D. Autonomy & support ⭐ (biggest persona fork — currently undecided)
 
@@ -185,19 +181,19 @@ overrides it:
     - [ ] Yes
     - [ ] No
     - [ ] Open
-30. The user already has an **OpenHEXA account** with run permissions (granted by someone else).
+30. The user already has an **OpenHEXA account** with "run" permissions (**"Editor" role**; granted by someone else).
     - [ ] Yes
     - [ ] No
     - [ ] Open
-31. The user should **never install a missing pipeline** themselves. _(expected: No — ask BLSQ.)_ ⭐
+31. The user should **install** (create from template) **missing pipelines** themselves. ⭐
     - [ ] Yes
     - [ ] No
     - [ ] Open
-    - **Notes:** _(see I.1 Q51 — note install is one-click, which complicates this)_
+    - **Notes:** _(see I.1 Q51 — note install is one-click)_
 
 ## F. Context & environment of use
 
-32. **Desktop/laptop only** (no tablet/phone). _(spec assumes Yes.)_
+32. **Desktop/laptop only** (no tablet/phone).
     - [ ] Yes
     - [ ] No
     - [ ] Open
@@ -237,7 +233,7 @@ overrides it:
     - [ ] Yes
     - [ ] No
     - [ ] Open
-41. User is **accountable** for output correctness (vs. just executing on request).
+41. User is **accountable** for output correctness (vs. just executing on request). **TO THINK ABOUT THIS**
     - [ ] Yes
     - [ ] No
     - [ ] Open
@@ -278,7 +274,7 @@ overrides it:
 
 ## I.1 Pipeline management
 
-48. App **cannot install** a pipeline (user installs from template in OH). Acceptable?
+48. App **cannot install** a pipeline (user installs with create from template in OH). Acceptable?
     - [ ] Yes
     - [ ] No
     - [ ] Open
