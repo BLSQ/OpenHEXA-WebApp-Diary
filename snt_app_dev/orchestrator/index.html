@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>SNT Pipelines Orchestrator</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <!-- App shell: a scrollable canvas (the pipeline map) on the left,
+         a detail sidebar on the right. Both are empty at T1.1 — the grid,
+         arrows, and sidebar content arrive in later tasks (T1.2+). The only
+         job at this stage is the data plumbing in app.js. -->
+    <header class="topbar">
+      <h1 class="topbar-title">SNT Pipelines Orchestrator</h1>
+      <span class="topbar-ws" id="workspaceLabel"></span>
+    </header>
+
+    <main class="layout">
+      <section class="canvas" id="canvas" aria-label="Pipeline map">
+        <!-- Nodes + SVG edges get rendered here in T1.2 / T1.3. -->
+      </section>
+
+      <aside class="sidebar" id="sidebar" aria-label="Pipeline details">
+        <!-- Read-only detail panel arrives in T1.6. -->
+      </aside>
+    </main>
+
+    <script src="app.js"></script>
+  </body>
+</html>

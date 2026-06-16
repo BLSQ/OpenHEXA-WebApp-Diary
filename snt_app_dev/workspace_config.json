@@ -2,7 +2,13 @@
   "_comment": "Workspace-specific resolved IDs for SNT App Dev. Never copy UUIDs across workspaces — look them up fresh with MCP tools. Pipelines are keyed by Python function name (stable across workspaces); the value is the workspace-specific UUID passed to runPipeline.",
   "workspace_slug": "snt-app-dev",
   "workspace_name": "SNT App Dev",
-  "deployed_apps": {},
+  "deployed_apps": {
+    "orchestrator": {
+      "id": "762251a6-7464-4fe1-b608-0f812d90f02c",
+      "slug": "snt-pipelines-orchestrator",
+      "url": "https://snt-pipelines-orchestrator.openhexa.io/"
+    }
+  },
   "connections": {
     "dhis2": "dhis2-nmdr-drc"
   },
