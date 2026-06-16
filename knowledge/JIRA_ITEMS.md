@@ -198,7 +198,7 @@ status board. The whole pipeline map shows up on screen, every pipeline box disp
 most recent run went (even runs other people started), and clicking a box opens a side panel
 with its details. 👀 It's all read-only for now: no Run button and no locking of steps behind
 their prerequisites — those come in later phases. The aim is simply to give everyone one clear
-screen to *see* the full SNT flow and where each pipeline stands. 🗺️
+screen to _see_ the full SNT flow and where each pipeline stands. 🗺️
 **Exit criteria:** 🚀 published to the SNT App Dev workspace; ✅ the statuses on the board match
 what OpenHEXA shows; 👍 reviewed and signed off by Giulia and the PM.
 
@@ -219,12 +219,38 @@ what OpenHEXA shows; 👍 reviewed and signed off by Giulia and the PM.
 we copy a small app we already trust (`snt_testing/population_transformation_split/`) and reshape
 it into a fresh `snt_app_dev/orchestrator/` folder. The app is split into three files, each with
 one clear job: `index.html` is the skeleton of the page, `styles.css` handles how things look,
-and `app.js` is the "brain" that makes things happen. 🧠
+and `app.js` handles the logic.
 
 At this stage the app doesn't draw anything yet — the only goal is to make sure it can wake up
 and read its two data files: the shared map of all pipelines (`pipeline_map.json`) and the list
 of pipelines that actually exist in this workspace (`pipeline_cards.json`). Once both are loaded,
 the app combines them into a single list of nodes it can later put on screen. 🔗
+
+---
+
+**👩‍🏫 Tutorial for the human (optional, hands-on):** this task is owned by the agent and has
+nothing visible on the page yet — so to "see" it working you peek behind the scenes in the
+browser's **developer console** (open the app, press `F12`, click the **Console** tab). It's a
+hidden panel where the app can print messages for developers; it's not part of the visible
+webpage. Here's how to convince yourself it works:
+
+1. 🚀 Open the app and open the dev console.
+2. 👀 Watch what it prints. In T1.1 we deliberately add a line that prints the combined list of
+   pipeline boxes the app just built — so the console fills with ~18 entries (`snt_dhis2_extract`,
+   `snt_dhis2_format`, …), each tagged _available_ or _greyed_.
+3. ✅ Reading that list confirms three things happened: it found and opened the shared map
+   (`pipeline_map.json`), it found and opened this workspace's pipeline list
+   (`pipeline_cards.json`), and it correctly _merged_ the two (matched each map box to whether
+   this workspace actually has that pipeline).
+
+The failure cases are just as visible: a missing file or a typo shows a red error instead of the
+list 🛑, and broken merge logic shows an empty list or everything marked greyed.
+
+🔑 Mental model: think of T1.1 as wiring up the engine and turning the key — you can't see the
+car move yet, but you listen for the engine to turn over. "Log the merged node list" is that
+engine sound. T1.2 is where it becomes visible (boxes appear on screen); T1.1's whole job is to
+prove the data plumbing is sound _before_ anything is built on top of it — so if boxes go missing
+later, you already know the data wasn't the problem.
 **Acceptance criteria:** the app loads both JSON files and logs the merged node list.
 
 ### T1.2 — Render the grid
@@ -237,6 +263,23 @@ parallel branches — like the A, B and D tracks — neatly side by side). 📐
 This task takes those coordinates and actually draws each pipeline as a box (a "node") in the
 right spot on the canvas, so the whole flow lines up the way it was designed in the map. No
 arrows, colours, or clicking yet — just every box showing up in its correct place. ✅
+
+---
+
+**👩‍🏫 Tutorial for the human (optional, hands-on):** this is the first task you can actually
+*see* — so the test is your own eyes. 👀
+
+1. 🚀 Open the app. You should now see a page full of labelled boxes instead of a blank screen.
+2. 🧭 Compare the layout to the agreed map sketch (the one consolidated back in T0.3): are the
+   boxes roughly in the right rows top-to-bottom, and do the parallel A / B / D tracks sit in
+   their own columns side by side?
+3. 🔢 Do a quick headcount — roughly 18 boxes, one per pipeline, with nothing overlapping or
+   piled up in a corner.
+
+Don't worry yet about arrows, colours, or whether anything is clickable — those are later tasks.
+The only question here is "is every box in the place the map says it should be?" 📐 If a box is
+missing or in the wrong spot, that usually points back to its `row`/`col` values in
+`pipeline_map.json`.
 **Acceptance criteria:** all nodes appear in the intended grid positions.
 
 ### T1.3 — Draw the SVG arrows
@@ -250,12 +293,28 @@ We draw these arrows ourselves with plain built-in web tools (SVG), without pull
 outside drawing library or relying on the internet — this keeps the app simple, fast, and
 self-contained. The key thing to get right is direction: each arrow must point from the pipeline
 that comes first to the one that depends on it. 🎯
+
+---
+
+**👩‍🏫 Tutorial for the human (optional, hands-on):** again, an eyes-on check — this time
+following the lines. 👀
+
+1. 🚀 Open the app: the boxes from T1.2 should now be joined by arrows.
+2. ➡️ Pick a pipeline you know feeds another (for example, an "extract" step feeding a "format"
+   step) and check the arrow runs *from* the earlier one *to* the later one — the arrowhead is on
+   the correct end, not pointing backwards.
+3. 🔍 Spot-check a couple more connections against the map sketch: every link drawn in the map
+   should have exactly one arrow, and there should be no arrows between boxes that aren't actually
+   related.
+
+A common giveaway of a bug here is an arrow pointing the wrong way 🔄 or a connection that's
+missing entirely — both trace back to the `edges` list in `pipeline_map.json`.
 **Acceptance criteria:** every dependency edge is visible and points the right way.
 
 ### T1.4 — Available vs greyed
 
 **Description:** 🌗 Show what's actually usable in this workspace. The map always shows the
-*complete* picture — every SNT pipeline that could exist — but not every workspace has all of
+_complete_ picture — every SNT pipeline that could exist — but not every workspace has all of
 them installed. This task teaches the app to tell the difference. 🔍
 
 The rule is simple: if a pipeline appears in the workspace's own list (`pipeline_cards.json`),
@@ -263,6 +322,22 @@ it's "available" and shown in full colour. If it doesn't, it's "greyed out" — 
 clickable — so the user can still see it's part of the bigger flow but understands it isn't
 ready to use here. ⚪ This is exactly what lets the same single map work for every workspace
 while still feeling tailored to each one. 🧩
+
+---
+
+**👩‍🏫 Tutorial for the human (optional, hands-on):** here you can prove the rule to yourself by
+comparing the screen to the workspace's pipeline list. 👀
+
+1. 🗂️ Open `snt_app_dev/pipeline_cards.json` and skim the list of pipelines it contains — these
+   are the ones installed in this workspace.
+2. 🚀 Open the app and look at the map: the boxes shown in full colour should match that list,
+   and any pipeline *not* in the list should appear dimmed/greyed. ⚪
+3. 🖱️ Try clicking a greyed box — nothing should happen (it's intentionally not clickable),
+   whereas a coloured box should respond.
+
+A neat way to really convince yourself: imagine temporarily removing one pipeline from
+`pipeline_cards.json` — that box should flip to greyed on the next reload. 🔁 This is the same
+mechanism that makes the one shared map adapt to every workspace.
 **Acceptance criteria:** missing pipelines render greyed; installed ones render active.
 
 ### T1.5 — Live status layer
@@ -277,6 +352,23 @@ anyone can dig into the details with one click. The big win here is that this re
 really happening on the platform — even runs that other people started — not just runs launched
 from this app. The test is straightforward: what the board shows should match what you'd see in
 the OpenHEXA Pipelines screen after a refresh. 🔁
+
+---
+
+**👩‍🏫 Tutorial for the human (optional, hands-on):** this one is satisfying to check because
+you're comparing the app against the real OpenHEXA platform side by side. 🪟🪟
+
+1. 🚀 Open the app in one tab and the OpenHEXA **Pipelines** view (for the SNT App Dev workspace)
+   in another.
+2. 🚦 Go pipeline by pipeline: the status badge and last-run time on each box should match what
+   OpenHEXA reports for that same pipeline. ✅ ❌ 🔄
+3. 🔗 Click the "open in OpenHEXA" link on a node and confirm it lands on the right run's page.
+4. 🧪 The convincing test: trigger a run from the OpenHEXA UI (or ask a colleague to), then
+   reload the app — that pipeline's badge should update to `running`, then to its final status.
+   This proves the board reflects *everyone's* activity, not just runs started from the app. 🔁
+
+If a badge disagrees with OpenHEXA, it usually means the status query came back stale or for the
+wrong run — a reload is the first thing to try.
 **Acceptance criteria:** statuses on the board match the OpenHEXA Pipelines view after a reload.
 
 ### T1.6 — Read-only detail sidebar
@@ -292,6 +384,25 @@ documentation (`README.md`) on GitHub 📖, and links to its latest results — 
 produced and its HTML report — so the user can review the outputs without hunting around. 📄
 The goal is that every available pipeline opens a tidy, accurate summary with links that all
 work. 🔗
+
+---
+
+**👩‍🏫 Tutorial for the human (optional, hands-on):** the test here is to click around and read
+carefully — you're checking that the panel tells the truth and that every link actually goes
+somewhere. 👀
+
+1. 🖱️ Click an available (coloured) box: a panel should slide open on the side.
+2. 📋 Read it over — name, description, and the list of settings (parameters) — and sanity-check
+   that they match what you'd expect for that pipeline. Remember: in this phase these are
+   read-only, so there's no Run button yet (that's Phase 2).
+3. 📖 Click the GitHub `README.md` link and confirm it opens that pipeline's documentation.
+4. 📄 Click the output links (datasets / HTML report) and confirm they open the latest results —
+   no dead links or "not found" pages.
+5. 🔁 Repeat on two or three different pipelines to make sure the panel updates to match whichever
+   box you clicked (and isn't stuck showing the first one).
+
+A broken or missing link 🛑, or a panel showing the wrong pipeline's details, is the kind of
+thing this check is meant to catch.
 **Acceptance criteria:** every available node shows correct details and working links.
 
 ### T1.7 — Deploy + QA
@@ -314,7 +425,7 @@ mirror matches what was deployed.
 **Description:** 👀 Step back and look at it together. With the read-only board live, the PM and
 Giulia go through it with fresh eyes: Is it easy to understand at a glance? Do the colours,
 labels, and layout make sense? Is anything confusing, cramped, or missing? 🤔 This is a
-look-and-feel review, not a bug hunt — it's about whether the board *communicates* well to
+look-and-feel review, not a bug hunt — it's about whether the board _communicates_ well to
 someone who isn't a developer. 🎨
 
 Every comment and idea is written down as a clear, concrete to-do, so the polish work in Phase 3
