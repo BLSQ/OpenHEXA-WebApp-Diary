@@ -159,10 +159,120 @@ function logMergedNodes(nodes, map, cards) {
 }
 
 /* ------------------------------------------------------------------ *
+ * T1.2 — Render the grid
+ *
+ * Place each node at its row/col on the canvas. Positions are absolute and
+ * computed from row/col (not a CSS grid), so fractional columns — the two A.4
+ * reporting-rate nodes use col 1.5 / 2.5 — land exactly between their integer
+ * neighbours. The coordinate helpers are stashed on APP.layout so T1.3 can
+ * reuse the same geometry to attach SVG arrows to node centres/borders.
+ *
+ * Scope is just placement: no arrows (T1.3), no greying (T1.4), no status
+ * (T1.5), no click handling (T1.6) yet.
+ * ------------------------------------------------------------------ */
+
+// Card + grid geometry, in px. Mirrors knowledge/pipeline_map_preview.html so
+// the deployed app matches the reviewed layout.
+var LAYOUT = {
+  NODE_W: 142,
+  NODE_H: 64,
+  COL_W: 162,
+  ROW_H: 158,
+  PAD_X: 30,
+  PAD_Y: 30,
+};
+
+// Only mandatory/output nodes carry a visible type label (top-right corner);
+// alternative/facultative are left unlabelled, per the map conventions.
+var FILLED_TYPES = { mandatory: true, output: true };
+
+function escapeHtml(s) {
+  return String(s == null ? "" : s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+/* Build the coordinate helpers + overall canvas size for a set of nodes.
+ * nx/ny = top-left of a node's card; ncx/ncy = its centre. */
+function makeLayout(nodes) {
+  var L = LAYOUT;
+  var nx = function (n) {
+    return L.PAD_X + n.col * L.COL_W;
+  };
+  var ny = function (n) {
+    return L.PAD_Y + n.row * L.ROW_H;
+  };
+  var maxCol = 0;
+  var maxRow = 0;
+  nodes.forEach(function (n) {
+    if (n.col > maxCol) maxCol = n.col;
+    if (n.row > maxRow) maxRow = n.row;
+  });
+  return {
+    nx: nx,
+    ny: ny,
+    ncx: function (n) {
+      return nx(n) + L.NODE_W / 2;
+    },
+    ncy: function (n) {
+      return ny(n) + L.NODE_H / 2;
+    },
+    width: L.PAD_X * 2 + (maxCol + 1) * L.COL_W,
+    height: L.PAD_Y * 2 + (maxRow + 1) * L.ROW_H,
+  };
+}
+
+/* Render one card per node into #canvas, absolutely positioned at its row/col.
+ * Keeps a map of id -> element on APP.nodeEls for later tasks. */
+function renderGrid(nodes) {
+  var canvas = document.getElementById("canvas");
+  if (!canvas) return;
+
+  var layout = makeLayout(nodes);
+  APP.layout = layout;
+  APP.nodeEls = {};
+
+  canvas.innerHTML = "";
+  canvas.style.width = layout.width + "px";
+  canvas.style.height = layout.height + "px";
+
+  nodes.forEach(function (n) {
+    var div = document.createElement("div");
+    div.className = "node track-" + n.track;
+    div.dataset.id = n.id;
+    div.style.left = layout.nx(n) + "px";
+    div.style.top = layout.ny(n) + "px";
+    div.style.width = LAYOUT.NODE_W + "px";
+    div.style.minHeight = LAYOUT.NODE_H + "px";
+    div.title =
+      (n.description || "") + "\n\n[" + n.type + "]  id: " + n.id;
+
+    var badge = FILLED_TYPES[n.type]
+      ? '<span class="type-badge filled">' + escapeHtml(n.type) + "</span>"
+      : "";
+    div.innerHTML =
+      badge +
+      '<span class="code">' +
+      escapeHtml(n.code) +
+      "</span>" +
+      '<div class="lbl">' +
+      escapeHtml(n.label) +
+      "</div>";
+
+    canvas.appendChild(div);
+    APP.nodeEls[n.id] = div;
+  });
+}
+
+/* ------------------------------------------------------------------ *
  * Boot
  * ------------------------------------------------------------------ */
-// Holds the loaded + merged state so later tasks (T1.2+) can render from it.
-var APP = { map: null, cards: null, nodes: [] };
+// Holds the loaded + merged state so later tasks can render from it.
+// layout = coordinate helpers + canvas size (set by renderGrid, reused by T1.3
+// for arrows); nodeEls = id -> rendered card element.
+var APP = { map: null, cards: null, nodes: [], layout: null, nodeEls: {} };
 
 async function init() {
   var wsLabel = document.getElementById("workspaceLabel");
@@ -178,6 +288,7 @@ async function init() {
     APP.cards = data.cards;
     APP.nodes = mergeNodes(data.map, data.cards);
     logMergedNodes(APP.nodes, data.map, data.cards);
+    renderGrid(APP.nodes);
   } catch (err) {
     console.error("SNT Orchestrator — failed to load data:", err);
   }
