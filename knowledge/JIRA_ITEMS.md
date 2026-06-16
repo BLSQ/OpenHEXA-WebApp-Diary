@@ -193,10 +193,14 @@ last-run status for all pipelines") instead.
 
 ## Story — Phase 1 · Read-only status board (SNT25-547)
 
-**Description:** The first shippable webapp — a read-only status board. The full map renders,
-every node shows real cross-session status, and clicking a node opens a read-only detail panel.
-No Run button and no dependency locking yet.
-**Exit criteria:** deployed to SNT App Dev; statuses match the OpenHEXA UI; reviewed by Giulia + PM.
+**Description:** 📊 The first version of the app we can actually share — a "look, don't touch"
+status board. The whole pipeline map shows up on screen, every pipeline box displays how its
+most recent run went (even runs other people started), and clicking a box opens a side panel
+with its details. 👀 It's all read-only for now: no Run button and no locking of steps behind
+their prerequisites — those come in later phases. The aim is simply to give everyone one clear
+screen to *see* the full SNT flow and where each pipeline stands. 🗺️
+**Exit criteria:** 🚀 published to the SNT App Dev workspace; ✅ the statuses on the board match
+what OpenHEXA shows; 👍 reviewed and signed off by Giulia and the PM.
 
 | Ref  | Key   | Type | Summary                         | Owner         | Blocked by | Status  |
 | ---- | ----- | ---- | ------------------------------- | ------------- | ---------- | ------- |
@@ -211,53 +215,110 @@ No Run button and no dependency locking yet.
 
 ### T1.1 — Scaffold the app bundle
 
-**Description:** Create `snt_app_dev/orchestrator/` with `index.html` + `styles.css` + `app.js`,
-cloned from the proven split app (`snt_testing/population_transformation_split/`). `app.js`
-fetches `./pipeline_map.json` and `./pipeline_cards.json`.
+**Description:** 🏗️ Lay the foundations of the new app. Instead of starting from a blank page,
+we copy a small app we already trust (`snt_testing/population_transformation_split/`) and reshape
+it into a fresh `snt_app_dev/orchestrator/` folder. The app is split into three files, each with
+one clear job: `index.html` is the skeleton of the page, `styles.css` handles how things look,
+and `app.js` is the "brain" that makes things happen. 🧠
+
+At this stage the app doesn't draw anything yet — the only goal is to make sure it can wake up
+and read its two data files: the shared map of all pipelines (`pipeline_map.json`) and the list
+of pipelines that actually exist in this workspace (`pipeline_cards.json`). Once both are loaded,
+the app combines them into a single list of nodes it can later put on screen. 🔗
 **Acceptance criteria:** the app loads both JSON files and logs the merged node list.
 
 ### T1.2 — Render the grid
 
-**Description:** Render the canvas — place each node at its `row`/`col` position from
-`pipeline_map.json`.
+**Description:** 🗺️ Bring the map to life on screen. Every pipeline in the map has two
+coordinates that say where it belongs: a `row` (how far down the page it sits, roughly its step
+in the overall flow from top to bottom) and a `col` (where it sits left-to-right, which keeps the
+parallel branches — like the A, B and D tracks — neatly side by side). 📐
+
+This task takes those coordinates and actually draws each pipeline as a box (a "node") in the
+right spot on the canvas, so the whole flow lines up the way it was designed in the map. No
+arrows, colours, or clicking yet — just every box showing up in its correct place. ✅
 **Acceptance criteria:** all nodes appear in the intended grid positions.
 
 ### T1.3 — Draw the SVG arrows
 
-**Description:** Draw one SVG arrow per `edge` in `pipeline_map.json`, between node centers (no
-graph-layout library or CDN).
+**Description:** ➡️ Connect the dots. Now that the boxes are in place, we draw the arrows that
+show how one pipeline feeds into the next. The map already lists these connections (each one is
+called an "edge"), and for every connection we draw a single arrow from one box to another so
+the reader can follow the flow at a glance. 👀
+
+We draw these arrows ourselves with plain built-in web tools (SVG), without pulling in any
+outside drawing library or relying on the internet — this keeps the app simple, fast, and
+self-contained. The key thing to get right is direction: each arrow must point from the pipeline
+that comes first to the one that depends on it. 🎯
 **Acceptance criteria:** every dependency edge is visible and points the right way.
 
 ### T1.4 — Available vs greyed
 
-**Description:** Compute available-vs-greyed: a node is available iff its `id` is present in
-`pipeline_cards.json`; otherwise render it greyed-out and unclickable.
+**Description:** 🌗 Show what's actually usable in this workspace. The map always shows the
+*complete* picture — every SNT pipeline that could exist — but not every workspace has all of
+them installed. This task teaches the app to tell the difference. 🔍
+
+The rule is simple: if a pipeline appears in the workspace's own list (`pipeline_cards.json`),
+it's "available" and shown in full colour. If it doesn't, it's "greyed out" — dimmed and not
+clickable — so the user can still see it's part of the bigger flow but understands it isn't
+ready to use here. ⚪ This is exactly what lets the same single map work for every workspace
+while still feeling tailored to each one. 🧩
 **Acceptance criteria:** missing pipelines render greyed; installed ones render active.
 
 ### T1.5 — Live status layer
 
-**Description:** For each available node, fetch its latest run via the confirmed status query;
-show a status badge + last-run datetime, and a link to that run's page in the OpenHEXA UI.
+**Description:** 🚦 Make the board show real, up-to-date information. For every available
+pipeline, the app asks OpenHEXA "how did your most recent run go?" and shows the answer right on
+the box. Each node gets a little status badge — for example ✅ success, ❌ failed, or 🔄 still
+running — together with the date and time of that last run. 🕒
+
+We also add a handy link on each node that jumps straight to that run's page in OpenHEXA, so
+anyone can dig into the details with one click. The big win here is that this reflects what's
+really happening on the platform — even runs that other people started — not just runs launched
+from this app. The test is straightforward: what the board shows should match what you'd see in
+the OpenHEXA Pipelines screen after a refresh. 🔁
 **Acceptance criteria:** statuses on the board match the OpenHEXA Pipelines view after a reload.
 
 ### T1.6 — Read-only detail sidebar
 
-**Description:** Clicking a node opens the read-only sidebar: name, description, parameters
-(display only), a link to the pipeline's `README.md` on GitHub, and links to its latest outputs
-(datasets / HTML report).
+**Description:** 📋 Give each pipeline a "details" view. When the user clicks a node on the map,
+a panel slides open on the side of the screen showing everything worth knowing about that
+pipeline: its name, a short description of what it does, and the list of settings (parameters) it
+uses. 🛠️ In this first version these settings are shown for reading only — you can look but not
+change or launch anything yet (running comes in Phase 2).
+
+The panel also gathers the useful links in one place: a shortcut to the pipeline's full
+documentation (`README.md`) on GitHub 📖, and links to its latest results — any datasets it
+produced and its HTML report — so the user can review the outputs without hunting around. 📄
+The goal is that every available pipeline opens a tidy, accurate summary with links that all
+work. 🔗
 **Acceptance criteria:** every available node shows correct details and working links.
 
 ### T1.7 — Deploy + QA
 
-**Description:** Deploy the orchestrator bundle to SNT App Dev via the `update_static_webapp`
-MCP tool; mirror all deployed files to `snt_app_dev/orchestrator/`.
+**Description:** 🚀 Put the app online and check it really works. Up to now everything has been
+built and tested locally; this task publishes the app to the SNT App Dev workspace so it has a
+proper web address people can open. 🌐 After publishing, we save an exact copy of every file we
+sent into `snt_app_dev/orchestrator/`, so what's on our computer always matches what's live —
+no surprises later. 🗂️
+
+Then comes the quality check (QA): open the published link and confirm the map looks right, the
+boxes are in the correct places, the arrows make sense, and the statuses shown match reality. ✔️
+This is the moment the read-only board becomes something we can actually share and look at
+together.
 **Acceptance criteria:** the deployed URL shows the correct map + real statuses; the local
 mirror matches what was deployed.
 
 ### T1.8 — UI review round
 
-**Description:** PM + Giulia review the board's look/feel and clarity; collect feedback as
-concrete Phase 3 polish tasks.
+**Description:** 👀 Step back and look at it together. With the read-only board live, the PM and
+Giulia go through it with fresh eyes: Is it easy to understand at a glance? Do the colours,
+labels, and layout make sense? Is anything confusing, cramped, or missing? 🤔 This is a
+look-and-feel review, not a bug hunt — it's about whether the board *communicates* well to
+someone who isn't a developer. 🎨
+
+Every comment and idea is written down as a clear, concrete to-do, so the polish work in Phase 3
+has a ready-made list to pick from rather than a vague sense of "make it nicer." ✨
 **Acceptance criteria:** feedback is captured as concrete follow-up tasks.
 
 ---
