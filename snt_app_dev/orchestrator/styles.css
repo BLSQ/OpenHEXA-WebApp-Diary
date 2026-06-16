@@ -68,6 +68,78 @@ body {
   padding: 1.5rem;
 }
 
+/* --- Pipeline nodes (T1.2) --- *
+ * Cards are absolutely positioned by app.js from each node's row/col, so the
+ * canvas itself is the positioning context (#canvas is sized in JS). Visual
+ * style mirrors knowledge/pipeline_map_preview.html. */
+.node {
+  position: absolute;
+  border: 2px solid #9e9e9e;
+  border-radius: 8px;
+  background: #fff;
+  padding: 7px 9px;
+  font-size: 12px;
+  line-height: 1.25;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+  user-select: none;
+  overflow: visible;
+}
+
+.node .code {
+  display: inline-block;
+  font-weight: 700;
+  font-size: 10.5px;
+  letter-spacing: 0.3px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  margin-bottom: 4px;
+  background: rgba(0, 0, 0, 0.06);
+}
+.node .lbl {
+  font-weight: 600;
+}
+
+/* Track colours: A = DHIS2, B = WorldPop+MAP, C = DHS, D = ERA5. */
+.node.track-A {
+  background: #e3f2fd;
+  border-color: #1e88e5;
+}
+.node.track-B {
+  background: #e8f5e9;
+  border-color: #43a047;
+}
+.node.track-C {
+  background: #fff3e0;
+  border-color: #fb8c00;
+}
+.node.track-D {
+  background: #f3e5f5;
+  border-color: #8e24aa;
+}
+
+/* Type label, top-right corner: filled for mandatory/output (the only types
+ * app.js labels); alternative/facultative cards are left unlabelled. */
+.type-badge {
+  position: absolute;
+  top: -9px;
+  right: 8px;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  padding: 2px 6px;
+  border-radius: 6px;
+  white-space: nowrap;
+  background: transparent;
+  color: #455a64;
+  border: 1px solid #607d8b;
+}
+.type-badge.filled {
+  background: #455a64;
+  color: #fff;
+  border-color: #455a64;
+}
+
 .sidebar {
   width: 340px;
   flex-shrink: 0;
