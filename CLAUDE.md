@@ -29,7 +29,7 @@ Invoke-WebRequest -Uri "https://raw.githubusercontent.com/BLSQ/openhexa-app/main
 
 The end goal of this project is a single, rich static webapp per workspace — the **SNT
 Pipelines Orchestrator** — that renders the _complete_ flow diagram of all official SNT
-pipelines (~20, from the `snt_development` repo) as an interactive 2D map with a
+pipelines (~18, from the `snt_development` repo) as an interactive 2D map with a
 configuration/run sidebar. The current small single-pipeline webapps are stepping stones
 toward it.
 
@@ -59,8 +59,11 @@ node `id` == the pipeline's Python function name (e.g. `snt_dhis2_extract`).
 | `index.html` + `app.js` + `styles.css` | shared app shell (multi-file)                          | renders the map, merges it with the workspace cards, runs/polls pipelines                      |
 
 `pipeline_map_schema.json` (repo root) documents the structure of `pipeline_map.json` — read
-it when authoring or interpreting the map. The map is **hand-authored** (a separate task); it
-is not generated from the GraphQL API.
+it when authoring or interpreting the map. `pipeline_map_NOTES.md` (repo root) holds the
+human-facing authoring rationale, edge/node-type conventions, and changelog; read it before
+editing the map. `knowledge/pipeline_map_preview.html` is a standalone visual render of the map
+for review. The map is **hand-authored** (a separate task); it is not generated from the
+GraphQL API.
 
 ### Node states
 
@@ -69,9 +72,11 @@ The webapp computes three independent state axes per node:
 - **available vs greyed** — _static_: a node is available iff its `id` is present in the
   workspace's `pipeline_cards.json` (with a `uuid`). Otherwise it renders greyed-out and is
   unclickable. This is how the same full map adapts to each workspace.
-- **locked vs unlocked** — _dynamic_: derived from `edges`. A node unlocks once every upstream
-  prerequisite (each edge whose `to` equals this node) has a completed run in the current
-  session.
+- **locked vs unlocked** — _dynamic_: derived from `edges`. A node unlocks once every **hard**
+  upstream prerequisite (each `type: "solid"` edge whose `to` equals this node) has a completed
+  run in the current session. `type: "optional"` edges are **soft, non-gating** — they draw an
+  arrow but do not lock the downstream node (its output is used if available, else a parameter
+  fallback applies).
 - **completed** — ran successfully in the current session.
 
 **Mutual exclusion:** nodes of `type: "alternative"` that share the same `group` are mutually
@@ -85,11 +90,13 @@ Positions and arrows are **explicit**, with no graph-layout library or CDN depen
 
 - Each node carries an explicit `row` (execution stage, top→bottom) and `col` (horizontal
   position, used to separate parallel A / B / D tracks).
-- `edges` is a list of `{from, to}` pairs referencing node `id`s; the webapp draws one SVG
-  arrow per edge between node centers.
-- Dependencies are expressed **only** as `edges` (a list of `{from, to}` pairs). There is no
-  per-node prerequisite array and no separate layout array — layout comes from each node's
-  `row`/`col`, and mutual exclusion from its `group`.
+- `edges` is a list of `{from, to, type}` objects referencing node `id`s; the webapp draws one
+  SVG arrow per edge between node centers. `type` is `"solid"` (hard dependency — gates
+  unlocking) or `"optional"` (soft link — draws an arrow but does not gate); omit for the
+  default.
+- Dependencies are expressed **only** as `edges`. There is no per-node prerequisite array and
+  no separate layout array — layout comes from each node's `row`/`col`, and mutual exclusion
+  from its `group`.
 - **Outputs are not stored in the map or cards.** They are fetched at runtime from
   `pipelineRun.outputs` after a run (see the polling pattern below).
 

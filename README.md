@@ -4,7 +4,7 @@ This repository contains everything needed to build and deploy **OpenHEXA static
 that let users trigger SNT pipeline runs from a browser — no code required.
 
 The end goal is a single, rich webapp per workspace — the **SNT Pipelines Orchestrator** — that
-renders the complete flow diagram of all official SNT pipelines (~20, from the `snt_development`
+renders the complete flow diagram of all official SNT pipelines (~18, from the `snt_development`
 repo) as an interactive 2D map with a configuration/run sidebar. The small single-pipeline
 webapps already in this repo are stepping stones toward it.
 
@@ -31,14 +31,17 @@ origin.
 │   ├── PLAN.md                      #   Phased, atomic task plan for the orchestrator
 │   ├── JIRA_ITEMS.md                #   Full text of every Jira issue + resume runbook (project SNT25)
 │   ├── PRODUCT_SPEC.md              #   Product specification
-│   ├── Product_description_endgoal.md
+│   ├── persona_questionnaire.md     #   UX persona / discovery questionnaire
 │   ├── orchestrator_wireframe.html  #   UX/visual target for the orchestrator
-│   └── pipeline_map_preview.html    #   Standalone visual render of pipeline_map.json (for review)
+│   ├── pipeline_map_preview.html    #   Standalone visual render of pipeline_map.json (for review)
+│   ├── pipeline_map_20260615.png    #   Map sketch (Whimsical, T0.3) — current
+│   └── pipeline_map_20260610.png    #   Map sketch — earlier revision
 │
 ├── schema.generated.graphql         # OpenHEXA GraphQL schema — query reference for agents
 ├── pipeline_cards_schema.json       # Schema + instructions for generating pipeline_cards.json files
 ├── pipeline_map_schema.json         # Schema for the shared orchestrator map (pipeline_map.json)
 ├── pipeline_map.json                # Shared, hand-authored orchestrator map (layout + dependency edges)
+├── pipeline_map_NOTES.md            # Authoring rationale, conventions & changelog for pipeline_map.json
 │
 ├── snt_testing/                     # One folder per workspace (slug, hyphens → underscores)
 │   ├── workspace_config.json        #   Resolved IDs (pipeline UUIDs, deployed_apps, connection slugs)
@@ -47,10 +50,12 @@ origin.
 │   │   └── index.html               #     ...mirroring every file as last deployed
 │   ├── population_transformation/
 │   │   └── index.html
-│   └── population_transformation_split/   # multi-file bundle example
-│       ├── index.html
-│       ├── styles.css
-│       └── app.js
+│   ├── population_transformation_split/   # multi-file bundle example
+│   │   ├── index.html
+│   │   ├── styles.css
+│   │   └── app.js
+│   └── status_spike/                # status-proxy spike (T0.9), local only — not a tracked deployment
+│       └── index.html
 │
 ├── snt_drc_workshop_demo/
 │   ├── workspace_config.json
