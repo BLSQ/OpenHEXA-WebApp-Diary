@@ -130,7 +130,9 @@ prefixed element handling) still apply — they just live in `app.js` rather tha
   `USER_READ` if the app queries workspace connections at runtime (to populate
   `DHIS2Connection` dropdowns).
 - After every deploy, mirror **all** deployed files locally under `<ws>/<app_key>/` (not just
-  `index.html`), so the local copy stays in sync.
+  `index.html`), so the local copy stays in sync. The deploy is **full-replace** — `files_json`
+  must carry every file each time (no partial update yet). You can read the live files back with
+  `get_static_webapp` to verify the deploy or re-sync a stale local mirror.
 
 ---
 
@@ -290,7 +292,9 @@ When a single webapp hosts cards for multiple pipelines:
 
 ### MCP deployment
 
-Use `mcp__claude_ai_OpenHEXA__update_static_webapp` with `files_json` as a JSON array of `{path, content}` objects to deploy. On `update_static_webapp` the `name`/`description` fields are silently ignored by the server (rename webapps from the OpenHEXA UI instead); `create_static_webapp` **does** honor `name`.
+Use `mcp__claude_ai_OpenHEXA__update_static_webapp` with `files_json` as a JSON array of `{path, content}` objects to deploy. On `update_static_webapp` the `name`/`description` fields are silently ignored by the server (rename webapps from the OpenHEXA UI instead); `create_static_webapp` **does** honor `name`. Deploys are **full-replace**: `files_json` must contain _every_ file each time — omitting a file deletes it (there is no partial-update tool yet).
+
+To **read back** the currently-deployed files, use `mcp__claude_ai_OpenHEXA__get_static_webapp(workspace_slug, webapp_slug)` — it returns each file's `content` + `encoding` (`TEXT`/`BASE64`). Use this to re-sync or verify the local mirror against what's actually live (the live app is no longer a black box).
 
 ### Assembling `files_json` on Windows (PowerShell 5.1)
 
@@ -398,12 +402,12 @@ Each workspace has its own folder in this repo, named after the workspace slug w
 - **`workspace_config.json`** — resolved IDs for that workspace (pipeline UUIDs, webapp IDs under `deployed_apps`, connection slugs). Looked up via MCP tools. Never copy these IDs from another workspace's folder.
 - **One subfolder per deployed webapp**, mirroring every file as it was last deployed to OpenHEXA. A simple single-pipeline webapp is a single `index.html`; the SNT Pipelines Orchestrator is a multi-file bundle (`index.html` + `styles.css` + `app.js` + `pipeline_map.json` + `pipeline_cards.json` — see the multi-file app architecture above). The subfolder name is a short, descriptive snake_case identifier that matches the corresponding key in `deployed_apps` (e.g. `dhis2_reporting_rate/index.html`, `population_transformation/index.html`).
 
-**There is no MCP tool to read or download existing webapp code from OpenHEXA.** The only available tools are for creating or updating webapps. This means:
+**The agent CAN now read the live webapp's files** via `mcp__claude_ai_OpenHEXA__get_static_webapp(workspace_slug, webapp_slug)` (added in the 2026-06 OH release). It returns metadata, `allowedOperations`, a `permissions` block, and every file's full `content` with an `encoding` field (`TEXT` for UTF-8, `BASE64` for binary). Use the **slug** (from `list_static_webapps`), not the UUID. This means:
 
-- The local `<workspace>/<app_key>/index.html` is the sole source of truth the agent can read. Always read it before making any changes.
-- If tasked with updating an existing webapp, the user must manually download the current version from OpenHEXA and save it as `<workspace>/<app_key>/index.html` before the session. If no local file exists, the agent must build from scratch.
-- Never assume the live webapp on OpenHEXA matches the local file — only the user can verify this by checking the deployed URL.
-- After every deploy, always write the deployed file(s) to `<workspace>/<app_key>/` so the local copy stays in sync — `index.html` for a single-file webapp, or the full bundle for a multi-file one.
+- **The live app is now an inspectable source of truth, not a black box.** Before editing an existing webapp, you can pull the deployed files and reconcile them with the local `<workspace>/<app_key>/` copy instead of assuming the two match.
+- If the local mirror is missing or stale, re-create it from `get_static_webapp` rather than asking the user to manually download — or build from scratch only if the app doesn't exist yet.
+- After every deploy, still write the deployed file(s) to `<workspace>/<app_key>/` so the local copy stays in sync, and you can **verify** the deploy by reading the files back and diffing.
+- ⚠️ `update_static_webapp` is still **full-replace** (every deploy resends the entire file set — there is no partial/incremental update yet). This is an open ask to the OH devs; until it lands, always send the complete bundle.
 
 ### How to build or update the webapp for a workspace
 
@@ -435,6 +439,8 @@ Then:
 1. Check whether a folder for that workspace already exists (e.g. `snt_testing/`).
 2. If yes — read `<workspace>/workspace_config.json` and use the IDs it contains.
 3. If no — use `mcp__claude_ai_OpenHEXA__list_workspaces` to find the workspace slug, then `mcp__claude_ai_OpenHEXA__list_pipelines` and `mcp__claude_ai_OpenHEXA__list_static_webapps` to resolve all UUIDs, then create the workspace folder and write `workspace_config.json` before proceeding.
+
+When about to **edit an existing webapp**, consider pulling its live files with `mcp__claude_ai_OpenHEXA__get_static_webapp` first and reconciling them with the local `<workspace>/<app_key>/` mirror — this catches drift (e.g. edits made directly in the OpenHEXA UI) before you overwrite it on the next deploy.
 
 Keys used in `workspace_config.json`:
 
