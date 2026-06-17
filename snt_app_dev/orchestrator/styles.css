@@ -68,6 +68,27 @@ body {
   padding: 1.5rem;
 }
 
+/* --- SVG edge layer (T1.3) --- *
+ * The arrows + alternative-group boxes are drawn into one <svg class="edges">
+ * inserted as the first child of #canvas, so it paints *behind* the node cards
+ * (which app.js appends after it). It shares the cards' coordinate system — both
+ * are absolutely positioned from the same row/col geometry — so arrows line up
+ * with node centres/borders. overflow:visible lets arrowheads spill past the
+ * nominal svg box without being clipped. */
+svg.edges {
+  position: absolute;
+  top: 0;
+  left: 0;
+  overflow: visible;
+}
+/* Label on each alternative-group box (e.g. "A.3 — choose one"). */
+.grouplabel {
+  font-size: 11px;
+  font-weight: 700;
+  fill: #546e7a;
+  letter-spacing: 0.3px;
+}
+
 /* --- Pipeline nodes (T1.2) --- *
  * Cards are absolutely positioned by app.js from each node's row/col, so the
  * canvas itself is the positioning context (#canvas is sized in JS). Visual
