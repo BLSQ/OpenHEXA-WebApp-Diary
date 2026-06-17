@@ -182,6 +182,10 @@ var LAYOUT = {
   PAD_Y: 30,
 };
 
+// SVG namespace — elements in the edge layer (T1.3) must be created with
+// createElementNS, not createElement, or the browser won't render them.
+var SVGNS = "http://www.w3.org/2000/svg";
+
 // Only mandatory/output nodes carry a visible type label (top-right corner);
 // alternative/facultative are left unlabelled, per the map conventions.
 var FILLED_TYPES = { mandatory: true, output: true };
@@ -267,12 +271,178 @@ function renderGrid(nodes) {
 }
 
 /* ------------------------------------------------------------------ *
+ * T1.3 — Draw the SVG arrows
+ *
+ * One arrow per dependency `edge`, drawn into a single <svg> inserted *behind*
+ * the node cards (renderGrid already appended them, so inserting the svg as the
+ * canvas's first child puts the lines under the boxes). No graph-layout library:
+ * endpoints are computed from the same row/col geometry as the cards (APP.layout)
+ * so they line up exactly, fractional A.4 columns included.
+ *
+ * Two refinements ported from knowledge/pipeline_map_preview.html keep the
+ * picture readable:
+ *  - Alternative-group boxes: the members of a mutex `group` (the five A.3
+ *    outlier methods, the two A.4 reporting-rate variants) are wrapped in one
+ *    rect and edges attach to that *box*, treating the group as a single node.
+ *  - Parallel-edge collapse: many member-to-member edges that resolve to the
+ *    same box->box (and type) are drawn once, so the 5 A.3->A.4 solid edges
+ *    become a single A.3-box -> A.4-box line, etc.
+ *
+ * Edge `type`: "solid" (or unset) = hard dependency, drawn thick + dark with a
+ * filled arrowhead; "optional" = soft link, drawn thin + light. Both are solid
+ * lines (no dashes), matching the reviewed preview.
+ * ------------------------------------------------------------------ */
+function renderEdges(nodes, edges) {
+  var canvas = document.getElementById("canvas");
+  if (!canvas) return;
+  var layout = APP.layout;
+  var L = LAYOUT;
+
+  var nodeById = {};
+  nodes.forEach(function (n) {
+    nodeById[n.id] = n;
+  });
+
+  // SVG layer, sized to the full canvas and inserted before the cards so it
+  // paints behind them. overflow:visible (in CSS) lets arrowheads spill.
+  var svg = document.createElementNS(SVGNS, "svg");
+  svg.setAttribute("class", "edges");
+  svg.setAttribute("width", layout.width);
+  svg.setAttribute("height", layout.height);
+  svg.innerHTML =
+    "<defs>" +
+    '<marker id="ah-hard" markerWidth="9" markerHeight="9" refX="7.5" refY="3" orient="auto" markerUnits="userSpaceOnUse">' +
+    '<path d="M0,0 L8,3 L0,6 Z" fill="#37474f"/></marker>' +
+    '<marker id="ah-opt" markerWidth="8" markerHeight="8" refX="6.5" refY="2.6" orient="auto" markerUnits="userSpaceOnUse">' +
+    '<path d="M0,0 L6,2.6 L0,5.2 Z" fill="#b0bec5"/></marker>' +
+    "</defs>";
+  canvas.insertBefore(svg, canvas.firstChild);
+  APP.edgesSvg = svg;
+
+  // Bucket alternative-group members by their `group`.
+  var groups = {};
+  nodes.forEach(function (n) {
+    if (n.type === "alternative" && n.group) {
+      (groups[n.group] = groups[n.group] || []).push(n);
+    }
+  });
+
+  // Draw one rect (+ label) per group and record its centre/half-extents so
+  // edges can attach to the box. cx/cy = centre; hw/hh = half width/height.
+  var groupRects = {};
+  Object.keys(groups).forEach(function (gid) {
+    var members = groups[gid];
+    var pad = 12;
+    var labelH = 16;
+    var lefts = members.map(layout.nx);
+    var tops = members.map(layout.ny);
+    var rights = members.map(function (n) {
+      return layout.nx(n) + L.NODE_W;
+    });
+    var bottoms = members.map(function (n) {
+      return layout.ny(n) + L.NODE_H;
+    });
+    var left = Math.min.apply(null, lefts) - pad;
+    var top = Math.min.apply(null, tops) - pad - labelH;
+    var right = Math.max.apply(null, rights) + pad;
+    var bottom = Math.max.apply(null, bottoms) + pad;
+    groupRects[gid] = {
+      cx: (left + right) / 2,
+      cy: (top + bottom) / 2,
+      hw: (right - left) / 2,
+      hh: (bottom - top) / 2,
+    };
+
+    var rect = document.createElementNS(SVGNS, "rect");
+    rect.setAttribute("x", left);
+    rect.setAttribute("y", top);
+    rect.setAttribute("width", right - left);
+    rect.setAttribute("height", bottom - top);
+    rect.setAttribute("rx", 10);
+    rect.setAttribute("fill", "rgba(84,110,122,0.05)");
+    rect.setAttribute("stroke", "#546e7a");
+    rect.setAttribute("stroke-width", "1.6");
+    svg.appendChild(rect);
+
+    var t = document.createElementNS(SVGNS, "text");
+    t.setAttribute("x", left + 10);
+    t.setAttribute("y", top + 12);
+    t.setAttribute("class", "grouplabel");
+    t.textContent = members[0].code + " — choose one";
+    svg.appendChild(t);
+  });
+
+  // An edge endpoint resolves to the member's own card — unless that member is
+  // in an alternative group, in which case it resolves to the group box.
+  function anchorOf(id) {
+    var n = nodeById[id];
+    if (n.group && groupRects[n.group]) {
+      var r = groupRects[n.group];
+      return { key: "grp:" + n.group, cx: r.cx, cy: r.cy, hw: r.hw, hh: r.hh };
+    }
+    return {
+      key: id,
+      cx: layout.ncx(n),
+      cy: layout.ncy(n),
+      hw: L.NODE_W / 2 + 2,
+      hh: L.NODE_H / 2 + 2,
+    };
+  }
+
+  // Where the line from anchor `a` towards (tx,ty) crosses a's bounding box —
+  // so arrows touch the box border, not the centre.
+  function borderPoint(a, tx, ty) {
+    var dx = tx - a.cx;
+    var dy = ty - a.cy;
+    if (!dx && !dy) return [a.cx, a.cy];
+    var s = Math.min(
+      dx ? a.hw / Math.abs(dx) : Infinity,
+      dy ? a.hh / Math.abs(dy) : Infinity,
+    );
+    return [a.cx + dx * s, a.cy + dy * s];
+  }
+
+  // Collapse parallel edges sharing the same (anchor -> anchor, type): the 5
+  // A.3->A.4 member edges become ONE A.3-box -> A.4-box line, etc.
+  var drawn = {};
+  (edges || []).forEach(function (e) {
+    var A = anchorOf(e.from);
+    var B = anchorOf(e.to);
+    if (A.key === B.key) return; // both endpoints in the same group box
+    var k = A.key + "|" + B.key + "|" + e.type;
+    if (drawn[k]) return;
+    drawn[k] = true;
+
+    var p1 = borderPoint(A, B.cx, B.cy);
+    var p2 = borderPoint(B, A.cx, A.cy);
+    var line = document.createElementNS(SVGNS, "line");
+    line.setAttribute("x1", p1[0]);
+    line.setAttribute("y1", p1[1]);
+    line.setAttribute("x2", p2[0]);
+    line.setAttribute("y2", p2[1]);
+    var hard = e.type !== "optional";
+    line.setAttribute("stroke", hard ? "#37474f" : "#b0bec5");
+    line.setAttribute("stroke-width", hard ? 2.6 : 1.3);
+    line.setAttribute("marker-end", hard ? "url(#ah-hard)" : "url(#ah-opt)");
+    svg.appendChild(line);
+  });
+}
+
+/* ------------------------------------------------------------------ *
  * Boot
  * ------------------------------------------------------------------ */
 // Holds the loaded + merged state so later tasks can render from it.
-// layout = coordinate helpers + canvas size (set by renderGrid, reused by T1.3
-// for arrows); nodeEls = id -> rendered card element.
-var APP = { map: null, cards: null, nodes: [], layout: null, nodeEls: {} };
+// layout = coordinate helpers + canvas size (set by renderGrid, reused by
+// renderEdges for arrow geometry); nodeEls = id -> rendered card element;
+// edgesSvg = the SVG edge layer (set by renderEdges).
+var APP = {
+  map: null,
+  cards: null,
+  nodes: [],
+  layout: null,
+  nodeEls: {},
+  edgesSvg: null,
+};
 
 async function init() {
   var wsLabel = document.getElementById("workspaceLabel");
@@ -289,6 +459,7 @@ async function init() {
     APP.nodes = mergeNodes(data.map, data.cards);
     logMergedNodes(APP.nodes, data.map, data.cards);
     renderGrid(APP.nodes);
+    renderEdges(APP.nodes, data.map.edges);
   } catch (err) {
     console.error("SNT Orchestrator — failed to load data:", err);
   }
