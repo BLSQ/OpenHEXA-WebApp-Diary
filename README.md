@@ -29,7 +29,7 @@ origin.
 │
 ├── knowledge/                       # Planning & spec docs (workspace-independent)
 │   ├── PLAN.md                      #   Phased, atomic task plan for the orchestrator
-│   ├── JIRA_ITEMS.md                #   Full text of every Jira issue + resume runbook (project SNT25)
+│   ├── JIRA_ITEMS.md                #   Reference/drafting sheet for Jira issues — Jira is managed manually (project SNT25)
 │   ├── PRODUCT_SPEC.md              #   Product specification
 │   ├── persona_questionnaire.md     #   UX persona / discovery questionnaire
 │   ├── orchestrator_wireframe.html  #   UX/visual target for the orchestrator

@@ -7,9 +7,12 @@ atomic tasks with owner tags). **Read
 `knowledge/PLAN.md` at the start of any session working toward the orchestrator**, and locate
 the task being worked on (e.g. "do T1.2") there before starting.
 
-The plan is mirrored to Jira (project `SNT25`, Epic `SNT25-536`). `knowledge/JIRA_ITEMS.md`
-holds the full text of every Jira issue, the creation conventions, and a **resume runbook** —
-read it before creating or updating Jira items for this project.
+The plan is mirrored to Jira (project `SNT25`, Epic `SNT25-536`). **Giulia manages all Jira
+items manually through the Jira UI** — the agent does not create, edit, transition, or link
+Jira issues for this project. `knowledge/JIRA_ITEMS.md` is kept as a human-facing reference and
+drafting sheet (issue wording, hierarchy, and conventions) that inspires the manual updates; do
+not act on it as an agent task list. Only touch Jira via the Atlassian MCP if Giulia explicitly
+asks for it in a given session.
 
 ## OpenHEXA GraphQL Schema
 

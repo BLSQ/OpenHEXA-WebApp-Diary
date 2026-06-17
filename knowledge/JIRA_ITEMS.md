@@ -1,61 +1,34 @@
-# SNT Orchestrator — Jira Items (review sheet)
+# SNT Orchestrator — Jira Items (reference / drafting sheet)
 
-> **Purpose:** the full text of every Jira issue **before** it's created, so Giulia can revise
-> wording here first. Once approved, the agent creates them in project **SNT25** under Epic
-> **SNT25-536** and keeps this sheet in sync (keys filled in, status updated).
+> **Purpose:** a human-facing reference and drafting sheet for the project's Jira issues — the
+> full text, hierarchy, and conventions that **inspire** Giulia's manual Jira work.
 > Source of the tasks: [PLAN.md](PLAN.md).
+>
+> **⚠️ Jira is managed manually.** Giulia creates, edits, transitions, and links all Jira items
+> directly in the Jira UI (project **SNT25**, Epic **SNT25-536**), using this sheet as a
+> drafting aid. The **agent must not** create, edit, transition, or link Jira issues, and should
+> not treat this file as a task list to execute. Only touch Jira via the Atlassian MCP if Giulia
+> explicitly asks for it in a given session. The "Created in Jira" tables below are a manually
+> maintained snapshot and may lag the live Jira board.
 
-## Resuming this task (runbook)
+## Conventions reference (how each issue is built)
 
-A fresh session can continue creating these issues from a cold start by reading this file.
+Kept as a reference for the manual Jira work — these are the conventions Giulia follows when
+creating/updating issues in the UI, not steps for an agent to run.
 
 **Coordinates**
 
-- Site: `bluesquare.atlassian.net`. Get the cloudId at runtime with
-  `getAccessibleAtlassianResources` (do not hardcode it here — public repo).
-- Project: **SNT25** (id 15083) · Epic: **SNT25-536**.
-- Tools: the **Atlassian MCP** (claude.ai connector). Load schemas via `ToolSearch`
-  (`createJiraIssue`, `createIssueLink`, `editJiraIssue`, `getTransitionsForJiraIssue`,
-  `transitionJiraIssue`, `searchJiraIssuesUsingJql`). If the connector isn't available, the
-  user runs `/mcp` → "claude.ai Atlassian" to authenticate.
+- Site: `bluesquare.atlassian.net`. Project: **SNT25** (id 15083) · Epic: **SNT25-536**.
 
-**Before creating anything — avoid duplicates**
+**Hierarchy & labels**
 
-- Run `searchJiraIssuesUsingJql`: `project = SNT25 AND labels = snt-orchestrator`. Match
-  existing issues by the `T-x` prefix in the summary and **skip** any already present.
-- Already created (skip): Epic **SNT25-536**; Stories **SNT25-537 / 547 / 548 / 549 / 550** (Phases 0–4); Phase 0 Tasks **SNT25-538, SNT25-540–546** (T0.0–T0.7). Phase 1–4 Tasks not yet created.
-
-**Remaining steps (in order)**
-
-1. **Patch SNT25-538** (`editJiraIssue`) to the cleaned **T0.0** description below — i.e. drop
-   the old "Phase 0 · Gate — part of Epic… Story…" line, and use the reworded F1–F8 / open-questions text.
-2. **Create the 4 remaining Stories** (Phase 1–4): type `Story`, `parent` = SNT25-536, labels
-   `snt-orchestrator` + `phase:N`, description = the phase's Description + Exit criteria here.
-3. **Create the 27 remaining Tasks**: type `Task`, `parent` = SNT25-536, summary with the
-   `T-x` prefix, description + acceptance criteria from this sheet, labels `snt-orchestrator`
-   - `phase:N` + the `owner:*` label(s). Keep the markdown checklist in T0.1's description.
-4. **T0.6 and T0.7 → create as Done**: create the Task, then `getTransitionsForJiraIssue` to
-   find the "Done" transition id and `transitionJiraIssue` (or pass `transition` at creation).
-   All other tasks stay in the default **Backlog** (no transition needed).
-5. **Phase links**: link each Task to its phase Story with a `Relates` link
-   (`createIssueLink` inwardIssue = Task, outwardIssue = Story).
-6. **Dependency links**: for each _Blocked by_ entry, create a `Blocks` link with
-   **inwardIssue = the blocker, outwardIssue = the blocked task** (e.g. T0.2 blocked by T0.1 →
-   inwardIssue T0.1, outwardIssue T0.2).
-7. **Backfill** the real keys into the tables below (`_tbd_` → `SNT25-xxx`) and update statuses.
-
-> Reminder: confirm with the user before bulk-creating (outward-facing). The user may still be
-> revising the wording in this sheet — use whatever text is in the file at creation time.
-
-## Conventions (how each issue is built)
-
-- **Hierarchy:** one **Epic** → five phase **Stories** → atomic **Tasks**. Story and Task are
-  the same Jira level, so each **Task is parented to the Epic** and tied to its phase by a
-  `phase:N` label + a **"relates to"** link to the phase Story.
+- One **Epic** → five phase **Stories** → atomic **Tasks**. Story and Task are the same Jira
+  level, so each **Task is parented to the Epic** and tied to its phase by a `phase:N` label +
+  a **"relates to"** link to the phase Story.
 - **Owner** → `owner:*` labels (`owner:giulia`, `owner:agent`, `owner:pm`, `owner:oh-devs`).
-  Shown in the tables as short names.
 - **Dependencies** → **"is blocked by"** issue links between Tasks (the _Blocked by_ column).
-- **Status:** all created in **Backlog** (project default); T0.6 / T0.7 created already **Done**.
+- All issues carry the `snt-orchestrator` label.
+- **Status:** issues default to **Backlog**; T0.6 / T0.7 are **Done**.
 - **Description** = the action. It deliberately omits owner / parent / dependencies — those are
   Jira fields, labels and links, not prose.
 - **Acceptance criteria** = the task's _Done when_. Items marked _(proposed)_ were not spelled
@@ -73,8 +46,6 @@ A fresh session can continue creating these issues from a cold start by reading 
 | Story — Phase 3                   | [SNT25-549](https://bluesquare.atlassian.net/browse/SNT25-549) | Backlog                  |
 | Story — Phase 4                   | [SNT25-550](https://bluesquare.atlassian.net/browse/SNT25-550) | Backlog                  |
 | Phase 0 Tasks T0.0–T0.7           | SNT25-538, SNT25-540–546                                       | Backlog (T0.6/T0.7 Done) |
-
-**Still to create:** the Phase 1–4 Tasks (20), plus the dependency ("is blocked by") links and the Task↔Story ("relates") links. The Phase 0 task table below carries real keys; the Phase 1–4 task tables still show `_tbd_` until those tasks are created.
 
 ---
 
@@ -267,7 +238,7 @@ arrows, colours, or clicking yet — just every box showing up in its correct pl
 ---
 
 **👩‍🏫 Tutorial for the human (optional, hands-on):** this is the first task you can actually
-*see* — so the test is your own eyes. 👀
+_see_ — so the test is your own eyes. 👀
 
 1. 🚀 Open the app. You should now see a page full of labelled boxes instead of a blank screen.
 2. 🧭 Compare the layout to the agreed map sketch (the one consolidated back in T0.3): are the
@@ -301,7 +272,7 @@ following the lines. 👀
 
 1. 🚀 Open the app: the boxes from T1.2 should now be joined by arrows.
 2. ➡️ Pick a pipeline you know feeds another (for example, an "extract" step feeding a "format"
-   step) and check the arrow runs *from* the earlier one *to* the later one — the arrowhead is on
+   step) and check the arrow runs _from_ the earlier one _to_ the later one — the arrowhead is on
    the correct end, not pointing backwards.
 3. 🔍 Spot-check a couple more connections against the map sketch: every link drawn in the map
    should have exactly one arrow, and there should be no arrows between boxes that aren't actually
@@ -331,7 +302,7 @@ comparing the screen to the workspace's pipeline list. 👀
 1. 🗂️ Open `snt_app_dev/pipeline_cards.json` and skim the list of pipelines it contains — these
    are the ones installed in this workspace.
 2. 🚀 Open the app and look at the map: the boxes shown in full colour should match that list,
-   and any pipeline *not* in the list should appear dimmed/greyed. ⚪
+   and any pipeline _not_ in the list should appear dimmed/greyed. ⚪
 3. 🖱️ Try clicking a greyed box — nothing should happen (it's intentionally not clickable),
    whereas a coloured box should respond.
 
@@ -365,7 +336,7 @@ you're comparing the app against the real OpenHEXA platform side by side. 🪟�
 3. 🔗 Click the "open in OpenHEXA" link on a node and confirm it lands on the right run's page.
 4. 🧪 The convincing test: trigger a run from the OpenHEXA UI (or ask a colleague to), then
    reload the app — that pipeline's badge should update to `running`, then to its final status.
-   This proves the board reflects *everyone's* activity, not just runs started from the app. 🔁
+   This proves the board reflects _everyone's_ activity, not just runs started from the app. 🔁
 
 If a badge disagrees with OpenHEXA, it usually means the status query came back stale or for the
 wrong run — a reload is the first thing to try.
@@ -554,6 +525,4 @@ the docs.
 
 ## Totals
 
-1 Epic + 5 Stories + 28 Tasks = **34 issues**. Created so far: **14** — Epic, all 5 Stories, and
-Phase 0 Tasks T0.0–T0.7 (T0.6/T0.7 already Done). To create: **20 Tasks** (Phases 1–4), plus the
-"is blocked by" dependency links and the Task↔Story "relates" links.
+1 Epic + 5 Stories + 28 Tasks = **34 issues** (+ extra created directly in the Jira UI, without being referenced here)
