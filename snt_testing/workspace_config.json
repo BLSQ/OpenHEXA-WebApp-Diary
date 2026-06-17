@@ -3,6 +3,11 @@
   "workspace_slug": "snt-testing",
   "workspace_name": "SNT Testing",
   "deployed_apps": {
+    "orchestrator": {
+      "id": "33912f7d-ee0a-48ad-8f16-b16571321ce3",
+      "slug": "snt-pipelines-orchestrator",
+      "url": "https://snt-testing-snt-pipelines-orchestrator.openhexa.io/"
+    },
     "dhis2_reporting_rate": {
       "id": "f97e8df7-57aa-4882-a7ab-1f3f0d53c594",
       "slug": "dhis2-reporting-rate",
