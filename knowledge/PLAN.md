@@ -286,8 +286,12 @@ project — and keep ownership:
 Add entries as they come up; mark resolved ones.
 
 - **[RESOLVED]** v1 = read-only status board first → see Scope decisions.
-- **[OPEN]** Exact URL patterns for (a) a pipeline's GitHub `README.md` and (b) a run's page in
-  the OpenHEXA UI — needed for T1.5/T1.6 links. _Owner: 🤿 confirm with OH devs._
+- **[PARTLY RESOLVED]** Exact URL patterns for (a) a pipeline's GitHub `README.md` and (b) a
+  run's page in the OpenHEXA UI — needed for T1.5/T1.6 links. **(b) RESOLVED (2026-06-18):** a run
+  page is `https://app.openhexa.org/workspaces/<slug>/pipelines/<pipelineCode>/runs/<runId>/` —
+  note the host is `app.openhexa.org` (**not** `.io`; the webapp's own `*.openhexa.io` host can't
+  be string-munged into it) and the path uses the pipeline **code**. Documented in `CLAUDE.md`.
+  **(a) still OPEN** — README URL needed for T1.6. _Owner: 🤿 confirm with OH devs._
 - **[OPEN]** Does `pipelineRun` expose everything needed for the outputs links on a _historical_
   run (not just one you triggered)? _Owner: 🤖 verify during T1.5._
 - **[OPEN]** Final node count and any pipelines beyond the A.x set shown in the wireframe
