@@ -37,6 +37,24 @@ async function gql(query, variables) {
   return json.data;
 }
 
+/* The cross-session status query — the one the T0.6 spike confirmed works
+ * through the static-webapp proxy under PIPELINES_READ alone. The top-level
+ * pipelines(workspaceSlug:…) query (the Workspace type has no `pipelines`
+ * field) returns each pipeline with its single most-recent run. We ask for
+ * `code` too, to build the run's OpenHEXA-UI link. */
+var STATUS_QUERY =
+  "query ($ws: String!) {" +
+  "  pipelines(workspaceSlug: $ws, page: 1, perPage: 100) {" +
+  "    items {" +
+  "      id" +
+  "      code" +
+  "      runs(orderBy: EXECUTION_DATE_DESC, page: 1, perPage: 1) {" +
+  "        items { id status executionDate duration }" +
+  "      }" +
+  "    }" +
+  "  }" +
+  "}";
+
 /* ------------------------------------------------------------------ *
  * Data loading + merge
  * ------------------------------------------------------------------ */
@@ -441,6 +459,176 @@ function renderEdges(nodes, edges) {
 }
 
 /* ------------------------------------------------------------------ *
+ * T1.5 — Live status layer
+ *
+ * For each *available* node, fetch its latest run (one query for the whole
+ * workspace, the proven STATUS_QUERY above) and stamp a status badge + last-run
+ * datetime onto its card, plus a small ↗ link to that run's page in the
+ * OpenHEXA UI. Greyed (not-installed) nodes get nothing.
+ *
+ * Join key: the status query returns each pipeline's UUID as `id`; each merged
+ * node carries `uuid` from the cards (set in mergeNodes). We match on
+ * node.uuid === pipeline.id — the same stable identity used everywhere else,
+ * not the display code or the openhexa slug.
+ *
+ * The map renders instantly (renderGrid/renderEdges are synchronous); the
+ * status query then fills the badges in a moment later. While it's in flight we
+ * stamp a "loading…" placeholder so the user sees the board is live; on a
+ * failed/blocked query we fall back to a "status unavailable" badge rather than
+ * leaving the placeholder spinning.
+ * ------------------------------------------------------------------ */
+
+// Base URL of the companion OpenHEXA front-end (workspaces, pipeline runs,
+// datasets). NOTE: on the SaaS the static webapp is served under *.openhexa.io
+// but the main app UI lives at app.openhexa.org — a DIFFERENT domain, so it
+// cannot be derived from this webapp's own hostname (verified 2026-06-18: a
+// real run page is https://app.openhexa.org/workspaces/<slug>/pipelines/<code>/
+// runs/<runId>/). Hardcoded for the SaaS; revisit for self-hosted installs
+// (Phase 4 / T4.1 portability check).
+function appBaseUrl() {
+  return "https://app.openhexa.org";
+}
+
+// Parse an OpenHEXA executionDate ("2026-06-10 09:02:45.253270+00:00") into a
+// Date: space -> "T" and microseconds trimmed to milliseconds so it's valid ISO
+// across browsers. Returns null if absent/unparseable.
+function parseRunDate(s) {
+  if (!s) return null;
+  var iso = String(s)
+    .replace(" ", "T")
+    .replace(/(\.\d{3})\d+/, "$1");
+  var d = new Date(iso);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+// Compact local "YYYY-MM-DD HH:MM" for the on-card last-run line.
+function fmtRunDate(s) {
+  var d = parseRunDate(s);
+  if (!d) return "—";
+  function p(n) {
+    return (n < 10 ? "0" : "") + n;
+  }
+  return (
+    d.getFullYear() +
+    "-" +
+    p(d.getMonth() + 1) +
+    "-" +
+    p(d.getDate()) +
+    " " +
+    p(d.getHours()) +
+    ":" +
+    p(d.getMinutes())
+  );
+}
+
+/* Build the inner HTML of a card's status row for a given state:
+ *  - "loading" : query in flight
+ *  - "error"   : query failed / blocked
+ *  - "ok"      : query returned; `run` is the latest run, or null for no runs.
+ * `runUrl` (when present) makes the ↗ link to the run's OpenHEXA-UI page. */
+function statusRowHtml(state, run, runUrl) {
+  if (state === "loading")
+    return '<span class="status-badge loading">loading…</span>';
+  if (state === "error")
+    return '<span class="status-badge s-error">status unavailable</span>';
+  if (!run) return '<span class="status-badge s-none">no runs</span>';
+
+  var badge =
+    '<span class="status-badge s-' +
+    escapeHtml(run.status) +
+    '">' +
+    escapeHtml(run.status) +
+    "</span>";
+  var link = runUrl
+    ? '<a class="run-link" href="' +
+      escapeHtml(runUrl) +
+      '" target="_blank" rel="noopener noreferrer" title="Open this run in OpenHEXA" aria-label="Open this run in OpenHEXA">↗</a>'
+    : "";
+  var date =
+    '<span class="run-date" title="' +
+    escapeHtml(run.executionDate || "") +
+    '">' +
+    fmtRunDate(run.executionDate) +
+    "</span>";
+  return badge + link + date;
+}
+
+// Create-or-replace the .status-row child of a node's card.
+function setNodeStatusRow(id, html) {
+  var el = APP.nodeEls[id];
+  if (!el) return;
+  var row = el.querySelector(".status-row");
+  if (!row) {
+    row = document.createElement("div");
+    row.className = "status-row";
+    el.appendChild(row);
+  }
+  row.innerHTML = html;
+}
+
+// Stamp the loading placeholder on every available card (greyed nodes skip).
+function stampStatusLoading(nodes) {
+  nodes.forEach(function (n) {
+    if (n.available) setNodeStatusRow(n.id, statusRowHtml("loading"));
+  });
+}
+
+/* Fetch every pipeline's latest run and paint the badges. One query covers the
+ * whole workspace; results are matched onto nodes by UUID. Resolves quietly —
+ * a status failure must not break the already-rendered map. */
+async function loadStatuses(nodes) {
+  var slug =
+    window.OPENHEXA && window.OPENHEXA.workspaceSlug
+      ? window.OPENHEXA.workspaceSlug
+      : null;
+
+  // Opened outside OpenHEXA (no platform global) — can't query; show the
+  // fallback rather than a stuck spinner.
+  if (!slug) {
+    nodes.forEach(function (n) {
+      if (n.available) setNodeStatusRow(n.id, statusRowHtml("error"));
+    });
+    return;
+  }
+
+  var data;
+  try {
+    data = await gql(STATUS_QUERY, { ws: slug });
+  } catch (err) {
+    console.error("SNT Orchestrator — status query failed:", err);
+    nodes.forEach(function (n) {
+      if (n.available) setNodeStatusRow(n.id, statusRowHtml("error"));
+    });
+    return;
+  }
+
+  var items = (data.pipelines && data.pipelines.items) || [];
+  var byUuid = {};
+  items.forEach(function (p) {
+    var run = p.runs && p.runs.items && p.runs.items.length ? p.runs.items[0] : null;
+    byUuid[p.id] = { code: p.code, run: run };
+  });
+  APP.statusByUuid = byUuid;
+
+  var base = appBaseUrl();
+  nodes.forEach(function (n) {
+    if (!n.available) return;
+    var entry = byUuid[n.uuid];
+    // Available in the cards but absent from the live list (stale UUID) — treat
+    // as "no runs" rather than erroring the whole board.
+    if (!entry) {
+      setNodeStatusRow(n.id, statusRowHtml("ok", null, null));
+      return;
+    }
+    var run = entry.run;
+    var runUrl = run
+      ? base + "/workspaces/" + slug + "/pipelines/" + entry.code + "/runs/" + run.id + "/"
+      : null;
+    setNodeStatusRow(n.id, statusRowHtml("ok", run, runUrl));
+  });
+}
+
+/* ------------------------------------------------------------------ *
  * Boot
  * ------------------------------------------------------------------ */
 // Holds the loaded + merged state so later tasks can render from it.
@@ -454,6 +642,8 @@ var APP = {
   layout: null,
   nodeEls: {},
   edgesSvg: null,
+  // T1.5 — latest run per pipeline UUID, set by loadStatuses.
+  statusByUuid: null,
 };
 
 async function init() {
@@ -472,6 +662,10 @@ async function init() {
     logMergedNodes(APP.nodes, data.map, data.cards);
     renderGrid(APP.nodes);
     renderEdges(APP.nodes, data.map.edges);
+    // T1.5 — the map is now on screen; stamp a loading badge on every available
+    // card, then fetch real last-run status and fill them in.
+    stampStatusLoading(APP.nodes);
+    await loadStatuses(APP.nodes);
   } catch (err) {
     console.error("SNT Orchestrator — failed to load data:", err);
   }

@@ -273,15 +273,28 @@ mutation ($input: PrepareObjectDownloadInput!) {
 
 Input fields: `workspaceSlug`, `objectKey` (from the BucketObject), `forceAttachment: false`.
 
-### Constructing the app.openhexa.io dataset URL
+### Constructing OpenHEXA front-end URLs (dataset / pipeline-run pages)
+
+⚠️ **Do NOT derive the app host from the webapp's hostname.** On the SaaS the
+static webapp is served under `*.openhexa.io` (e.g.
+`snt-pipelines-orchestrator.openhexa.io`) but the main app UI lives at
+**`app.openhexa.org`** — a _different domain_ (`.org`, not `.io`). String-munging
+the webapp hostname (`"https://app." + hostname.split(".").slice(1).join(".")`)
+yields `app.openhexa.io`, which is wrong — that host treats `app` as a webapp slug
+and returns a 404 "Web app not found" page. Verified live 2026-06-18.
 
 ```js
-var appBase =
-  "https://app." + window.location.hostname.split(".").slice(1).join(".");
-// e.g. window.location.hostname = "a-2-dhis2-formatting.openhexa.io"
-// → appBase = "https://app.openhexa.io"
+// Hardcode the SaaS front-end base (revisit for self-hosted installs):
+var appBase = "https://app.openhexa.org";
+
+// Dataset page:
 var datasetUrl =
   appBase + "/workspaces/" + workspaceSlug + "/datasets/" + datasetSlug + "/";
+
+// Pipeline-run page (uses the pipeline CODE, not the UUID; note trailing slash):
+var runUrl =
+  appBase + "/workspaces/" + workspaceSlug + "/pipelines/" + pipelineCode + "/runs/" + runId + "/";
+// e.g. https://app.openhexa.org/workspaces/snt-app-dev/pipelines/a-1-dhis2-extract/runs/<runId>/
 ```
 
 ### Multi-card pattern (multiple pipelines on one page)
