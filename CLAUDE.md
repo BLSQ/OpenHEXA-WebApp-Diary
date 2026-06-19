@@ -133,9 +133,11 @@ prefixed element handling) still apply — they just live in `app.js` rather tha
   `USER_READ` if the app queries workspace connections at runtime (to populate
   `DHIS2Connection` dropdowns).
 - After every deploy, mirror **all** deployed files locally under `<ws>/<app_key>/` (not just
-  `index.html`), so the local copy stays in sync. The deploy is **full-replace** — `files_json`
-  must carry every file each time (no partial update yet). You can read the live files back with
-  `get_static_webapp` to verify the deploy or re-sync a stale local mirror.
+  `index.html`), so the local copy stays in sync. **Partial deploys work** — `files_json` may
+  carry only the files that changed (the others are left intact); you do **not** have to resend
+  the whole bundle every time (see _MCP deployment_ below for the confirmation + caveats). You
+  can read the live files back with `get_static_webapp` to verify the deploy or re-sync a stale
+  local mirror.
 
 ---
 
@@ -315,7 +317,9 @@ When a single webapp hosts cards for multiple pipelines:
 
 ### MCP deployment
 
-Use `mcp__claude_ai_OpenHEXA__update_static_webapp` with `files_json` as a JSON array of `{path, content}` objects to deploy. On `update_static_webapp` the `name`/`description` fields are silently ignored by the server (rename webapps from the OpenHEXA UI instead); `create_static_webapp` **does** honor `name`. Deploys are **full-replace**: `files_json` must contain _every_ file each time — omitting a file deletes it (there is no partial-update tool yet).
+Use `mcp__claude_ai_OpenHEXA__update_static_webapp` with `files_json` as a JSON array of `{path, content}` objects to deploy. On `update_static_webapp` the `name`/`description` fields are silently ignored by the server (rename webapps from the OpenHEXA UI instead); `create_static_webapp` **does** honor `name`.
+
+**Partial / incremental deploys work (confirmed live 2026-06-19).** Despite the tool's own description still saying "replace all files," `files_json` may contain **only the files that changed** — the omitted files are left untouched, _not_ deleted. Verified by deploying `app.js` alone to the orchestrator and reading back with `get_static_webapp`: all other files (CSS, HTML, both JSON) survived intact. This is the **preferred** way to ship a small change: send just that one file, no need to rebuild/re-escape the whole ~88 KB bundle. Caveats: (1) it's confirmed on the SaaS as of 2026-06-19 — if a future deploy ever shows files vanishing, fall back to sending the full set; (2) **always re-verify with `get_static_webapp` after a partial deploy** (confirm the expected file count + that your change landed) until the behavior is battle-tested; (3) keep the full bundle reproducible from the local mirror so a full re-deploy is always possible. Assembling a single file's `content` inline on Windows: `([string](Get-Content -Raw -Encoding UTF8 app.js) | ConvertTo-Json -Depth 2)` → write to a temp file → Read it → paste as the `content` value (avoids hand-escaping quotes/regex/newlines).
 
 To **read back** the currently-deployed files, use `mcp__claude_ai_OpenHEXA__get_static_webapp(workspace_slug, webapp_slug)` — it returns each file's `content` + `encoding` (`TEXT`/`BASE64`). Use this to re-sync or verify the local mirror against what's actually live (the live app is no longer a black box).
 
@@ -430,7 +434,7 @@ Each workspace has its own folder in this repo, named after the workspace slug w
 - **The live app is now an inspectable source of truth, not a black box.** Before editing an existing webapp, you can pull the deployed files and reconcile them with the local `<workspace>/<app_key>/` copy instead of assuming the two match.
 - If the local mirror is missing or stale, re-create it from `get_static_webapp` rather than asking the user to manually download — or build from scratch only if the app doesn't exist yet.
 - After every deploy, still write the deployed file(s) to `<workspace>/<app_key>/` so the local copy stays in sync, and you can **verify** the deploy by reading the files back and diffing.
-- ⚠️ `update_static_webapp` is still **full-replace** (every deploy resends the entire file set — there is no partial/incremental update yet). This is an open ask to the OH devs; until it lands, always send the complete bundle.
+- ✅ `update_static_webapp` supports **partial/incremental deploys** (confirmed live 2026-06-19): send only the changed files in `files_json`; omitted files are left intact, not deleted. The tool's description still says "replace all files," but that's stale. Prefer partial deploys for small edits, and re-verify with `get_static_webapp` afterward (see _MCP deployment_ for details + caveats).
 
 ### How to build or update the webapp for a workspace
 
