@@ -191,12 +191,7 @@ reviewed by Giulia + PM.
   files match). Local mirror `snt_app_dev/orchestrator/` in sync.
   _Done when:_ ~~every available node shows correct details and working links.~~ ✅
 
-- **T1.7 — Deploy + QA** · 🤖 + 🤿 · Dep: T1.5, T1.6
-  Deploy to SNT App Dev via MCP; mirror all files to `snt_app_dev/orchestrator/`; Giulia
-  verifies against the live workspace.
-  _Done when:_ the deployed URL shows the correct map + real statuses.
-
-- **T1.8 — UI review round** · 👔 + 🤿 · Dep: T1.7
+- **T1.7 — UI review round** · 👔 + 🤿 · Dep: T1.6
   PM + Giulia review look/feel and clarity; collect feedback into Phase 3 polish tasks.
   _Done when:_ feedback is captured as concrete follow-up tasks below.
 

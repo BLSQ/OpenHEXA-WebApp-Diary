@@ -54,6 +54,12 @@ origin.
 │   │   ├── index.html
 │   │   ├── styles.css
 │   │   └── app.js
+│   ├── orchestrator/                # SNT Pipelines Orchestrator bundle (deployed; demos greying — 11 active, 7 greyed)
+│   │   ├── index.html
+│   │   ├── styles.css
+│   │   ├── app.js
+│   │   ├── pipeline_map.json
+│   │   └── pipeline_cards.json
 │   └── status_spike/                # status-proxy spike (T0.9), local only — not a tracked deployment
 │       └── index.html
 │
@@ -63,8 +69,14 @@ origin.
 │   └── index.html                   #   (older flat single-file layout)
 │
 └── snt_app_dev/                     # Dedicated orchestrator build/test workspace (all ~18 pipelines)
-    ├── workspace_config.json        #   (no webapp deployed yet — orchestrator is built here next)
-    └── pipeline_cards.json
+    ├── workspace_config.json
+    ├── pipeline_cards.json
+    └── orchestrator/                # SNT Pipelines Orchestrator bundle (deployed — the primary build target)
+        ├── index.html
+        ├── styles.css
+        ├── app.js
+        ├── pipeline_map.json
+        └── pipeline_cards.json
 ```
 
 **Global files** (root + `knowledge/`) apply to all workspaces. **Workspace folders** contain
@@ -95,6 +107,34 @@ What differs per workspace is only which nodes are _active_: a node is available
 appears in that workspace's `pipeline_cards.json`. Pipelines not present render greyed-out and
 unclickable. The map is **hand-authored** (validated against `pipeline_map_schema.json`), not
 generated from the API.
+
+### Generic vs workspace-specific (what to reuse)
+
+The deployed bundle is **5 files: 4 generic + 1 workspace-specific.** This is what makes the
+orchestrator portable — a new workspace reuses the 4 generic files unchanged and only swaps in
+its own `pipeline_cards.json`.
+
+| File                | Generic / WS-specific | Notes                                                                    |
+| ------------------- | --------------------- | ------------------------------------------------------------------------ |
+| `index.html`        | **Generic**           | Empty page shell — identical everywhere.                                 |
+| `styles.css`        | **Generic**           | All styling — no workspace details.                                      |
+| `app.js`            | **Generic**           | All logic — **zero** hardcoded workspace specifics (see caveat below).   |
+| `pipeline_map.json` | **Generic**           | The shared SNT process map — same in every workspace.                    |
+| `pipeline_cards.json` | **⚠️ WS-specific**  | The only file that changes per workspace: which pipelines exist here + their `uuid` + `parameters`. |
+
+A 6th file, `<ws>/workspace_config.json`, is also workspace-specific but is **not deployed** —
+the browser never fetches it. It's deploy-time metadata (webapp `id`, connection slugs, pipeline
+UUIDs) used by the agent/build, not by the running app.
+
+The app **self-adapts at runtime**: OpenHEXA injects `window.OPENHEXA.workspaceSlug` at page
+load (so the same `app.js` queries _this_ workspace), and the generic map greys out any node
+whose `id` isn't in this workspace's `pipeline_cards.json`. → **New workspace = same 4 generic
+files + a new `pipeline_cards.json`** (proven in Phase 4 / tasks T4.1–T4.2).
+
+> **One caveat to the "fully generic" claim:** `app.js` hardcodes the SaaS front-end base
+> `https://app.openhexa.org` (for run / dataset links). That's the same for every SaaS
+> workspace, but a self-hosted OpenHEXA install would need it changed — it's the only
+> non-per-workspace assumption baked into the code.
 
 ---
 
@@ -179,10 +219,13 @@ Invoke-WebRequest -Uri "https://raw.githubusercontent.com/BLSQ/openhexa-app/main
 | SNT Testing           | DHIS2 Reporting Rate            | https://dhis2-reporting-rate.openhexa.io/                 | `snt_testing/dhis2_reporting_rate/`             |
 | SNT Testing           | Population Transformation       | https://run-population-transformation-pipeline.openhexa.io/ | `snt_testing/population_transformation/`        |
 | SNT Testing           | Population Transformation (split) | https://population-transformation-split.openhexa.io/    | `snt_testing/population_transformation_split/`  |
+| SNT App Dev           | SNT Pipelines Orchestrator      | https://snt-pipelines-orchestrator.openhexa.io/          | `snt_app_dev/orchestrator/`                     |
+| SNT Testing           | SNT Pipelines Orchestrator      | https://snt-testing-snt-pipelines-orchestrator.openhexa.io/ | `snt_testing/orchestrator/`                  |
 
 URLs and IDs come from each workspace's `workspace_config.json` — that file, not this table, is
 the source of truth.
 
-> The **SNT Pipelines Orchestrator** will be built and deployed in the dedicated **`snt_app_dev`**
-> workspace (all ~18 pipelines installed). It has no deployed webapp yet — a row will be added here
-> once the orchestrator bundle ships.
+> The **SNT Pipelines Orchestrator** is built in the dedicated **`snt_app_dev`** workspace (all
+> ~18 pipelines installed — the primary build target) and also deployed to **`snt_testing`** (11
+> of 18 installed, so it demos the greyed-out state). Both are live read-only status boards
+> (Phase 1); running pipelines from the board arrives in Phase 2.

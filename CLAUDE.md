@@ -61,6 +61,16 @@ node `id` == the pipeline's Python function name (e.g. `snt_dhis2_extract`).
 | `<ws>/workspace_config.json`           | per-workspace                                          | IDs, `deployed_apps`, connection slugs                                                         |
 | `index.html` + `app.js` + `styles.css` | shared app shell (multi-file)                          | renders the map, merges it with the workspace cards, runs/polls pipelines                      |
 
+**Generic vs workspace-specific:** the deployed bundle is **5 files — 4 generic + 1
+workspace-specific.** Generic (reused unchanged in every workspace): `index.html`, `styles.css`,
+`app.js`, `pipeline_map.json`. Workspace-specific (the only file that changes per workspace):
+`pipeline_cards.json`. `workspace_config.json` is also per-workspace but **not deployed** (the
+browser never fetches it — it's deploy-time metadata: webapp `id`, connection slugs, UUIDs). The
+app self-adapts at runtime via `window.OPENHEXA.workspaceSlug` + cards-driven greying, so the
+only non-per-workspace assumption baked into `app.js` is the hardcoded SaaS base
+`https://app.openhexa.org`. → **new workspace = same 4 generic files + a new
+`pipeline_cards.json`.** (See README's "Generic vs workspace-specific" for the human-facing version.)
+
 `pipeline_map_schema.json` (repo root) documents the structure of `pipeline_map.json` — read
 it when authoring or interpreting the map. `pipeline_map_NOTES.md` (repo root) holds the
 human-facing authoring rationale, edge/node-type conventions, and changelog; read it before
