@@ -28,7 +28,10 @@ creating/updating issues in the UI, not steps for an agent to run.
 - **Owner** → `owner:*` labels (`owner:giulia`, `owner:agent`, `owner:pm`, `owner:oh-devs`).
 - **Dependencies** → **"is blocked by"** issue links between Tasks (the _Blocked by_ column).
 - All issues carry the `snt-orchestrator` label.
-- **Status:** issues default to **Backlog**; T0.6 / T0.7 are **Done**.
+- **Status:** unstarted issues are **Backlog**; Phase 0 T0.1–T0.4/T0.6/T0.7 and Phase 1
+  T1.1–T1.6 are **Done** (the read-only board is built and deployed to `snt-app-dev`); the
+  remaining open Phase 0–1 items are the human review gates (T0.0 spec validation, T0.5 layout
+  review, T1.7 UI review).
 - **Description** = the action. It deliberately omits owner / parent / dependencies — those are
   Jira fields, labels and links, not prose.
 - **Acceptance criteria** = the task's _Done when_. Items marked _(proposed)_ were not spelled
@@ -40,12 +43,12 @@ creating/updating issues in the UI, not steps for an agent to run.
 | Item                              | Key                                                            | Status                   |
 | --------------------------------- | -------------------------------------------------------------- | ------------------------ |
 | Epic — SNT Pipelines Orchestrator | [SNT25-536](https://bluesquare.atlassian.net/browse/SNT25-536) | In Progress              |
-| Story — Phase 0                   | [SNT25-537](https://bluesquare.atlassian.net/browse/SNT25-537) | Backlog                  |
-| Story — Phase 1                   | [SNT25-547](https://bluesquare.atlassian.net/browse/SNT25-547) | Backlog                  |
+| Story — Phase 0                   | [SNT25-537](https://bluesquare.atlassian.net/browse/SNT25-537) | In Progress              |
+| Story — Phase 1                   | [SNT25-547](https://bluesquare.atlassian.net/browse/SNT25-547) | In Progress              |
 | Story — Phase 2                   | [SNT25-548](https://bluesquare.atlassian.net/browse/SNT25-548) | Backlog                  |
 | Story — Phase 3                   | [SNT25-549](https://bluesquare.atlassian.net/browse/SNT25-549) | Backlog                  |
 | Story — Phase 4                   | [SNT25-550](https://bluesquare.atlassian.net/browse/SNT25-550) | Backlog                  |
-| Phase 0 Tasks T0.0–T0.7           | SNT25-538, SNT25-540–546                                       | Backlog (T0.6/T0.7 Done) |
+| Phase 0 Tasks T0.0–T0.7           | SNT25-538, SNT25-540–546                                       | T0.1–T0.4/T0.6/T0.7 Done; T0.0, T0.5 Backlog |
 
 ---
 
@@ -79,10 +82,10 @@ status query is confirmed working through the static-webapp proxy.
 | Ref  | Key       | Type | Summary                                              | Owner               | Blocked by       | Status   |
 | ---- | --------- | ---- | ---------------------------------------------------- | ------------------- | ---------------- | -------- |
 | T0.0 | SNT25-538 | Task | T0.0 — Validate the product spec                     | giulia, pm, oh-devs | —                | Backlog  |
-| T0.1 | SNT25-540 | Task | T0.1 — Set up the SNT App Dev workspace              | giulia              | —                | Backlog  |
-| T0.2 | SNT25-541 | Task | T0.2 — Generate workspace config + cards             | agent, giulia       | T0.1             | Backlog  |
-| T0.3 | SNT25-542 | Task | T0.3 — Consolidate the full map content              | giulia, pm          | —                | Backlog  |
-| T0.4 | SNT25-543 | Task | T0.4 — Translate the sketch into `pipeline_map.json` | agent               | T0.3             | Backlog  |
+| T0.1 | SNT25-540 | Task | T0.1 — Set up the SNT App Dev workspace              | giulia              | —                | **Done** |
+| T0.2 | SNT25-541 | Task | T0.2 — Generate workspace config + cards             | agent, giulia       | T0.1             | **Done** |
+| T0.3 | SNT25-542 | Task | T0.3 — Consolidate the full map content              | giulia, pm          | —                | **Done** |
+| T0.4 | SNT25-543 | Task | T0.4 — Translate the sketch into `pipeline_map.json` | agent               | T0.3             | **Done** |
 | T0.5 | SNT25-544 | Task | T0.5 — Review the rendered layout                    | giulia, pm          | T0.4, T1.2, T1.3 | Backlog  |
 | T0.6 | SNT25-545 | Task | T0.6 — Spike: status query through the proxy         | agent, giulia       | —                | **Done** |
 | T0.7 | SNT25-546 | Task | T0.7 — If blocked: precise ask to OH devs            | oh-devs             | T0.6             | **Done** |
@@ -175,13 +178,13 @@ what OpenHEXA shows; 👍 reviewed and signed off by Giulia and the PM.
 
 | Ref  | Key   | Type | Summary                         | Owner      | Blocked by | Status  |
 | ---- | ----- | ---- | ------------------------------- | ---------- | ---------- | ------- |
-| T1.1 | _tbd_ | Task | T1.1 — Scaffold the app bundle  | agent      | T0.2, T0.4 | Backlog |
-| T1.2 | _tbd_ | Task | T1.2 — Render the grid          | agent      | T1.1       | Backlog |
-| T1.3 | _tbd_ | Task | T1.3 — Draw the SVG arrows      | agent      | T1.2       | Backlog |
-| T1.4 | _tbd_ | Task | T1.4 — Available vs greyed      | agent      | T1.2       | Backlog |
-| T1.5 | _tbd_ | Task | T1.5 — Live status layer        | agent      | T1.1, T0.6 | Backlog |
-| T1.6 | _tbd_ | Task | T1.6 — Read-only detail sidebar | agent      | T1.4       | Backlog |
-| T1.7 | _tbd_ | Task | T1.8 — UI review round          | pm, giulia | T1.7       | Backlog |
+| T1.1 | _tbd_ | Task | T1.1 — Scaffold the app bundle  | agent      | T0.2, T0.4 | **Done** |
+| T1.2 | _tbd_ | Task | T1.2 — Render the grid          | agent      | T1.1       | **Done** |
+| T1.3 | _tbd_ | Task | T1.3 — Draw the SVG arrows      | agent      | T1.2       | **Done** |
+| T1.4 | _tbd_ | Task | T1.4 — Available vs greyed      | agent      | T1.2       | **Done** |
+| T1.5 | _tbd_ | Task | T1.5 — Live status layer        | agent      | T1.1, T0.6 | **Done** |
+| T1.6 | _tbd_ | Task | T1.6 — Read-only detail sidebar | agent      | T1.4       | **Done** |
+| T1.7 | _tbd_ | Task | T1.7 — UI review round          | pm, giulia | T1.6       | Backlog  |
 
 ### T1.1 — Scaffold the app bundle
 
@@ -406,32 +409,173 @@ poll the run, and refresh that node's status and outputs.
 
 ### T2.1 — Confirm params aren't stale
 
-**Description:** Per the `CLAUDE.md` cache caveat: before wiring runs, re-fetch the `@parameter`
-decorators for the pipelines to be run and patch any drift into `pipeline_cards.json`.
+**Description:** 🔄 Before we let anyone launch a pipeline, make sure the app's "memory" of each
+pipeline's settings is still accurate. The app keeps a saved snapshot of every pipeline's
+settings (its parameters) in a file called `pipeline_cards.json` — basically a photo taken on a
+certain date. 📸 But the real pipelines keep evolving: a setting can be renamed, added, or
+removed by their developers. If our snapshot has fallen out of date, a run launched from the
+board fails with a confusing technical error (something like _"the provided config contains
+invalid key(s)"_). 🛑
+
+So this task is a quick freshness check: for **only** the pipelines we're about to make
+runnable (not all ~18), we re-read their current settings straight from the source on GitHub,
+compare them to our snapshot, and patch any differences back in — then stamp the snapshot with a
+new date. 🗓️ It's plumbing, not visible UI, but it's what stops Run from failing for a silly,
+avoidable reason later.
+
+---
+
+**👩‍🏫 Tutorial for the human (optional, hands-on):** nothing changes on screen here — this is a
+data hygiene step — so the "proof" is in the file and the agent's report. 📋
+
+1. 🗂️ Open `snt_app_dev/pipeline_cards.json` and note the `generated_at` date near the top —
+   that's when the snapshot was last taken.
+2. 🔍 The agent will tell you, pipeline by pipeline, whether the live settings on GitHub still
+   match the snapshot — and if anything drifted, exactly what changed (a renamed/added/removed
+   setting).
+3. ✅ Afterwards, the `generated_at` date should be bumped to today, and any drift should be
+   reflected in the file.
+
+The reassuring outcome is often "no drift — already in sync"; the valuable outcome is catching a
+change _before_ it breaks a real run. 🎯
+
+> 🔗 **Relates to G.1.** This is the **interim, manual** version of what **G.1** (_Auto-refresh
+> `pipeline_cards.json` via an OpenHEXA pipeline_) automates permanently — both keep card params
+> from drifting and causing `invalid key(s)` run failures. Do T2.1 by hand for now; once G.1
+> ships, this recurring manual check is **superseded**. One deliberate difference: T2.1 reads
+> params from **GitHub** `main`, whereas G.1 reads from **OpenHEXA** directly (the _deployed_
+> version a run actually accepts) — so G.1 is also the more accurate source, not just the
+> automated one.
+
 **Acceptance criteria:** card params match the current GitHub source for each runnable pipeline.
 
 ### T2.2 — Parameter form + config builder
 
-**Description:** Generate the input form from each card's params; build the `config` object;
-render `DHIS2Connection` params as a dropdown of the workspace's connections.
+**Description:** 📝 Turn each pipeline's list of settings into a real fill-in form in the side
+panel. Every pipeline declares what it needs before it can run — a year, a yes/no toggle, a
+country code, which DHIS2 connection to use, and so on. 🛠️ This task reads that list (the same
+parameters the sidebar showed read-only in Phase 1) and automatically builds the matching input
+boxes the user can actually type in or pick from.
+
+Two nice touches: 🎛️ each kind of setting gets the right kind of input (a checkbox for yes/no, a
+number box for a year, a plain text box for free text), and for "which DHIS2 connection?"
+settings we show a **dropdown of the connections that actually exist in this workspace** instead
+of asking the user to know and type a cryptic code. Once the user fills things in, the app
+quietly bundles their answers into a neat package (the "config") in exactly the shape OpenHEXA
+expects. The Run button isn't wired up yet (that's the next task) — here we're just building the
+form and the package it produces. 📦
+
+---
+
+**👩‍🏫 Tutorial for the human (optional, hands-on):** the test is to open a pipeline and see a
+form you can actually interact with. 👀
+
+1. 🖱️ Click an available (coloured) box to open its side panel.
+2. 📝 Where Phase 1 showed settings as read-only text, you should now see real, editable
+   fields — boxes to type in, checkboxes to tick, and a dropdown for any DHIS2-connection
+   setting.
+3. 🎛️ Check the dropdown lists this workspace's real connections (not a blank or a code to type).
+4. 🧪 There's no Run button to press yet, but if the agent left a debug line, filling the form
+   and triggering it should print a clean little config package with your values in it.
+
+The thing to confirm here is "does each setting show the _right type_ of input, and does it
+collect what I typed correctly?" — getting the package shape right is what makes the actual run
+work in T2.3. 🔗
 **Acceptance criteria:** the form produces a valid `config` object for a test pipeline.
 
 ### T2.3 — Run + poll
 
-**Description:** Wire the Run button to the `runPipeline` mutation; poll the run; refresh that
-node's status and outputs on completion (reuse the proven single-app logic).
+**Description:** ▶️ The headline moment of Phase 2: make the **Run** button actually launch a
+pipeline. When the user fills in the form (from T2.2) and clicks Run, the app sends that config
+off to OpenHEXA to start the pipeline for real. 🚀 Then, because a pipeline can take a while, the
+app keeps quietly checking back every few seconds — "done yet? done yet?" (this repeated checking
+is called _polling_) — and updates the node live: the status badge moves from 🔄 running to ✅
+success (or ❌ failed), and once it's finished the node's outputs (datasets, reports) refresh too.
+
+We're not inventing this from scratch — the existing small single-pipeline webapps already do
+exactly this launch-and-watch dance, so we reuse that proven logic here. ♻️ The result is that
+Giulia can drive a real pipeline end-to-end from the board without ever leaving the page or
+touching the OpenHEXA UI. 🎯
+
+---
+
+**👩‍🏫 Tutorial for the human (optional, hands-on):** this is the satisfying one — you actually
+run something and watch it happen. 🍿
+
+1. 🖱️ Open an available pipeline, fill in its form, and click **Run**.
+2. 🔄 Watch the node's badge: it should switch to _running_ within a few seconds, then settle on
+   its final result (✅ success or ❌ failed) once the pipeline finishes — without you reloading
+   the page.
+3. 🪟 Cross-check in OpenHEXA: open the **Pipelines** view for SNT App Dev in another tab — the
+   same run you just launched should be there too, with a matching status.
+4. 📄 After it finishes, the node's outputs (datasets / report links) should refresh to show the
+   fresh results.
+
+Pick a quick, cheap pipeline for the first try so you're not waiting long. ⏱️ If the badge never
+leaves _running_, that usually means the polling stopped early or the run errored on OpenHEXA's
+side — the OpenHEXA run page will say why.
 **Acceptance criteria:** a real run triggered from the board completes and the node updates.
 
 ### T2.4 — Mutual exclusion (alternative groups)
 
-**Description:** Running one node of an `alternative` `group` marks the others in that group
-not-current (data-driven via `group`, not hardcoded).
+**Description:** 🔀 Handle the "either/or" steps gracefully. A few places in the SNT flow offer
+**alternatives** — two different ways to do the same job, where you're meant to pick one, not
+both (for example, two different methods of outlier imputation, or two ways to compute the
+reporting rate). 🤔 The map already knows which pipelines are alternatives to each other because
+they share the same `group` label.
+
+This task makes the board respect that "pick one" rule: when the user runs one option in a group,
+the app automatically marks the other option(s) in that same group as "not the current choice" —
+dimmed or visibly set aside — so the picture never looks like you ran two conflicting methods at
+once. ⚖️ Importantly this is **driven by the data** (the `group` labels in the map), not
+hand-coded for specific pipelines — so if the map adds or changes an alternative group later, the
+behaviour just works without touching the code. 🧩
+
+---
+
+**👩‍🏫 Tutorial for the human (optional, hands-on):** the test is to run one of a pair and watch
+its sibling step aside. 👀
+
+1. 🔎 Find an alternative group on the map — the wireframe shows two: the **A.3.1 Outliers
+   Imputation** options and the **A.4 Reporting Rate** options.
+2. ▶️ Run one option in the group.
+3. 🌗 The other option(s) in that same group should now show as "not the current choice" (dimmed
+   / set aside), making it clear which method is the active one.
+4. 🔁 Run the _other_ option instead — the roles should swap, so whichever you ran last is the one
+   shown as current.
+
+The point being proven: you can never end up with two conflicting alternatives both looking
+"active" at the same time. ⚖️
 **Acceptance criteria:** running A.3.1 visually supersedes A.3.2, etc.
 
 ### T2.5 — Missing-pipeline message
 
-**Description:** When the user attempts to run a greyed/missing pipeline, show a clear "install
-this pipeline first" message instead of a cryptic error.
+**Description:** 🚧 Be kind about pipelines that simply aren't installed in this workspace.
+Remember the same full map is shown everywhere, so some boxes are greyed-out because that
+pipeline doesn't exist here (see T1.4). 🌗 This task makes sure that if a user ever ends up
+trying to _run_ one of those not-installed pipelines, they get a clear, friendly explanation —
+something like _"This pipeline isn't installed in this workspace yet — install it first"_ —
+rather than a confusing technical error or a button that silently does nothing. 💬
+
+It's a small but important polish: it turns a dead-end into a helpful signpost, so a
+non-technical user always understands _why_ something can't be run and what to do about it. 🪧
+
+---
+
+**👩‍🏫 Tutorial for the human (optional, hands-on):** the test is to deliberately poke at a
+not-installed pipeline and confirm you get a helpful message. 👀
+
+1. ⚪ Identify a greyed-out (not-installed) box on the map.
+2. 🖱️ Try to act on it as if you wanted to run it.
+3. 💬 Instead of nothing happening or a cryptic error, you should see a plain-language message
+   explaining it isn't installed here and needs installing first.
+
+> 🔎 **Worth a quick sanity check with Giulia before building:** since Phase 1 (T1.4 / T1.6) made
+> greyed boxes **unclickable**, a user currently can't even open the sidebar — let alone reach a
+> Run button — for a not-installed pipeline. So this guard may be either (a) mostly a safety net
+> for edge cases, or (b) a sign we want greyed boxes to stay clickable enough to _show_ this
+> message. Worth deciding which, so the task targets the real scenario. 🤔
+
 **Acceptance criteria:** the message appears for a deliberately-missing pipeline.
 
 ### T2.6 — Deploy + QA running
@@ -520,6 +664,13 @@ orchestrator's active/greyed nodes) is currently regenerated by hand and drifts 
 workspace — UUIDs change when a pipeline is re-created, new pipelines appear, and `@parameter`
 decorators get edited. Move this to an OpenHEXA pipeline so the file stays correct automatically,
 launchable manually from the OH UI and/or on a schedule.
+
+> 🔗 **Relates to T2.1.** This **automates and supersedes** the manual freshness check in
+> **T2.1** (_Confirm params aren't stale_): T2.1 re-fetches params by hand for the few pipelines
+> about to be run, whereas G.1 regenerates the whole file on demand/on a schedule so the drift
+> never accumulates. Note the different source of truth — T2.1 reads from **GitHub** `main`; G.1
+> reads from **OpenHEXA** directly (the _deployed_ version a run actually accepts), which is why
+> G.1 is also more accurate, not just automated. Until G.1 ships, T2.1 is the interim stopgap.
 
 Key design points:
 
