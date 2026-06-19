@@ -295,6 +295,26 @@ function renderGrid(nodes) {
       escapeHtml(n.label) +
       "</div>";
 
+    // T1.6 — only *available* nodes are interactive. Greyed nodes already have
+    // pointer-events:none in CSS, but we also skip the handler + the affordances
+    // (pointer cursor, keyboard focus, button role) for them.
+    if (n.available) {
+      div.classList.add("clickable");
+      div.setAttribute("role", "button");
+      div.setAttribute("tabindex", "0");
+      (function (id) {
+        div.addEventListener("click", function () {
+          selectNode(id);
+        });
+        div.addEventListener("keydown", function (e) {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            selectNode(id);
+          }
+        });
+      })(n.id);
+    }
+
     canvas.appendChild(div);
     APP.nodeEls[n.id] = div;
   });
@@ -629,6 +649,405 @@ async function loadStatuses(nodes) {
 }
 
 /* ------------------------------------------------------------------ *
+ * T1.6 — Read-only detail sidebar
+ *
+ * Clicking an *available* node opens the right-hand panel with everything we
+ * know about that pipeline, all read-only (no Run button yet — that's Phase 2):
+ *   - name + code + type, and the latest-run status line (reused from T1.5);
+ *   - a link to the pipeline's README on GitHub;
+ *   - a link to the latest run's page in the OpenHEXA UI (when it has run);
+ *   - its latest outputs — output datasets and bucket files (e.g. the HTML
+ *     report) — fetched per-click from pipelineRun(id:);
+ *   - its parameters, shown as a definition list (label, type, default,
+ *     choices, help) — display only, the input form arrives in T2.2.
+ *
+ * Selection is single: clicking a node highlights it and replaces the panel;
+ * the ✕ button (or clicking nothing) returns to the empty placeholder.
+ * ------------------------------------------------------------------ */
+
+// The pipeline source repo. Each pipeline lives in a folder named after its
+// Python function id (== node.id); linking to the *folder* (not a specific
+// README filename) renders the folder's readme inline and is robust to the
+// file's casing varying across pipelines (some are README.md, some readme.md).
+var GITHUB_REPO = "https://github.com/BLSQ/snt_development";
+function githubFolderUrl(id) {
+  return GITHUB_REPO + "/tree/main/" + encodeURIComponent(id);
+}
+
+// pipelineRun outputs for one run — datasets + bucket/generic file outputs.
+// outputs is a union, so use __typename inline fragments (CLAUDE.md pattern).
+var OUTPUTS_QUERY =
+  "query ($id: UUID!) {" +
+  "  pipelineRun(id: $id) {" +
+  "    outputs {" +
+  "      __typename" +
+  "      ... on BucketObject { key name type }" +
+  "      ... on GenericOutput { name uri }" +
+  "    }" +
+  "    datasetVersions { id name dataset { slug name } }" +
+  "  }" +
+  "}";
+
+// Signed download URL for a bucket object (the HTML report etc.). Needs
+// FILES_READ; forceAttachment:false so the report renders inline in the browser.
+var DOWNLOAD_MUTATION =
+  "mutation ($input: PrepareObjectDownloadInput!) {" +
+  "  prepareObjectDownload(input: $input) { success downloadUrl }" +
+  "}";
+
+// Human-readable run duration from a count of seconds ("6m 12s", "1h 03m 00s").
+function fmtDuration(sec) {
+  if (sec == null) return null;
+  var s = Math.max(0, Math.round(sec));
+  var h = Math.floor(s / 3600);
+  s -= h * 3600;
+  var m = Math.floor(s / 60);
+  s -= m * 60;
+  function p(n) {
+    return (n < 10 ? "0" : "") + n;
+  }
+  if (h) return h + "h " + p(m) + "m " + p(s) + "s";
+  if (m) return m + "m " + p(s) + "s";
+  return s + "s";
+}
+
+// Format a parameter's default value for display (arrays joined, bools spelled).
+function fmtParamVal(v) {
+  if (Array.isArray(v)) return v.join(", ");
+  if (typeof v === "boolean") return v ? "true" : "false";
+  return String(v);
+}
+
+function isHtmlKey(key) {
+  return /\.html?$/i.test(String(key || ""));
+}
+
+// One external/destination link row (README, run page, dataset, generic output).
+function extLinkHtml(href, icon, title, sub, arrow) {
+  return (
+    '<a class="extlink" href="' +
+    escapeHtml(href) +
+    '" target="_blank" rel="noopener noreferrer">' +
+    '<span class="ic">' +
+    icon +
+    "</span>" +
+    '<span class="extlink-txt">' +
+    escapeHtml(title) +
+    (sub ? "<small>" + escapeHtml(sub) + "</small>" : "") +
+    "</span>" +
+    '<span class="arr">' +
+    (arrow || "↗") +
+    "</span></a>"
+  );
+}
+
+// The status line at the top of the panel, reusing the T1.5 status data + badge
+// classes. entry = APP.statusByUuid[uuid] ({code, run}); run may be null.
+function sidebarStatusHtml(entry) {
+  if (!APP.statusByUuid)
+    return '<div class="sb-status"><span class="status-badge s-error">status unavailable</span></div>';
+  var run = entry ? entry.run : null;
+  if (!run)
+    return '<div class="sb-status"><span class="status-badge s-none">never run</span></div>';
+  var dur = fmtDuration(run.duration);
+  return (
+    '<div class="sb-status">' +
+    '<span class="status-badge s-' +
+    escapeHtml(run.status) +
+    '">' +
+    escapeHtml(run.status) +
+    "</span>" +
+    '<span class="sb-statusmeta">last run ' +
+    escapeHtml(fmtRunDate(run.executionDate)) +
+    (dur ? " · " + escapeHtml(dur) : "") +
+    "</span></div>"
+  );
+}
+
+// The read-only parameters list (display only — the input form is T2.2).
+function paramsHtml(node) {
+  var params = node.parameters || [];
+  if (!params.length)
+    return '<p class="sb-muted">This pipeline takes no parameters.</p>';
+  return params
+    .map(function (p) {
+      var req = p.required
+        ? ' <span class="req" title="Required">*</span>'
+        : "";
+      var bits = ['<span class="ptype">' + escapeHtml(p.type) + "</span>"];
+      if (p.multiple) bits.push('<span class="ptype">multiple</span>');
+      if (p.default !== undefined)
+        bits.push("default <code>" + escapeHtml(fmtParamVal(p.default)) + "</code>");
+      if (p.choices && p.choices.length)
+        bits.push(
+          "choices " +
+            p.choices
+              .map(function (c) {
+                return "<code>" + escapeHtml(fmtParamVal(c)) + "</code>";
+              })
+              .join(" "),
+        );
+      var help = p.help
+        ? '<div class="phelp">' + escapeHtml(p.help) + "</div>"
+        : "";
+      return (
+        '<div class="param">' +
+        '<div class="plabel">' +
+        escapeHtml(p.label || p.key) +
+        req +
+        "</div>" +
+        '<div class="pmeta-line">' +
+        bits.join(" · ") +
+        "</div>" +
+        help +
+        "</div>"
+      );
+    })
+    .join("");
+}
+
+// Render the empty/placeholder panel (nothing selected).
+function renderEmptySidebar() {
+  var sb = document.getElementById("sidebar");
+  if (!sb) return;
+  sb.innerHTML =
+    '<div class="sb-empty">' +
+    "<p>Select a pipeline node to see its description, parameters, links, and latest outputs.</p>" +
+    "</div>";
+}
+
+// Highlight the clicked card, deselect the rest, and render its panel.
+function selectNode(id) {
+  var node = APP.nodeById[id];
+  if (!node || !node.available) return;
+  APP.selectedId = id;
+  Object.keys(APP.nodeEls).forEach(function (k) {
+    APP.nodeEls[k].classList.toggle("selected", k === id);
+  });
+  renderSidebar(node);
+}
+
+function clearSelection() {
+  APP.selectedId = null;
+  Object.keys(APP.nodeEls).forEach(function (k) {
+    APP.nodeEls[k].classList.remove("selected");
+  });
+  renderEmptySidebar();
+}
+
+// Build + inject the detail panel for a node, then kick off the outputs fetch.
+function renderSidebar(node) {
+  var sb = document.getElementById("sidebar");
+  if (!sb) return;
+
+  var entry =
+    APP.statusByUuid && node.uuid ? APP.statusByUuid[node.uuid] : null;
+  var run = entry ? entry.run : null;
+  var slug =
+    window.OPENHEXA && window.OPENHEXA.workspaceSlug
+      ? window.OPENHEXA.workspaceSlug
+      : null;
+  var base = appBaseUrl();
+
+  // Links: README always; the run page only when there's a run (+ slug + code).
+  var links = extLinkHtml(
+    githubFolderUrl(node.id),
+    "▤",
+    "README on GitHub",
+    "snt_development / " + node.id,
+  );
+  if (run && slug && entry && entry.code) {
+    var runUrl =
+      base + "/workspaces/" + slug + "/pipelines/" + entry.code + "/runs/" + run.id + "/";
+    links += extLinkHtml(
+      runUrl,
+      "▶",
+      "Open latest run in OpenHEXA",
+      "logs, messages, full detail",
+    );
+  }
+
+  sb.innerHTML =
+    '<div class="sb-head">' +
+    '<div class="sb-titlerow">' +
+    '<h2 class="sb-title">' +
+    escapeHtml(node.label) +
+    "</h2>" +
+    '<button class="sb-close" type="button" aria-label="Close panel" title="Close">✕</button>' +
+    "</div>" +
+    '<div class="sb-sub">' +
+    '<span class="sb-code">' +
+    escapeHtml(node.code) +
+    "</span>" +
+    '<span class="sb-type">' +
+    escapeHtml(node.type) +
+    "</span>" +
+    "</div>" +
+    sidebarStatusHtml(entry) +
+    "</div>" +
+    '<div class="sb-body">' +
+    (node.description
+      ? '<p class="sb-desc">' + escapeHtml(node.description) + "</p>"
+      : "") +
+    '<div class="sb-links">' +
+    links +
+    "</div>" +
+    '<section class="sb-sec">' +
+    '<h3 class="sb-sectitle">Latest outputs</h3>' +
+    '<div id="sb-outputs" class="sb-outputs"></div>' +
+    "</section>" +
+    '<section class="sb-sec">' +
+    '<h3 class="sb-sectitle">Parameters</h3>' +
+    paramsHtml(node) +
+    "</section>" +
+    "</div>";
+
+  var closeBtn = sb.querySelector(".sb-close");
+  if (closeBtn) closeBtn.addEventListener("click", clearSelection);
+
+  loadOutputs(node, run);
+}
+
+/* Fetch + render the latest run's outputs into the panel's #sb-outputs box.
+ * Output datasets become direct links to their dataset page; bucket files (the
+ * HTML report and any other artifacts) become links that lazily resolve a
+ * signed download URL on click; generic outputs link straight to their uri.
+ * Guarded by APP.selectedId so a slow fetch can't paint into a panel the user
+ * has since navigated away from. */
+async function loadOutputs(node, run) {
+  var box = document.getElementById("sb-outputs");
+  if (!box) return;
+
+  if (!run) {
+    box.innerHTML =
+      '<p class="sb-muted">No outputs yet — this pipeline hasn\'t run.</p>';
+    return;
+  }
+  var slug =
+    window.OPENHEXA && window.OPENHEXA.workspaceSlug
+      ? window.OPENHEXA.workspaceSlug
+      : null;
+  if (!slug) {
+    box.innerHTML =
+      '<p class="sb-muted">Outputs are only available inside OpenHEXA.</p>';
+    return;
+  }
+
+  box.innerHTML = '<p class="sb-muted">loading outputs…</p>';
+
+  var data;
+  try {
+    data = await gql(OUTPUTS_QUERY, { id: run.id });
+  } catch (err) {
+    console.error("SNT Orchestrator — outputs query failed:", err);
+    if (APP.selectedId === node.id)
+      box.innerHTML = '<p class="sb-muted">Couldn\'t load outputs.</p>';
+    return;
+  }
+  // Selection changed while the query was in flight — drop this stale result.
+  if (APP.selectedId !== node.id) return;
+
+  var pr = data.pipelineRun || {};
+  var base = appBaseUrl();
+  var html = "";
+
+  // Output datasets (deduped by slug).
+  var seen = {};
+  (pr.datasetVersions || []).forEach(function (dv) {
+    var ds = dv.dataset;
+    if (!ds || seen[ds.slug]) return;
+    seen[ds.slug] = true;
+    html += extLinkHtml(
+      base + "/workspaces/" + slug + "/datasets/" + ds.slug + "/",
+      "▥",
+      ds.name || ds.slug,
+      "output dataset",
+    );
+  });
+
+  // File outputs: bucket objects (lazy signed URL) + generic outputs (direct).
+  (pr.outputs || []).forEach(function (o) {
+    if (o.__typename === "BucketObject") {
+      if (o.type === "DIRECTORY") return;
+      var html_report = isHtmlKey(o.key);
+      html +=
+        '<a class="extlink" href="#" data-objkey="' +
+        escapeHtml(o.key) +
+        '">' +
+        '<span class="ic">' +
+        (html_report ? "▦" : "▣") +
+        "</span>" +
+        '<span class="extlink-txt">' +
+        escapeHtml(o.name || o.key) +
+        "<small>" +
+        (html_report ? "HTML report" : "output file") +
+        "</small></span>" +
+        '<span class="arr">↓</span></a>';
+    } else if (o.__typename === "GenericOutput") {
+      html += extLinkHtml(o.uri, "▣", o.name || o.uri, "output");
+    }
+  });
+
+  if (!html)
+    html = '<p class="sb-muted">This run produced no linkable outputs.</p>';
+  box.innerHTML = html;
+
+  // Wire each bucket-object link to resolve its signed URL on click.
+  Array.prototype.forEach.call(
+    box.querySelectorAll("a[data-objkey]"),
+    function (a) {
+      a.addEventListener("click", function (e) {
+        e.preventDefault();
+        openBucketObject(a.getAttribute("data-objkey"), a);
+      });
+    },
+  );
+}
+
+/* Resolve a signed download URL for a bucket object and open it. A blank tab is
+ * opened synchronously inside the click gesture (so pop-up blockers allow it),
+ * then redirected once prepareObjectDownload returns. */
+async function openBucketObject(key, a) {
+  var slug =
+    window.OPENHEXA && window.OPENHEXA.workspaceSlug
+      ? window.OPENHEXA.workspaceSlug
+      : null;
+  if (!slug) return;
+  if (a && a.getAttribute("data-busy") === "1") return;
+
+  var win = window.open("about:blank", "_blank");
+  if (win) win.opener = null;
+  if (a) {
+    a.setAttribute("data-busy", "1");
+    a.classList.add("busy");
+  }
+
+  try {
+    var data = await gql(DOWNLOAD_MUTATION, {
+      input: { workspaceSlug: slug, objectKey: key, forceAttachment: false },
+    });
+    var r = data.prepareObjectDownload;
+    if (r && r.success && r.downloadUrl) {
+      if (win) win.location = r.downloadUrl;
+      else window.open(r.downloadUrl, "_blank", "noopener");
+    } else {
+      console.error("SNT Orchestrator — prepareObjectDownload failed:", key, r);
+      if (win) win.close();
+      alert("Could not open this output file.");
+    }
+  } catch (err) {
+    console.error("SNT Orchestrator — prepareObjectDownload error:", err);
+    if (win) win.close();
+    alert("Could not open this output file.");
+  } finally {
+    if (a) {
+      a.removeAttribute("data-busy");
+      a.classList.remove("busy");
+    }
+  }
+}
+
+/* ------------------------------------------------------------------ *
  * Boot
  * ------------------------------------------------------------------ */
 // Holds the loaded + merged state so later tasks can render from it.
@@ -644,6 +1063,9 @@ var APP = {
   edgesSvg: null,
   // T1.5 — latest run per pipeline UUID, set by loadStatuses.
   statusByUuid: null,
+  // T1.6 — node lookup by id + the currently-selected node (null = none).
+  nodeById: {},
+  selectedId: null,
 };
 
 async function init() {
@@ -654,11 +1076,19 @@ async function init() {
     wsLabel.textContent = window.OPENHEXA.workspaceSlug;
   }
 
+  // T1.6 — sidebar starts on its empty placeholder until a node is clicked.
+  renderEmptySidebar();
+
   try {
     var data = await loadData();
     APP.map = data.map;
     APP.cards = data.cards;
     APP.nodes = mergeNodes(data.map, data.cards);
+    // T1.6 — id -> node lookup, used by the click handler / sidebar.
+    APP.nodeById = {};
+    APP.nodes.forEach(function (n) {
+      APP.nodeById[n.id] = n;
+    });
     logMergedNodes(APP.nodes, data.map, data.cards);
     renderGrid(APP.nodes);
     renderEdges(APP.nodes, data.map.edges);
