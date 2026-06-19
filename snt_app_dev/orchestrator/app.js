@@ -682,9 +682,11 @@ var OUTPUTS_QUERY =
   "    outputs {" +
   "      __typename" +
   "      ... on BucketObject { key name type }" +
-  "      ... on GenericOutput { name uri }" +
+  // GenericOutput.name is String (nullable) vs BucketObject.name String! — same
+  // response key with conflicting types is a GraphQL validation error, so alias it.
+  "      ... on GenericOutput { uri genericName: name }" +
   "    }" +
-  "    datasetVersions { id name dataset { slug name } }" +
+  "    datasetVersions { id name dataset { slug name workspace { slug } } }" +
   "  }" +
   "}";
 
@@ -951,18 +953,30 @@ async function loadOutputs(node, run) {
   var base = appBaseUrl();
   var html = "";
 
-  // Output datasets (deduped by slug).
+  // Output datasets (one link per produced version, deduped by version id).
+  // The dataset page URL is /workspaces/<viewingWs>/datasets/<datasetSlug>/from/
+  // <sourceWs>/?version=<datasetVersionId> — the `from/<sourceWs>` segment + the
+  // version query param are required (without them OpenHEXA 404s). The viewing
+  // workspace is this app's workspace (slug); the source workspace is the one
+  // that owns the dataset (same as viewing for run outputs, but use the
+  // dataset's own workspace when present so shared/linked datasets resolve too).
   var seen = {};
   (pr.datasetVersions || []).forEach(function (dv) {
     var ds = dv.dataset;
-    if (!ds || seen[ds.slug]) return;
-    seen[ds.slug] = true;
-    html += extLinkHtml(
-      base + "/workspaces/" + slug + "/datasets/" + ds.slug + "/",
-      "▥",
-      ds.name || ds.slug,
-      "output dataset",
-    );
+    if (!ds || !dv.id || seen[dv.id]) return;
+    seen[dv.id] = true;
+    var fromSlug = ds.workspace && ds.workspace.slug ? ds.workspace.slug : slug;
+    var url =
+      base +
+      "/workspaces/" +
+      slug +
+      "/datasets/" +
+      ds.slug +
+      "/from/" +
+      fromSlug +
+      "/?version=" +
+      encodeURIComponent(dv.id);
+    html += extLinkHtml(url, "▥", ds.name || ds.slug, "output dataset");
   });
 
   // File outputs: bucket objects (lazy signed URL) + generic outputs (direct).
@@ -982,9 +996,9 @@ async function loadOutputs(node, run) {
         "<small>" +
         (html_report ? "HTML report" : "output file") +
         "</small></span>" +
-        '<span class="arr">↓</span></a>';
+        '<span class="arr">↗</span></a>';
     } else if (o.__typename === "GenericOutput") {
-      html += extLinkHtml(o.uri, "▣", o.name || o.uri, "output");
+      html += extLinkHtml(o.uri, "▣", o.genericName || o.uri, "output");
     }
   });
 
