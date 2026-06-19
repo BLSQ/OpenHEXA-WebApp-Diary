@@ -173,16 +173,15 @@ screen to _see_ the full SNT flow and where each pipeline stands. 🗺️
 **Exit criteria:** 🚀 published to the SNT App Dev workspace; ✅ the statuses on the board match
 what OpenHEXA shows; 👍 reviewed and signed off by Giulia and the PM.
 
-| Ref  | Key   | Type | Summary                         | Owner         | Blocked by | Status  |
-| ---- | ----- | ---- | ------------------------------- | ------------- | ---------- | ------- |
-| T1.1 | _tbd_ | Task | T1.1 — Scaffold the app bundle  | agent         | T0.2, T0.4 | Backlog |
-| T1.2 | _tbd_ | Task | T1.2 — Render the grid          | agent         | T1.1       | Backlog |
-| T1.3 | _tbd_ | Task | T1.3 — Draw the SVG arrows      | agent         | T1.2       | Backlog |
-| T1.4 | _tbd_ | Task | T1.4 — Available vs greyed      | agent         | T1.2       | Backlog |
-| T1.5 | _tbd_ | Task | T1.5 — Live status layer        | agent         | T1.1, T0.6 | Backlog |
-| T1.6 | _tbd_ | Task | T1.6 — Read-only detail sidebar | agent         | T1.4       | Backlog |
-| T1.7 | _tbd_ | Task | T1.7 — Deploy + QA              | agent, giulia | T1.5, T1.6 | Backlog |
-| T1.8 | _tbd_ | Task | T1.8 — UI review round          | pm, giulia    | T1.7       | Backlog |
+| Ref  | Key   | Type | Summary                         | Owner      | Blocked by | Status  |
+| ---- | ----- | ---- | ------------------------------- | ---------- | ---------- | ------- |
+| T1.1 | _tbd_ | Task | T1.1 — Scaffold the app bundle  | agent      | T0.2, T0.4 | Backlog |
+| T1.2 | _tbd_ | Task | T1.2 — Render the grid          | agent      | T1.1       | Backlog |
+| T1.3 | _tbd_ | Task | T1.3 — Draw the SVG arrows      | agent      | T1.2       | Backlog |
+| T1.4 | _tbd_ | Task | T1.4 — Available vs greyed      | agent      | T1.2       | Backlog |
+| T1.5 | _tbd_ | Task | T1.5 — Live status layer        | agent      | T1.1, T0.6 | Backlog |
+| T1.6 | _tbd_ | Task | T1.6 — Read-only detail sidebar | agent      | T1.4       | Backlog |
+| T1.7 | _tbd_ | Task | T1.8 — UI review round          | pm, giulia | T1.7       | Backlog |
 
 ### T1.1 — Scaffold the app bundle
 
@@ -376,22 +375,7 @@ A broken or missing link 🛑, or a panel showing the wrong pipeline's details, 
 thing this check is meant to catch.
 **Acceptance criteria:** every available node shows correct details and working links.
 
-### T1.7 — Deploy + QA
-
-**Description:** 🚀 Put the app online and check it really works. Up to now everything has been
-built and tested locally; this task publishes the app to the SNT App Dev workspace so it has a
-proper web address people can open. 🌐 After publishing, we save an exact copy of every file we
-sent into `snt_app_dev/orchestrator/`, so what's on our computer always matches what's live —
-no surprises later. 🗂️
-
-Then comes the quality check (QA): open the published link and confirm the map looks right, the
-boxes are in the correct places, the arrows make sense, and the statuses shown match reality. ✔️
-This is the moment the read-only board becomes something we can actually share and look at
-together.
-**Acceptance criteria:** the deployed URL shows the correct map + real statuses; the local
-mirror matches what was deployed.
-
-### T1.8 — UI review round
+### T1.7 — UI review round
 
 **Description:** 👀 Step back and look at it together. With the read-only board live, the PM and
 Giulia go through it with fresh eyes: Is it easy to understand at a glance? Do the colours,
