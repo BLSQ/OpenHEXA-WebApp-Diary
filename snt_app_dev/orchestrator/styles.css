@@ -161,6 +161,30 @@ svg.edges {
   color: #94a3b8;
 }
 
+/* --- Interactive nodes (T1.6) --- *
+ * Only available cards are clickable (they open the detail sidebar). A pointer
+ * cursor + lift-on-hover signal that; .selected draws a ring around the active
+ * node. Placed after the track + greyed rules so the selected ring wins. */
+.node.clickable {
+  cursor: pointer;
+  transition:
+    box-shadow 0.12s ease,
+    transform 0.12s ease;
+}
+.node.clickable:hover {
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.16);
+  transform: translateY(-1px);
+}
+.node.clickable:focus-visible {
+  outline: 2px solid #1e88e5;
+  outline-offset: 2px;
+}
+.node.selected {
+  box-shadow:
+    0 0 0 3px rgba(30, 136, 229, 0.35),
+    0 3px 8px rgba(0, 0, 0, 0.16);
+}
+
 /* Type label, top-right corner: filled for mandatory/output (the only types
  * app.js labels); alternative/facultative cards are left unlabelled. */
 .type-badge {
@@ -278,13 +302,242 @@ svg.edges {
   }
 }
 
+/* --- Detail sidebar (T1.6) --- *
+ * Read-only panel that opens when an available node is clicked: a sticky header
+ * (name + code + type + status line), then a scrollable body with the
+ * description, external links, latest outputs, and the parameter definitions. */
 .sidebar {
-  width: 340px;
+  width: 360px;
   flex-shrink: 0;
   background: #ffffff;
   border-left: 1px solid #e2e8f0;
   overflow: auto;
+  padding: 0;
+}
+
+/* Empty placeholder (nothing selected). */
+.sb-empty {
   padding: 1.5rem;
+  color: #94a3b8;
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+/* Sticky header. */
+.sb-head {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: #ffffff;
+  border-bottom: 1px solid #e2e8f0;
+  padding: 1.1rem 1.25rem 0.9rem;
+}
+.sb-titlerow {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+.sb-title {
+  font-size: 1.02rem;
+  font-weight: 700;
+  margin: 0;
+  line-height: 1.3;
+  flex: 1;
+}
+.sb-close {
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  background: #f8fafc;
+  color: #64748b;
+  font-size: 0.8rem;
+  cursor: pointer;
+  line-height: 1;
+}
+.sb-close:hover {
+  background: #f1f5f9;
+  color: #1e293b;
+}
+.sb-sub {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+.sb-code {
+  font-weight: 700;
+  font-size: 0.65rem;
+  letter-spacing: 0.3px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.07);
+  color: #334155;
+}
+.sb-type {
+  font-size: 0.6rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 2px 7px;
+  border-radius: 6px;
+  color: #455a64;
+  border: 1px solid #607d8b;
+}
+.sb-status {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.7rem;
+}
+.sb-statusmeta {
+  font-size: 0.72rem;
+  color: #64748b;
+}
+
+/* Scrollable body. */
+.sb-body {
+  padding: 1.1rem 1.25rem 1.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+}
+.sb-desc {
+  margin: 0;
+  font-size: 0.84rem;
+  line-height: 1.5;
+  color: #334155;
+}
+
+/* External / output links. */
+.sb-links,
+.sb-outputs {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.extlink {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  text-decoration: none;
+  color: #1e293b;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 0.55rem 0.7rem;
+  font-size: 0.8rem;
+  background: #f8fafc;
+  transition: border-color 0.12s ease, background 0.12s ease;
+}
+.extlink:hover {
+  border-color: #1e88e5;
+  background: #f0f7ff;
+}
+.extlink.busy {
+  opacity: 0.6;
+  pointer-events: none;
+}
+.extlink .ic {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #e2e8f0;
+  border-radius: 5px;
+  background: #fff;
+  color: #64748b;
+  font-size: 0.75rem;
+}
+.extlink-txt {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.3;
+  min-width: 0;
+}
+.extlink-txt small {
+  color: #94a3b8;
+  font-size: 0.68rem;
+}
+.extlink .arr {
+  margin-left: auto;
+  color: #94a3b8;
+  font-size: 0.85rem;
+}
+
+/* Sections (Latest outputs, Parameters). */
+.sb-sectitle {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: #94a3b8;
+  margin: 0 0 0.6rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.sb-sectitle::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: #eef2f6;
+}
+.sb-muted {
+  margin: 0;
+  font-size: 0.78rem;
+  color: #94a3b8;
+  line-height: 1.45;
+}
+
+/* Read-only parameter list. */
+.param {
+  padding: 0.55rem 0;
+  border-top: 1px dashed #eef2f6;
+}
+.param:first-of-type {
+  border-top: none;
+}
+.plabel {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #1e293b;
+}
+.plabel .req {
+  color: #ea4335;
+  font-weight: 700;
+}
+.pmeta-line {
+  margin-top: 0.2rem;
+  font-size: 0.7rem;
+  color: #64748b;
+}
+.pmeta-line .ptype {
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  font-size: 0.6rem;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: rgba(15, 23, 42, 0.06);
+  color: #475569;
+}
+.pmeta-line code,
+.sb-body code {
+  font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
+  font-size: 0.68rem;
+  background: rgba(15, 23, 42, 0.05);
+  padding: 1px 4px;
+  border-radius: 3px;
+}
+.phelp {
+  margin-top: 0.3rem;
+  font-size: 0.72rem;
+  color: #94a3b8;
+  line-height: 1.4;
 }
 
 @media (max-width: 800px) {

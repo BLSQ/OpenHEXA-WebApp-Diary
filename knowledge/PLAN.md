@@ -180,10 +180,16 @@ reviewed by Giulia + PM.
   _Giulia learns:_ querying live data on load and mapping it onto UI state.
 
 - **T1.6 — Read-only detail sidebar** · 🤖 · Dep: T1.4
-  Clicking a node opens the sidebar: name, description, parameters (display only), a link to
-  the pipeline's `README.md` on GitHub, and links to its latest outputs (datasets / HTML
-  report).
-  _Done when:_ every available node shows correct details and working links.
+  ✅ **DONE + deployed to snt-app-dev (2026-06-19).** Clicking an available node opens the
+  right-hand panel (read-only — no Run button yet): name + code + type, the latest-run status
+  line (status badge + last-run datetime + duration, reused from T1.5), description, a link to
+  the pipeline's README folder on GitHub, a link to the latest run's page in the OpenHEXA UI,
+  the latest outputs (output datasets as direct links + bucket files like the HTML report,
+  fetched per-click via `pipelineRun(id:){outputs,datasetVersions}` and opened through
+  `prepareObjectDownload`), and the parameters as a display-only definition list. Greyed nodes
+  stay unclickable. Deploy verified (read back via `get_static_webapp` + subagent-diffed: all 5
+  files match). Local mirror `snt_app_dev/orchestrator/` in sync.
+  _Done when:_ ~~every available node shows correct details and working links.~~ ✅
 
 - **T1.7 — Deploy + QA** · 🤖 + 🤿 · Dep: T1.5, T1.6
   Deploy to SNT App Dev via MCP; mirror all files to `snt_app_dev/orchestrator/`; Giulia
@@ -291,7 +297,11 @@ Add entries as they come up; mark resolved ones.
   page is `https://app.openhexa.org/workspaces/<slug>/pipelines/<pipelineCode>/runs/<runId>/` —
   note the host is `app.openhexa.org` (**not** `.io`; the webapp's own `*.openhexa.io` host can't
   be string-munged into it) and the path uses the pipeline **code**. Documented in `CLAUDE.md`.
-  **(a) still OPEN** — README URL needed for T1.6. _Owner: 🤿 confirm with OH devs._
+  **(a) RESOLVED (2026-06-19):** each pipeline lives in a folder named after its `id` in
+  `BLSQ/snt_development`, containing a `readme.md`. T1.6 links to the **folder tree** —
+  `https://github.com/BLSQ/snt_development/tree/main/<id>` — which renders the readme inline and
+  is robust to the filename's casing varying across pipelines (README.md vs readme.md), rather
+  than deep-linking a specific filename that could 404.
 - **[OPEN]** Does `pipelineRun` expose everything needed for the outputs links on a _historical_
   run (not just one you triggered)? _Owner: 🤖 verify during T1.5._
 - **[OPEN]** Final node count and any pipelines beyond the A.x set shown in the wireframe
