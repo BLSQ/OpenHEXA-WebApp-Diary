@@ -287,9 +287,16 @@ and returns a 404 "Web app not found" page. Verified live 2026-06-18.
 // Hardcode the SaaS front-end base (revisit for self-hosted installs):
 var appBase = "https://app.openhexa.org";
 
-// Dataset page:
+// Dataset (version) page — verified live 2026-06-19. The plain
+// /workspaces/<ws>/datasets/<slug>/ form 404s; the page needs BOTH the
+// `from/<sourceWs>` segment (workspace that owns the dataset) AND a
+// `?version=<datasetVersionId>` query param:
 var datasetUrl =
-  appBase + "/workspaces/" + workspaceSlug + "/datasets/" + datasetSlug + "/";
+  appBase + "/workspaces/" + workspaceSlug + "/datasets/" + datasetSlug +
+  "/from/" + sourceWorkspaceSlug + "/?version=" + datasetVersionId;
+// e.g. https://app.openhexa.org/workspaces/snt-app-dev/datasets/snt-dhis2-formatted/from/snt-app-dev/?version=<versionId>
+// For a run's output datasets, get datasetSlug + sourceWorkspaceSlug + the
+// version id from pipelineRun.datasetVersions { id dataset { slug workspace { slug } } }.
 
 // Pipeline-run page (uses the pipeline CODE, not the UUID; note trailing slash):
 var runUrl =
