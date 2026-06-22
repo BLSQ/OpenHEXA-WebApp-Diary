@@ -55,6 +55,20 @@ var STATUS_QUERY =
   "  }" +
   "}";
 
+/* The workspace's connections — used by T2.2 to populate the dropdown for
+ * DHIS2Connection / CustomConnection parameters with real slugs instead of
+ * asking the user to type a cryptic code. `type` is a ConnectionType enum
+ * (DHIS2, CUSTOM, GCS, IASO, POSTGRESQL, S3). Reading connections needs the
+ * USER_READ scope in allowed_operations (added at deploy time, T2.6); if it's
+ * missing or the app is opened outside OpenHEXA, the form falls back to a plain
+ * text slug input. */
+var CONNECTIONS_QUERY =
+  "query ($ws: String!) {" +
+  "  workspace(slug: $ws) {" +
+  "    connections { id name slug type }" +
+  "  }" +
+  "}";
+
 /* ------------------------------------------------------------------ *
  * Data loading + merge
  * ------------------------------------------------------------------ */
@@ -648,6 +662,40 @@ async function loadStatuses(nodes) {
   });
 }
 
+/* Fetch the workspace's connections once at boot and cache them on
+ * APP.connections, grouped by ConnectionType ({ DHIS2: [{slug,name}], ... }).
+ * Used by the T2.2 form to render connection dropdowns. Best-effort: any failure
+ * (no platform global, missing USER_READ scope, network error) leaves
+ * APP.connections null so the form falls back to a plain text slug input. */
+async function loadConnections() {
+  var slug =
+    window.OPENHEXA && window.OPENHEXA.workspaceSlug
+      ? window.OPENHEXA.workspaceSlug
+      : null;
+  if (!slug) return;
+
+  var data;
+  try {
+    data = await gql(CONNECTIONS_QUERY, { ws: slug });
+  } catch (err) {
+    console.warn(
+      "SNT Orchestrator — connections query unavailable (form falls back to text slug input):",
+      err,
+    );
+    return;
+  }
+
+  var conns = (data.workspace && data.workspace.connections) || [];
+  var byType = {};
+  conns.forEach(function (c) {
+    (byType[c.type] = byType[c.type] || []).push({
+      slug: c.slug,
+      name: c.name,
+    });
+  });
+  APP.connections = byType;
+}
+
 /* ------------------------------------------------------------------ *
  * T1.6 — Read-only detail sidebar
  *
@@ -713,13 +761,6 @@ function fmtDuration(sec) {
   return s + "s";
 }
 
-// Format a parameter's default value for display (arrays joined, bools spelled).
-function fmtParamVal(v) {
-  if (Array.isArray(v)) return v.join(", ");
-  if (typeof v === "boolean") return v ? "true" : "false";
-  return String(v);
-}
-
 function isHtmlKey(key) {
   return /\.html?$/i.test(String(key || ""));
 }
@@ -766,46 +807,330 @@ function sidebarStatusHtml(entry) {
   );
 }
 
-// The read-only parameters list (display only — the input form is T2.2).
-function paramsHtml(node) {
+/* ------------------------------------------------------------------ *
+ * T2.2 — Parameter form + config builder
+ *
+ * Phase 1 (T1.6) showed each pipeline's parameters as a read-only list. Here we
+ * turn that same list into a real, editable form in the side panel, with the
+ * right kind of input per parameter type:
+ *   - bool             -> checkbox
+ *   - int / float      -> number input (step 1 / step any)
+ *   - str              -> text input (or a <select> when it has `choices`)
+ *   - str + multiple   -> a checkbox group (when it has `choices`) else a
+ *                         comma-separated text box
+ *   - DHIS2Connection /
+ *     CustomConnection -> a dropdown of the workspace's matching connections
+ *                         (slugs), with a plain-text fallback if the connection
+ *                         list isn't available (e.g. opened outside OpenHEXA, or
+ *                         the USER_READ scope isn't granted yet)
+ *   - File             -> a text input for a workspace file path
+ *
+ * `buildConfig(node)` then reads the form back into a plain `config` object in
+ * exactly the shape `runPipeline` expects (keys == param keys; numbers as
+ * numbers, bools as bools, multiples as arrays, connections as slug strings),
+ * validating required fields. The Run button is wired in T2.3 — for now a
+ * "Preview config" button prints the built package so the shape can be checked.
+ * ------------------------------------------------------------------ */
+
+function fieldId(key) {
+  return "fld-" + key;
+}
+
+// The workspace connections cached by loadConnections, filtered to the enum type
+// a connection-typed param needs. Returns an array of {slug, name}, or null when
+// the list isn't available yet (caller then falls back to a plain text input).
+function connOptionsFor(ptype) {
+  if (!APP.connections) return null;
+  var enumType =
+    ptype === "DHIS2Connection"
+      ? "DHIS2"
+      : ptype === "CustomConnection"
+        ? "CUSTOM"
+        : null;
+  if (!enumType) return null;
+  return APP.connections[enumType] || [];
+}
+
+// The input control HTML for one parameter (label + help are added by caller).
+function fieldControlHtml(p) {
+  var id = fieldId(p.key);
+  var t = p.type;
+
+  // multiple + choices -> checkbox group (e.g. A.4 activity_indicators).
+  if (p.multiple && p.choices && p.choices.length) {
+    var defs = Array.isArray(p.default) ? p.default.map(String) : [];
+    return (
+      '<div class="fchecks">' +
+      p.choices
+        .map(function (c) {
+          var v = String(c);
+          return (
+            '<label class="fcheck-sm"><input type="checkbox" class="finput-multi" value="' +
+            escapeHtml(v) +
+            '"' +
+            (defs.indexOf(v) >= 0 ? " checked" : "") +
+            "> " +
+            escapeHtml(v) +
+            "</label>"
+          );
+        })
+        .join("") +
+      "</div>"
+    );
+  }
+
+  // single choice -> select.
+  if (p.choices && p.choices.length) {
+    var dv = p.default !== undefined && p.default !== null ? String(p.default) : "";
+    return (
+      '<select id="' +
+      id +
+      '" class="finput">' +
+      '<option value="">— select —</option>' +
+      p.choices
+        .map(function (c) {
+          var v = String(c);
+          return (
+            '<option value="' +
+            escapeHtml(v) +
+            '"' +
+            (v === dv ? " selected" : "") +
+            ">" +
+            escapeHtml(v) +
+            "</option>"
+          );
+        })
+        .join("") +
+      "</select>"
+    );
+  }
+
+  // connection -> dropdown of workspace connections; text fallback if none cached.
+  if (t === "DHIS2Connection" || t === "CustomConnection") {
+    var conns = connOptionsFor(t);
+    if (conns && conns.length) {
+      return (
+        '<select id="' +
+        id +
+        '" class="finput">' +
+        '<option value="">— select connection —</option>' +
+        conns
+          .map(function (c) {
+            return (
+              '<option value="' +
+              escapeHtml(c.slug) +
+              '">' +
+              escapeHtml(c.name || c.slug) +
+              " (" +
+              escapeHtml(c.slug) +
+              ")</option>"
+            );
+          })
+          .join("") +
+        "</select>"
+      );
+    }
+    return (
+      '<input id="' +
+      id +
+      '" class="finput" type="text" placeholder="connection slug (e.g. dhis2-nmdr-drc)">'
+    );
+  }
+
+  // bool -> checkbox (rendered inline beside the label by the caller).
+  if (t === "bool") {
+    return (
+      '<input id="' +
+      id +
+      '" class="finput" type="checkbox"' +
+      (p.default === true ? " checked" : "") +
+      ">"
+    );
+  }
+
+  // int / float -> number input.
+  if (t === "int" || t === "float") {
+    var step = t === "int" ? "1" : "any";
+    var nv =
+      p.default !== undefined && p.default !== null
+        ? escapeHtml(String(p.default))
+        : "";
+    return (
+      '<input id="' +
+      id +
+      '" class="finput" type="number" step="' +
+      step +
+      '" value="' +
+      nv +
+      '">'
+    );
+  }
+
+  // multiple without choices -> comma-separated text.
+  if (p.multiple) {
+    var mv = Array.isArray(p.default) ? p.default.join(", ") : "";
+    return (
+      '<input id="' +
+      id +
+      '" class="finput" type="text" placeholder="comma-separated" value="' +
+      escapeHtml(mv) +
+      '">'
+    );
+  }
+
+  // File -> workspace file path (no upload widget in a static webapp).
+  if (t === "File") {
+    return (
+      '<input id="' +
+      id +
+      '" class="finput" type="text" placeholder="workspace file path (optional)">'
+    );
+  }
+
+  // str (default) -> text input.
+  var sv =
+    p.default !== undefined && p.default !== null
+      ? escapeHtml(String(p.default))
+      : "";
+  return '<input id="' + id + '" class="finput" type="text" value="' + sv + '">';
+}
+
+// Build the <form> of editable fields for a node's parameters.
+function paramsFormHtml(node) {
   var params = node.parameters || [];
   if (!params.length)
     return '<p class="sb-muted">This pipeline takes no parameters.</p>';
-  return params
+
+  var fields = params
     .map(function (p) {
       var req = p.required
         ? ' <span class="req" title="Required">*</span>'
         : "";
-      var bits = ['<span class="ptype">' + escapeHtml(p.type) + "</span>"];
-      if (p.multiple) bits.push('<span class="ptype">multiple</span>');
-      if (p.default !== undefined)
-        bits.push("default <code>" + escapeHtml(fmtParamVal(p.default)) + "</code>");
-      if (p.choices && p.choices.length)
-        bits.push(
-          "choices " +
-            p.choices
-              .map(function (c) {
-                return "<code>" + escapeHtml(fmtParamVal(c)) + "</code>";
-              })
-              .join(" "),
-        );
       var help = p.help
-        ? '<div class="phelp">' + escapeHtml(p.help) + "</div>"
+        ? '<div class="fhelp">' + escapeHtml(p.help) + "</div>"
         : "";
+      var data =
+        ' data-key="' +
+        escapeHtml(p.key) +
+        '" data-ptype="' +
+        escapeHtml(p.type) +
+        '"' +
+        (p.multiple ? ' data-multiple="1"' : "") +
+        (p.required ? ' data-required="1"' : "");
+
+      // bool reads more naturally with the checkbox beside its label.
+      if (p.type === "bool") {
+        return (
+          '<div class="field field-bool"' +
+          data +
+          ">" +
+          '<label class="fcheck">' +
+          fieldControlHtml(p) +
+          '<span class="flabel-inline">' +
+          escapeHtml(p.label || p.key) +
+          req +
+          "</span></label>" +
+          help +
+          "</div>"
+        );
+      }
+
       return (
-        '<div class="param">' +
-        '<div class="plabel">' +
+        '<div class="field"' +
+        data +
+        ">" +
+        '<label class="flabel" for="' +
+        fieldId(p.key) +
+        '">' +
         escapeHtml(p.label || p.key) +
         req +
-        "</div>" +
-        '<div class="pmeta-line">' +
-        bits.join(" · ") +
-        "</div>" +
+        "</label>" +
+        fieldControlHtml(p) +
         help +
         "</div>"
       );
     })
     .join("");
+
+  return '<form id="sb-form" class="sb-form" autocomplete="off">' + fields + "</form>";
+}
+
+/* Read the form back into a `config` object in runPipeline's shape, validating
+ * required fields. Returns { config, errors }: empty optional inputs are omitted
+ * (so we never send blank strings); empty required inputs are reported. Numbers
+ * are coerced to JS numbers, multiples to arrays, everything else to strings
+ * (connection slugs included). This is the package T2.3's Run button will send. */
+function buildConfig(node) {
+  var form = document.getElementById("sb-form");
+  var config = {};
+  var errors = [];
+  if (!form) return { config: config, errors: errors };
+
+  (node.parameters || []).forEach(function (p) {
+    var wrap = form.querySelector('.field[data-key="' + p.key + '"]');
+    if (!wrap) return;
+    var t = p.type;
+    var label = p.label || p.key;
+
+    if (t === "bool") {
+      var cb = wrap.querySelector('input[type="checkbox"]');
+      config[p.key] = !!(cb && cb.checked);
+      return;
+    }
+
+    if (p.multiple && p.choices && p.choices.length) {
+      var picked = Array.prototype.map.call(
+        wrap.querySelectorAll(".finput-multi:checked"),
+        function (el) {
+          return el.value;
+        },
+      );
+      if (picked.length) config[p.key] = picked;
+      else if (p.required) errors.push(label + " — select at least one");
+      return;
+    }
+
+    if (p.multiple) {
+      var rawmulti = (wrap.querySelector(".finput") || {}).value || "";
+      var arr = rawmulti
+        .split(",")
+        .map(function (s) {
+          return s.trim();
+        })
+        .filter(Boolean);
+      if (arr.length) config[p.key] = arr;
+      else if (p.required) errors.push(label + " is required");
+      return;
+    }
+
+    var ctl = wrap.querySelector(".finput");
+    var val = ctl ? String(ctl.value).trim() : "";
+    if (val === "") {
+      if (p.required) errors.push(label + " is required");
+      return; // omit empty optional value
+    }
+
+    if (t === "int") {
+      var iv = Number(val);
+      if (!isFinite(iv) || Math.floor(iv) !== iv) {
+        errors.push(label + " must be a whole number");
+        return;
+      }
+      config[p.key] = iv;
+    } else if (t === "float") {
+      var fv = Number(val);
+      if (!isFinite(fv)) {
+        errors.push(label + " must be a number");
+        return;
+      }
+      config[p.key] = fv;
+    } else {
+      // str, File, DHIS2Connection, CustomConnection, single-choice select
+      config[p.key] = val;
+    }
+  });
+
+  return { config: config, errors: errors };
 }
 
 // Render the empty/placeholder panel (nothing selected).
@@ -900,12 +1225,50 @@ function renderSidebar(node) {
     "</section>" +
     '<section class="sb-sec">' +
     '<h3 class="sb-sectitle">Parameters</h3>' +
-    paramsHtml(node) +
+    paramsFormHtml(node) +
+    '<div class="sb-runrow">' +
+    '<button type="button" id="sb-preview" class="btn-secondary">Preview config</button>' +
+    '<span class="sb-runhint">Run arrives in the next step (T2.3).</span>' +
+    "</div>" +
+    '<pre id="sb-config" class="sb-config" hidden></pre>' +
     "</section>" +
     "</div>";
 
   var closeBtn = sb.querySelector(".sb-close");
   if (closeBtn) closeBtn.addEventListener("click", clearSelection);
+
+  // T2.2 — the "debug line": build + validate the config from the form and show
+  // the package that T2.3's Run button will send. Errors (missing required
+  // fields, bad numbers) are listed instead, so the form's correctness is
+  // checkable before runs are wired.
+  var previewBtn = sb.querySelector("#sb-preview");
+  var configBox = sb.querySelector("#sb-config");
+  if (previewBtn && configBox) {
+    previewBtn.addEventListener("click", function () {
+      var built = buildConfig(node);
+      configBox.hidden = false;
+      if (built.errors.length) {
+        configBox.className = "sb-config has-errors";
+        configBox.textContent =
+          "⚠ Fix these before running:\n  - " +
+          built.errors.join("\n  - ") +
+          "\n\nconfig so far:\n" +
+          JSON.stringify(built.config, null, 2);
+        console.warn(
+          "SNT Orchestrator — config validation errors for " + node.id + ":",
+          built.errors,
+          built.config,
+        );
+      } else {
+        configBox.className = "sb-config";
+        configBox.textContent = JSON.stringify(built.config, null, 2);
+        console.log(
+          "SNT Orchestrator — config for " + node.id + ":",
+          built.config,
+        );
+      }
+    });
+  }
 
   loadOutputs(node, run);
 }
@@ -1080,6 +1443,8 @@ var APP = {
   // T1.6 — node lookup by id + the currently-selected node (null = none).
   nodeById: {},
   selectedId: null,
+  // T2.2 — workspace connections grouped by type, set by loadConnections.
+  connections: null,
 };
 
 async function init() {
@@ -1110,6 +1475,10 @@ async function init() {
     // card, then fetch real last-run status and fill them in.
     stampStatusLoading(APP.nodes);
     await loadStatuses(APP.nodes);
+    // T2.2 — fetch the workspace's connections so the parameter form can offer a
+    // dropdown for DHIS2Connection / CustomConnection params. Best-effort: a
+    // failure just leaves the form's text-slug fallback in place.
+    await loadConnections();
   } catch (err) {
     console.error("SNT Orchestrator — failed to load data:", err);
   }

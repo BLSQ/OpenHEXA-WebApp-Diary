@@ -1,7 +1,7 @@
 {
   "workspace_slug": "snt-app-dev",
-  "generated_at": "2026-06-10",
-  "_notes": "Catalog for the SNT App Dev workspace (18 pipelines). UUIDs are workspace-specific (looked up via list_pipelines on 2026-06-10). Parameters extracted from GitHub main (BLSQ/snt_development). Params for the 16 A.x/B.x/D.x pipelines were carried over from the snt_testing / snt_drc_workshop_demo cards (same main branch); snt_dhs_indicators (C.1) and snt_seasonality_cases (A.7) were fetched fresh on 2026-06-10. Re-verify @parameter decorators before wiring runs (PLAN T2.1).",
+  "generated_at": "2026-06-22",
+  "_notes": "Catalog for the SNT App Dev workspace (18 pipelines). UUIDs are workspace-specific (looked up via list_pipelines on 2026-06-10). Parameters verified against GitHub main (BLSQ/snt_development) on 2026-06-22 (PLAN T2.1): all 18 pipelines checked top-to-bottom against their @parameter decorators. Structural drift found & patched: B.1 snt_worldpop_extract (was overwrite/pull_scripts/year -> now year_start/year_end/run_report_only/pull_scripts) and B.2 snt_map_extracts (was pop_raster_selection/target_year/run_report_only/pull_scripts -> now year_start/year_end/run_report_only/pull_scripts). The other 16 pipelines match on param keys/types/choices/defaults/required; minor label/help wording is intentionally kept richer/curated than the terse source help= strings.",
   "pipelines": [
     {
       "id": "snt_dhis2_extract",
@@ -196,9 +196,10 @@
       "openhexa_code": "b-1-worldpop-extract",
       "parameters_source": "github_main",
       "parameters": [
-        { "key": "overwrite", "label": "Overwrite", "help": "Overwrite existing population files.", "type": "bool", "default": false },
-        { "key": "pull_scripts", "label": "Pull scripts", "help": "Pull the latest scripts from the repository.", "type": "bool", "default": false },
-        { "key": "year", "label": "Year", "help": "Year of population data to extract from WorldPop.", "type": "int", "default": 2020 }
+        { "key": "year_start", "label": "Year start", "help": "Start year for WorldPop population raster extraction (e.g. 2020).", "type": "int", "required": true },
+        { "key": "year_end", "label": "Year end", "help": "End year for WorldPop population raster extraction (e.g. 2025).", "type": "int", "required": true },
+        { "key": "run_report_only", "label": "Run reporting only", "help": "This will only execute the reporting notebook.", "type": "bool", "default": false },
+        { "key": "pull_scripts", "label": "Pull scripts", "help": "Pull the latest scripts from the repository.", "type": "bool", "default": false }
       ]
     },
     {
@@ -209,8 +210,8 @@
       "openhexa_code": "b-2-map-extracts",
       "parameters_source": "github_main",
       "parameters": [
-        { "key": "pop_raster_selection", "label": "Population raster selection (.tif)", "help": "Select the population raster (.tif) used for population-weighted calculations.", "type": "File" },
-        { "key": "target_year", "label": "Target Year", "help": "Target year for indicator selection (e.g. 2022). Defaults to latest if unavailable or not specified.", "type": "str", "required": true },
+        { "key": "year_start", "label": "Year start", "help": "Start year of indicator selection (e.g. 2022).", "type": "int", "required": true },
+        { "key": "year_end", "label": "Year end", "help": "End year of indicator selection (e.g. 2023).", "type": "int", "required": true },
         { "key": "run_report_only", "label": "Run reporting only", "help": "This will only execute the reporting notebook.", "type": "bool", "default": false },
         { "key": "pull_scripts", "label": "Pull scripts", "help": "Pull the latest scripts from the repository.", "type": "bool", "default": false }
       ]

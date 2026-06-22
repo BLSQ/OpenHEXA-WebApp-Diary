@@ -40,14 +40,14 @@ creating/updating issues in the UI, not steps for an agent to run.
 
 ## Created in Jira
 
-| Item                              | Key                                                            | Status                   |
-| --------------------------------- | -------------------------------------------------------------- | ------------------------ |
-| Epic — SNT Pipelines Orchestrator | [SNT25-536](https://bluesquare.atlassian.net/browse/SNT25-536) | In Progress              |
-| Story — Phase 0                   | [SNT25-537](https://bluesquare.atlassian.net/browse/SNT25-537) | In Progress              |
-| Story — Phase 1                   | [SNT25-547](https://bluesquare.atlassian.net/browse/SNT25-547) | In Progress              |
-| Story — Phase 2                   | [SNT25-548](https://bluesquare.atlassian.net/browse/SNT25-548) | Backlog                  |
-| Story — Phase 3                   | [SNT25-549](https://bluesquare.atlassian.net/browse/SNT25-549) | Backlog                  |
-| Story — Phase 4                   | [SNT25-550](https://bluesquare.atlassian.net/browse/SNT25-550) | Backlog                  |
+| Item                              | Key                                                            | Status                                       |
+| --------------------------------- | -------------------------------------------------------------- | -------------------------------------------- |
+| Epic — SNT Pipelines Orchestrator | [SNT25-536](https://bluesquare.atlassian.net/browse/SNT25-536) | In Progress                                  |
+| Story — Phase 0                   | [SNT25-537](https://bluesquare.atlassian.net/browse/SNT25-537) | In Progress                                  |
+| Story — Phase 1                   | [SNT25-547](https://bluesquare.atlassian.net/browse/SNT25-547) | In Progress                                  |
+| Story — Phase 2                   | [SNT25-548](https://bluesquare.atlassian.net/browse/SNT25-548) | Backlog                                      |
+| Story — Phase 3                   | [SNT25-549](https://bluesquare.atlassian.net/browse/SNT25-549) | Backlog                                      |
+| Story — Phase 4                   | [SNT25-550](https://bluesquare.atlassian.net/browse/SNT25-550) | Backlog                                      |
 | Phase 0 Tasks T0.0–T0.7           | SNT25-538, SNT25-540–546                                       | T0.1–T0.4/T0.6/T0.7 Done; T0.0, T0.5 Backlog |
 
 ---
@@ -176,8 +176,8 @@ screen to _see_ the full SNT flow and where each pipeline stands. 🗺️
 **Exit criteria:** 🚀 published to the SNT App Dev workspace; ✅ the statuses on the board match
 what OpenHEXA shows; 👍 reviewed and signed off by Giulia and the PM.
 
-| Ref  | Key   | Type | Summary                         | Owner      | Blocked by | Status  |
-| ---- | ----- | ---- | ------------------------------- | ---------- | ---------- | ------- |
+| Ref  | Key   | Type | Summary                         | Owner      | Blocked by | Status   |
+| ---- | ----- | ---- | ------------------------------- | ---------- | ---------- | -------- |
 | T1.1 | _tbd_ | Task | T1.1 — Scaffold the app bundle  | agent      | T0.2, T0.4 | **Done** |
 | T1.2 | _tbd_ | Task | T1.2 — Render the grid          | agent      | T1.1       | **Done** |
 | T1.3 | _tbd_ | Task | T1.3 — Draw the SVG arrows      | agent      | T1.2       | **Done** |
@@ -409,24 +409,38 @@ poll the run, and refresh that node's status and outputs.
 
 ### T2.1 — Confirm params aren't stale
 
-**Description:** 🔄 Before we let anyone launch a pipeline, make sure the app's "memory" of each
-pipeline's settings is still accurate. The app keeps a saved snapshot of every pipeline's
-settings (its parameters) in a file called `pipeline_cards.json` — basically a photo taken on a
-certain date. 📸 But the real pipelines keep evolving: a setting can be renamed, added, or
-removed by their developers. If our snapshot has fallen out of date, a run launched from the
+**Description:** Before we let anyone launch a pipeline, make sure the app's "memory" of each
+pipeline parameters is still accurate. The app keeps a saved snapshot of every pipeline's
+parameters in a file called `pipeline_cards.json`.
+
+But the real pipelines keep evolving: a parameter can be renamed, added, or removed by their developers. If our snapshot has fallen out of date, a run launched from the
 board fails with a confusing technical error (something like _"the provided config contains
-invalid key(s)"_). 🛑
+invalid key(s)"_) 🛑.
 
 So this task is a quick freshness check: for **only** the pipelines we're about to make
 runnable (not all ~18), we re-read their current settings straight from the source on GitHub,
 compare them to our snapshot, and patch any differences back in — then stamp the snapshot with a
-new date. 🗓️ It's plumbing, not visible UI, but it's what stops Run from failing for a silly,
-avoidable reason later.
+new date.
+It's plumbing, not visible UI, but it's what stops Run from failing for a simple avoidable reason later.
+
+> 🔗 **Relates to G.1 !**
+>
+> This is the **interim, manual** version of what **G.1** (_Auto-refresh
+> `pipeline_cards.json` via an OpenHEXA pipeline_) automates permanently — both keep card params
+> from drifting and causing `invalid key(s)` run failures.
+>
+> ✍🏽 Do T2.1 by hand for now; once G.1
+> ships, this recurring manual check is **superseded**.
+>
+> **Note**: One deliberate difference: T2.1 reads
+> params from **GitHub** `main`, whereas G.1 reads from **OpenHEXA** directly (the _deployed_
+> version a run actually accepts) — so G.1 is also the more accurate source, not just the
+> automated one.
 
 ---
 
 **👩‍🏫 Tutorial for the human (optional, hands-on):** nothing changes on screen here — this is a
-data hygiene step — so the "proof" is in the file and the agent's report. 📋
+data hygiene step — so the "proof" is in the file and the agent's report 📋
 
 1. 🗂️ Open `snt_app_dev/pipeline_cards.json` and note the `generated_at` date near the top —
    that's when the snapshot was last taken.
@@ -436,34 +450,26 @@ data hygiene step — so the "proof" is in the file and the agent's report. 📋
 3. ✅ Afterwards, the `generated_at` date should be bumped to today, and any drift should be
    reflected in the file.
 
-The reassuring outcome is often "no drift — already in sync"; the valuable outcome is catching a
-change _before_ it breaks a real run. 🎯
-
-> 🔗 **Relates to G.1.** This is the **interim, manual** version of what **G.1** (_Auto-refresh
-> `pipeline_cards.json` via an OpenHEXA pipeline_) automates permanently — both keep card params
-> from drifting and causing `invalid key(s)` run failures. Do T2.1 by hand for now; once G.1
-> ships, this recurring manual check is **superseded**. One deliberate difference: T2.1 reads
-> params from **GitHub** `main`, whereas G.1 reads from **OpenHEXA** directly (the _deployed_
-> version a run actually accepts) — so G.1 is also the more accurate source, not just the
-> automated one.
+The reassuring outcome is often "no drift — already in sync"; the valuable outcome is catching a change _before_ it breaks a real run.
 
 **Acceptance criteria:** card params match the current GitHub source for each runnable pipeline.
 
 ### T2.2 — Parameter form + config builder
 
-**Description:** 📝 Turn each pipeline's list of settings into a real fill-in form in the side
-panel. Every pipeline declares what it needs before it can run — a year, a yes/no toggle, a
-country code, which DHIS2 connection to use, and so on. 🛠️ This task reads that list (the same
-parameters the sidebar showed read-only in Phase 1) and automatically builds the matching input
-boxes the user can actually type in or pick from.
+**Description:** Turn each pipeline's list of parameters into a real fill-in form in the side
+panel.
+Every pipeline declares what it needs before it can run (see parametes in pipeline.py files).
+This task reads that list (the same parameters the sidebar showed read-only in Phase 1) and automatically builds the matching input boxes the user can actually type in or pick from.
 
-Two nice touches: 🎛️ each kind of setting gets the right kind of input (a checkbox for yes/no, a
-number box for a year, a plain text box for free text), and for "which DHIS2 connection?"
-settings we show a **dropdown of the connections that actually exist in this workspace** instead
-of asking the user to know and type a cryptic code. Once the user fills things in, the app
-quietly bundles their answers into a neat package (the "config") in exactly the shape OpenHEXA
-expects. The Run button isn't wired up yet (that's the next task) — here we're just building the
-form and the package it produces. 📦
+Two nice touches:
+
+1. each kind of setting gets the right kind of input (a checkbox for yes/no, a number box for a year, a plain text box for free text), and
+2. for "which DHIS2 connection?"
+   settings we show a **dropdown of the connections that actually exist in this workspace** instead
+   of asking the user to know and type a cryptic code. Once the user fills things in, the app
+   quietly bundles their answers into a neat package (the "config") in exactly the shape OpenHEXA
+   expects. The Run button isn't wired up yet (that's the next task) — here we're just building the
+   form and the package it produces. 📦
 
 ---
 
@@ -492,10 +498,8 @@ app keeps quietly checking back every few seconds — "done yet? done yet?" (thi
 is called _polling_) — and updates the node live: the status badge moves from 🔄 running to ✅
 success (or ❌ failed), and once it's finished the node's outputs (datasets, reports) refresh too.
 
-We're not inventing this from scratch — the existing small single-pipeline webapps already do
-exactly this launch-and-watch dance, so we reuse that proven logic here. ♻️ The result is that
-Giulia can drive a real pipeline end-to-end from the board without ever leaving the page or
-touching the OpenHEXA UI. 🎯
+🎮 The result is that a user can drive a real pipeline end-to-end from the board without ever leaving the page or
+touching the OpenHEXA UI.
 
 ---
 
@@ -514,6 +518,7 @@ run something and watch it happen. 🍿
 Pick a quick, cheap pipeline for the first try so you're not waiting long. ⏱️ If the badge never
 leaves _running_, that usually means the polling stopped early or the run errored on OpenHEXA's
 side — the OpenHEXA run page will say why.
+
 **Acceptance criteria:** a real run triggered from the board completes and the node updates.
 
 ### T2.4 — Mutual exclusion (alternative groups)
