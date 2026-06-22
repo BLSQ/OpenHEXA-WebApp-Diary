@@ -367,6 +367,23 @@ Use `mcp__claude_ai_OpenHEXA__update_static_webapp` with `files_json` as a JSON 
 
 To **read back** the currently-deployed files, use `mcp__claude_ai_OpenHEXA__get_static_webapp(workspace_slug, webapp_slug)` — it returns each file's `content` + `encoding` (`TEXT`/`BASE64`). Use this to re-sync or verify the local mirror against what's actually live (the live app is no longer a black box).
 
+**Large-file deploy friction (Read cap).** `files_json` carries file _contents inline_ — the
+tool can't read from a path on disk. To author the call the agent must pull the bytes into
+context with Read, which caps at ~25k tokens. The orchestrator's `app.js`, once JSON-escaped
+(`ConvertTo-Json`), is ~59 KB (~29k tokens), so a single Read **truncates** it. Workaround
+(confirmed 2026-06-22): write the escaped string to a temp file, then read it back in slices
+with the Bash tool (`cut -c1-20000 file`, `-c20001-40000 file`, …) and concatenate the slices
+**exactly** into the `content` value — ideally inside a **subagent** so the large payload stays
+out of the main context. Smaller files (`styles.css`, the JSON data files) still read in one go.
+**Always verify after a chunked deploy**: re-read live via `get_static_webapp` and diff against
+the local copy (e.g. a quick `node -e` length/equality check) — a single dropped/altered char
+between slices would break the file. **Manual fallback (offload to the user):** the bottleneck
+is only getting bytes _into the agent_, so if the OpenHEXA UI supports replacing files on an
+existing webapp, the user can drag the changed file(s) from `<ws>/<app_key>/` (the canonical
+local copy) straight into the UI — no size limit. The OpenHEXA **CLI deploys pipelines only, not
+static webapps**, so there is no command-line deploy path today (a feature request to the OH devs
+is in flight).
+
 ### Assembling `files_json` on Windows (PowerShell 5.1)
 
 Splitting an app into html+css+js just means a longer `files_json` array — OpenHEXA serves the
