@@ -1,12 +1,12 @@
 {
   "workspace_slug": "snt-testing",
-  "generated_at": "2026-06-03",
+  "generated_at": "2026-06-22",
   "pipelines": [
     {
       "id": "snt_dhis2_extract",
       "name": "A.1 DHIS2 Extract",
       "description": "Extracts DHIS2 pyramid, routine analytics, population, shapes, and reporting rates based on a defined period.",
-      "uuid": "c81e6133-b629-4138-bf1b-7f58b809a51a",
+      "uuid": "f2b1e60b-92a7-4f82-b76b-22b5ba87cfc5",
       "openhexa_code": "snt-dhis2-extract",
       "parameters_source": "github_main",
       "parameters": [
@@ -168,6 +168,99 @@
         { "key": "careseeking_file_path", "label": "Care seeking behaviour (CSB) data file (.csv)", "help": "Path to CSB data file. If unavailable, pipeline loads DHS data; skips N3 adjustment if neither available.", "type": "File" },
         { "key": "run_report_only", "label": "Run Report only", "help": "Execute only the reporting notebook.", "type": "bool", "default": false },
         { "key": "pull_scripts", "label": "Pull notebooks from repository", "help": "Fetch latest notebooks from GitHub repository; overwrites local notebook changes.", "type": "bool", "default": false }
+      ]
+    },
+    {
+      "id": "snt_seasonality_cases",
+      "name": "A.7 Seasonality - Cases",
+      "description": "Classifies case seasonality at ADM2 from routine confirmed-malaria data.",
+      "uuid": "16756dca-cf4f-45a4-afdb-b5cd82c96005",
+      "openhexa_code": "snt-seasonality-cases",
+      "parameters_source": "github_main",
+      "parameters": [
+        { "key": "get_minimum_month_block_size", "label": "Minimum number of months per block", "help": "Minimum duration of the seasonal block (in months). Used only when running the full pipeline.", "type": "int", "required": true, "default": 3, "choices": [3, 4, 5] },
+        { "key": "get_maximum_month_block_size", "label": "Maximum number of months per block", "help": "Maximum duration of the seasonal block (in months). Used only when running the full pipeline.", "type": "int", "required": true, "default": 5, "choices": [3, 4, 5] },
+        { "key": "get_threshold_for_seasonality", "label": "Minimal proportion of cases for seasonality", "help": "The proportion of annual cases that must fall within the block to qualify as seasonal (e.g., 0.6 = 60%).", "type": "float", "required": true, "default": 0.6 },
+        { "key": "get_threshold_proportion_seasonal_years", "label": "Minimal proportion of seasonal years", "help": "The proportion of years that must be classified as seasonal for an ADM2 to be considered seasonal overall.", "type": "float", "default": 0.5 },
+        { "key": "use_calendar_year_denominator", "label": "Use calendar year as denominator", "help": "Method to define 'annual' cases for the denominator. FALSE (default): 12-month forward-looking sliding window (WHO approach). TRUE: calendar year (Jan-Dec).", "type": "bool", "default": false },
+        { "key": "run_report_only", "label": "Run reporting only", "help": "Skip calculations and only execute the reporting notebook.", "type": "bool", "default": false },
+        { "key": "pull_scripts", "label": "Pull scripts", "help": "Pull the latest scripts from the repository before execution.", "type": "bool", "default": false }
+      ]
+    },
+    {
+      "id": "snt_worldpop_extract",
+      "name": "B.1 WorldPop Extract",
+      "description": "Extracts WorldPop population raster data for the country.",
+      "uuid": "2c0d173b-ca14-427d-81d2-8b3aa84499d4",
+      "openhexa_code": "snt-worldpop-extract",
+      "parameters_source": "github_main",
+      "parameters": [
+        { "key": "year_start", "label": "Year start", "help": "Start year period for WorldPop population rasters extraction (e.g. 2020).", "type": "int", "required": true },
+        { "key": "year_end", "label": "Year end", "help": "End year period for WorldPop population rasters extraction (e.g. 2025).", "type": "int", "required": true },
+        { "key": "run_report_only", "label": "Run reporting only", "help": "This will only execute the reporting notebook.", "type": "bool", "default": false },
+        { "key": "pull_scripts", "label": "Pull Scripts", "help": "Pull the latest scripts from the repository.", "type": "bool", "default": false }
+      ]
+    },
+    {
+      "id": "snt_map_extracts",
+      "name": "B.2 MAP Extracts",
+      "description": "Extracts Malaria Atlas Project rasters and computes zonal statistics.",
+      "uuid": "e0e810f8-f108-4c71-a29e-5e0af87515cd",
+      "openhexa_code": "snt-map-extracts",
+      "parameters_source": "github_main",
+      "parameters": [
+        { "key": "year_start", "label": "Year start", "help": "Start year of indicators selection (e.g. 2022).", "type": "int", "required": true },
+        { "key": "year_end", "label": "Year end", "help": "End year of indicators selection (e.g. 2023).", "type": "int", "required": true },
+        { "key": "run_report_only", "label": "Run reporting only", "help": "This will only execute the reporting notebook.", "type": "bool", "default": false },
+        { "key": "pull_scripts", "label": "Pull Scripts", "help": "Pull the latest scripts from the repository.", "type": "bool", "default": false }
+      ]
+    },
+    {
+      "id": "snt_healthcare_access",
+      "name": "B.3 Access to Health Care",
+      "description": "Computes access-to-care metrics from facilities, population, and catchments.",
+      "uuid": "0428795b-324f-40d3-8cc1-95a42effaf51",
+      "openhexa_code": "snt-healthcare-access",
+      "parameters_source": "github_main",
+      "parameters": [
+        { "key": "input_fosa_file", "label": "FOSA location file (.csv)", "help": "If not provided, the DHIS2 pyramid metadata file will be used.", "type": "File" },
+        { "key": "input_radius_meters", "label": "Radius around FOSA (meters)", "help": "Radius around each FOSA, in meters.", "type": "int", "default": 5000 },
+        { "key": "input_pop_file", "label": "Population raster file (.tif)", "help": "If not provided, the default WorldPop raster will be used.", "type": "File" },
+        { "key": "input_shapes_file", "label": "Shapes file (.geojson)", "help": "If not provided, the default HMIS/NMDR shapes file will be used.", "type": "File" },
+        { "key": "run_report_only", "label": "Run reporting only", "help": "This will only execute the reporting notebook.", "type": "bool", "default": false },
+        { "key": "pull_scripts", "label": "Pull scripts", "help": "Pull the latest scripts from the repository.", "type": "bool", "default": false }
+      ]
+    },
+    {
+      "id": "snt_era5_climate_data",
+      "name": "D.1 ERA5 Climate Data",
+      "description": "Extracts ERA5 climate data from the Copernicus Climate Data Store.",
+      "uuid": "9dad974e-a045-4d9b-8d7d-060c70f61b43",
+      "openhexa_code": "snt-era5-climate-data",
+      "parameters_source": "github_main",
+      "parameters": [
+        { "key": "start_date", "label": "Start date", "help": "Start date of extraction period.", "type": "str", "required": true, "default": "2018-01-01" },
+        { "key": "end_date", "label": "End date", "help": "End date of extraction period. Latest available by default.", "type": "str" },
+        { "key": "cds_connection", "label": "Climate data store", "help": "Credentials for connection to the Copernicus Climate Data Store.", "type": "CustomConnection", "required": true },
+        { "key": "pull_scripts", "label": "Pull Scripts", "help": "Pull the latest scripts from the repository.", "type": "bool", "default": false },
+        { "key": "run_report_only", "label": "Run reporting only", "help": "This will only execute the reporting notebook.", "type": "bool", "default": false }
+      ]
+    },
+    {
+      "id": "snt_seasonality_rainfall",
+      "name": "D.2 ERA5 Seasonality - Rainfall",
+      "description": "Computes rainfall seasonality metrics from ERA5 climate data.",
+      "uuid": "3a3e2001-5610-4cac-bdee-2d98389b39c0",
+      "openhexa_code": "snt-seasonality-rainfall",
+      "parameters_source": "github_main",
+      "parameters": [
+        { "key": "get_minimum_month_block_size", "label": "Minimum number of months per block", "help": "Minimum duration of the seasonal block (in months). Used only when running the full pipeline.", "type": "int", "required": true, "default": 3, "choices": [3, 4, 5] },
+        { "key": "get_maximum_month_block_size", "label": "Maximum number of months per block", "help": "Maximum duration of the seasonal block (in months). Used only when running the full pipeline.", "type": "int", "required": true, "default": 5, "choices": [3, 4, 5] },
+        { "key": "get_threshold_for_seasonality", "label": "Minimal proportion of rainfall for seasonality", "help": "The proportion of annual rainfall that must fall within the block to qualify as seasonal (e.g., 0.6 = 60%).", "type": "float", "required": true, "default": 0.6 },
+        { "key": "get_threshold_proportion_seasonal_years", "label": "Minimal proportion of seasonal years", "help": "The proportion of years that must be classified as seasonal for an ADM2 to be considered seasonal overall.", "type": "float", "default": 0.5 },
+        { "key": "use_calendar_year_denominator", "label": "Use calendar year as denominator", "help": "Method to define 'annual' rainfall for the denominator. FALSE (default): 12-month forward-looking sliding window (WHO approach). TRUE: calendar year (Jan-Dec).", "type": "bool", "default": false },
+        { "key": "run_report_only", "label": "Run reporting only", "help": "Skip calculations and only execute the reporting notebook.", "type": "bool", "default": false },
+        { "key": "pull_scripts", "label": "Pull scripts", "help": "Pull the latest scripts from the repository before execution.", "type": "bool", "default": false }
       ]
     }
   ]
