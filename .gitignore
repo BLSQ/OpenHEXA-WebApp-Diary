@@ -1,5 +1,8 @@
 # Claude Code memory (machine-specific, not for sharing)
-.claude/
+.claude/*
+!.claude/settings.json
+!.claude/hooks/
+.claude/settings.local.json
 
 # Personal scratch / learning notes (local only, not shared)
 ignore/

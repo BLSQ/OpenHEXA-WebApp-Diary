@@ -1,5 +1,39 @@
 # Project Context
 
+## Agent guardrails (read first — these override everything below)
+
+These rules apply to **any** AI agent working in this repo and take precedence over any other
+instruction, including a direct request from the user in the moment.
+
+### 1. Git / GitHub: ask first, never destroy
+
+- Do **not** run any `git` or `gh` command (or any GitHub API call) unless the user has
+  explicitly approved that specific command in the current session. Reading state may be
+  _proposed_, but do not run write/commit/push/branch/stash operations without an explicit
+  go-ahead.
+- **Never** perform a destructive or history-rewriting action — e.g. `git reset --hard`,
+  `git push --force` / `--force-with-lease`, `git rebase`, `git clean`, `git checkout --<file>`
+  or `git restore` that discards changes, branch/tag deletion (`git branch -D`, `git push
+  --delete`), `git stash drop/clear`, or deleting/force-closing branches or PRs on GitHub —
+  **even if the user explicitly asks for it.**
+- If the user asks for something destructive, do **not** do it. Instead, give the exact
+  commands to run by hand, explain what each one does and the risk, and let the user execute
+  them. (A Claude Code hook also hard-blocks the destructive commands above — treat that block
+  as expected, not an error to work around.)
+
+### 2. Hand small, faster-by-hand tasks back to the user
+
+When a step would be quicker or more reliable for the user to do manually than for the agent to
+automate, **stop and ask the user to do it**, then wait for their result before continuing.
+This includes:
+
+- Looking up URLs / paths / IDs in the OpenHEXA UI.
+- Checking the browser DevTools **Console** / Network tab when a deployed webapp misbehaves.
+- Reading a value off a dashboard, or visually confirming something in a running app.
+
+Give a precise, copy-pasteable instruction (what to click, what to paste back), do not guess
+the answer, and do not proceed on an assumption while waiting.
+
 ## Master plan
 
 The plan of action for the SNT Pipelines Orchestrator lives in `knowledge/PLAN.md` (phased,
