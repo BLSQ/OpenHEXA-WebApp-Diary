@@ -201,6 +201,30 @@ look up workspace/pipeline IDs and deploy webapps.
 
 ---
 
+## Deploying the bundle (and a known friction)
+
+Deploys go through the OpenHEXA MCP tool (`update_static_webapp`), which the agent calls with
+the file contents passed **inline**. Partial deploys work — only the changed files need to be
+sent — and after every deploy the agent re-reads the live files and mirrors them under
+`<workspace>/<app_key>/`, so the local copy always matches what's live.
+
+**Known friction (large files).** The deploy tool only accepts file _contents_, not a file
+_path_, and the agent can only load a file into its working context up to a size limit. The
+orchestrator's `app.js` has grown past that limit, so the agent has to read it back in slices
+and reassemble it before sending — an automated but clunky extra step on every `app.js` deploy.
+It's verified each time (the live file is diffed against the local copy), so it's a speed bump,
+not a risk.
+
+**Manual fallback — drag-drop from the repo.** Because the bottleneck is only about getting the
+bytes _into the agent_, uploading a file yourself through the browser avoids it entirely. If the
+OpenHEXA UI lets you replace files on an existing webapp (**Web Apps → the webapp →
+edit/settings**), you can drag the changed file(s) straight from `<workspace>/<app_key>/` in this
+repo into the UI — the repo copy is always the up-to-date source, so this is safe. (The OpenHEXA
+**CLI** can deploy _pipelines_ from local files but **not** static webapps today, so there's no
+command-line shortcut yet — a request to add one has been raised with the OpenHEXA team.)
+
+---
+
 ## Refreshing the OpenHEXA schema
 
 If `schema.generated.graphql` becomes stale, regenerate it with:
