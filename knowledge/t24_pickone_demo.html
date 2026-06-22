@@ -1,0 +1,278 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>T2.4 — "pick one" visual demo</title>
+    <style>
+      /* Card / badge styles lifted from the orchestrator's styles.css so this
+         mockup matches the real app, plus the NEW T2.4 bits (radios, active /
+         superseded). This file is a throwaway design mockup — not deployed. */
+      * { box-sizing: border-box; }
+      body {
+        font-family: system-ui, -apple-system, sans-serif;
+        background: #f1f5f9;
+        color: #1e293b;
+        margin: 0;
+        padding: 24px 28px 60px;
+      }
+      h1 { font-size: 1.15rem; margin: 0 0 4px; }
+      h2 {
+        font-size: 0.95rem;
+        margin: 34px 0 6px;
+        border-bottom: 1px solid #cbd5e1;
+        padding-bottom: 6px;
+      }
+      .intro { font-size: 0.85rem; color: #475569; max-width: 760px; line-height: 1.5; }
+      .note { font-size: 0.78rem; color: #64748b; max-width: 760px; line-height: 1.5; margin: 4px 0 14px; }
+
+      /* ---- group box (matches the SVG group rect in renderEdges) ---- */
+      .group {
+        position: relative;
+        border: 1.6px solid #546e7a;
+        background: rgba(84, 110, 122, 0.05);
+        border-radius: 10px;
+        padding: 26px 16px 16px;
+        display: inline-flex;
+        flex-wrap: wrap;
+        gap: 14px;
+        margin: 14px 28px 0 0;
+        vertical-align: top;
+      }
+      .group-label {
+        position: absolute;
+        top: 6px;
+        left: 12px;
+        font-size: 11px;
+        font-weight: 700;
+        color: #546e7a;
+        letter-spacing: 0.2px;
+      }
+      .group-label .active-name { color: #1e7e34; }
+
+      /* ---- node card (from .node) ---- */
+      .node {
+        position: relative;
+        border: 2px solid #1e88e5;
+        background: #e3f2fd;
+        border-radius: 8px;
+        padding: 7px 9px 9px 26px;       /* extra left pad for the radio */
+        font-size: 12px;
+        line-height: 1.25;
+        width: 168px;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+        user-select: none;
+        cursor: pointer;
+        transition: box-shadow 0.12s ease, transform 0.12s ease, opacity 0.12s ease;
+      }
+      .node:hover { box-shadow: 0 3px 8px rgba(0, 0, 0, 0.16); transform: translateY(-1px); }
+      .node .code {
+        display: inline-block;
+        font-weight: 700;
+        font-size: 10.5px;
+        letter-spacing: 0.3px;
+        padding: 1px 6px;
+        border-radius: 999px;
+        margin-bottom: 4px;
+        background: rgba(0, 0, 0, 0.06);
+      }
+      .node .lbl { font-weight: 600; }
+
+      /* ---- NEW: radio affordance (top-left) ---- */
+      .radio {
+        position: absolute;
+        top: 8px;
+        left: 7px;
+        width: 13px;
+        height: 13px;
+        border-radius: 50%;
+        border: 2px solid #90a4ae;
+        background: #fff;
+      }
+      .node.active-choice .radio {
+        border-color: #2e7d32;
+        background: radial-gradient(circle, #2e7d32 0 4px, #fff 5px 100%);
+      }
+
+      /* ---- NEW: active choice — the current member ---- */
+      .node.active-choice {
+        border-color: #2e7d32;
+        box-shadow: 0 0 0 2px rgba(46, 125, 50, 0.25), 0 1px 2px rgba(0, 0, 0, 0.06);
+      }
+      .tag-active {
+        position: absolute;
+        top: -9px;
+        right: 8px;
+        font-size: 9px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+        padding: 2px 6px;
+        border-radius: 6px;
+        background: #2e7d32;
+        color: #fff;
+      }
+
+      /* ---- NEW: superseded — an alternative that is not the current pick ---- */
+      .node.superseded {
+        opacity: 0.55;
+        filter: saturate(0.7);
+      }
+      .node.superseded:hover { opacity: 0.85; }   /* still fully interactive */
+
+      /* ---- status row + badges (from styles.css) ---- */
+      .status-row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 4px;
+        margin-top: 6px;
+      }
+      .status-badge {
+        font-size: 9.5px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+        padding: 1px 6px;
+        border-radius: 999px;
+        border: 1px solid transparent;
+        white-space: nowrap;
+      }
+      .run-date { flex-basis: 100%; font-size: 9.5px; font-weight: 500; color: #64748b; }
+      .s-success { background: #e6f4ea; color: #1e7e34; border-color: #34a853; }
+      .s-failed  { background: #fdecea; color: #c5221f; border-color: #ea4335; }
+      .s-running {
+        background: #e8f0fe; color: #1a73e8; border-color: #4285f4;
+        animation: pulse 1.4s ease-in-out infinite;
+      }
+      .s-none { background: #f1f3f4; color: #80868b; border-color: #dadce0; }
+      @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.55; } }
+
+      /* ---- legend ---- */
+      .legend {
+        margin-top: 30px;
+        font-size: 0.8rem;
+        color: #334155;
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        padding: 14px 18px;
+        max-width: 760px;
+        line-height: 1.7;
+      }
+      .legend b { color: #0f172a; }
+      .swatch {
+        display: inline-block;
+        width: 12px; height: 12px;
+        border-radius: 50%;
+        vertical-align: -1px;
+        margin-right: 4px;
+        border: 2px solid #90a4ae;
+        background: #fff;
+      }
+      .swatch.filled { border-color: #2e7d32; background: radial-gradient(circle, #2e7d32 0 4px, #fff 5px 100%); }
+    </style>
+  </head>
+  <body>
+    <h1>T2.4 — "pick one" mutual-exclusion: visual treatment</h1>
+    <p class="intro">
+      Within an <code>alternative</code> group, the <b>current</b> member is the one with the most
+      recent <b>successful</b> run (green radio ●, green ring, "active" tag). The others are
+      <b>superseded</b>: dimmed but still fully clickable / runnable (hollow radio ○). A
+      <b>running</b> member shows its live badge but does <i>not</i> supersede yet; a
+      <b>failed</b> member changes nothing — the previous success stays current.
+    </p>
+
+    <h2>Variant A — group box keeps "choose one"; the radios carry the state</h2>
+    <p class="note">
+      Quieter. The filled vs hollow radio + the dimming communicate the pick; the box label stays
+      generic.
+    </p>
+    <div class="group">
+      <span class="group-label">A.3 — choose one</span>
+
+      <div class="node active-choice">
+        <span class="radio"></span><span class="tag-active">active</span>
+        <span class="code">A.3</span>
+        <div class="lbl">Outliers — Median</div>
+        <div class="status-row">
+          <span class="status-badge s-success">success</span>
+          <span class="run-date">2026-06-22 14:05</span>
+        </div>
+      </div>
+
+      <div class="node superseded">
+        <span class="radio"></span>
+        <span class="code">A.3</span>
+        <div class="lbl">Outliers — Mean</div>
+        <div class="status-row">
+          <span class="status-badge s-success">success</span>
+          <span class="run-date">2026-06-20 09:40</span>
+        </div>
+      </div>
+
+      <div class="node superseded">
+        <span class="radio"></span>
+        <span class="code">A.3</span>
+        <div class="lbl">Outliers — IQR</div>
+        <div class="status-row">
+          <span class="status-badge s-none">no runs</span>
+        </div>
+      </div>
+
+      <div class="node">
+        <span class="radio"></span>
+        <span class="code">A.3</span>
+        <div class="lbl">Outliers — Magic Glasses</div>
+        <div class="status-row">
+          <span class="status-badge s-running">running</span>
+          <span class="run-date">just now — won't supersede until it succeeds</span>
+        </div>
+      </div>
+
+      <div class="node superseded">
+        <span class="radio"></span>
+        <span class="code">A.3</span>
+        <div class="lbl">Outliers — PATH</div>
+        <div class="status-row">
+          <span class="status-badge s-failed">failed</span>
+          <span class="run-date">2026-06-21 16:12 — failure keeps Median current</span>
+        </div>
+      </div>
+    </div>
+
+    <h2>Variant B — group box names the active method</h2>
+    <p class="note">More informative at a glance, even when the group is collapsed/scrolled past.</p>
+    <div class="group">
+      <span class="group-label">A.4 — using <span class="active-name">Data Element</span></span>
+
+      <div class="node active-choice">
+        <span class="radio"></span><span class="tag-active">active</span>
+        <span class="code">A.4</span>
+        <div class="lbl">Reporting Rate — Data Element</div>
+        <div class="status-row">
+          <span class="status-badge s-success">success</span>
+          <span class="run-date">2026-06-22 11:18</span>
+        </div>
+      </div>
+
+      <div class="node superseded">
+        <span class="radio"></span>
+        <span class="code">A.4</span>
+        <div class="lbl">Reporting Rate — Data Set</div>
+        <div class="status-row">
+          <span class="status-badge s-success">success</span>
+          <span class="run-date">2026-06-19 08:02</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="legend">
+      <div><span class="swatch filled"></span><b>Active choice</b> — most recent successful run in the group. Green radio, green ring, "active" tag.</div>
+      <div><span class="swatch"></span><b>Superseded</b> — another alternative. Dimmed (~55%), hollow radio. Still clickable; running it to success makes it the new active choice.</div>
+      <div><b>Running</b> — live blue badge, normal opacity, no radio change yet — the pick only flips on success.</div>
+      <div><b>Failed</b> — stays superseded; the previously-successful member remains active.</div>
+      <div style="margin-top:8px; color:#64748b;">Greyed/unavailable (not installed) keeps its existing dashed-grey look — distinct from "superseded".</div>
+    </div>
+  </body>
+</html>

@@ -525,33 +525,57 @@ side — the OpenHEXA run page will say why.
 
 **Description:** 🔀 Handle the "either/or" steps gracefully. A few places in the SNT flow offer
 **alternatives** — two different ways to do the same job, where you're meant to pick one, not
-both (for example, two different methods of outlier imputation, or two ways to compute the
-reporting rate). 🤔 The map already knows which pipelines are alternatives to each other because
-they share the same `group` label.
+both (for example, the five outlier-imputation methods of **A.3**, or the two ways to compute the
+**A.4** reporting rate). 🤔 The map already knows which pipelines are alternatives to each other
+because they share the same `group` label (and are `type: "alternative"`).
 
-This task makes the board respect that "pick one" rule: when the user runs one option in a group,
-the app automatically marks the other option(s) in that same group as "not the current choice" —
-dimmed or visibly set aside — so the picture never looks like you ran two conflicting methods at
-once. ⚖️ Importantly this is **driven by the data** (the `group` labels in the map), not
-hand-coded for specific pipelines — so if the map adds or changes an alternative group later, the
-behaviour just works without touching the code. 🧩
+This task makes the board respect that "pick one" rule, driven entirely by the data — no
+pipeline is hard-coded, so if the map adds or changes an alternative group later it just works. 🧩
+
+**The rule — "current = most recent _successful_ run":** within a group, the member whose latest
+**successful** run is the most recent is the **active choice**; every other member is
+**superseded** (visibly set aside). Crucially the pick flips on **success, not on launch**:
+
+- ▶️ Running an option shows its live `running` badge but does **not** change the active choice yet
+  — a run that ends up failing must not throw away the alternative that's still the valid output.
+- ✅ Only when a run **succeeds** does that member become the active choice and its siblings flip to
+  superseded (it's now the most-recent success in the group).
+- ❌ A **failed** / stopped run changes nothing — the previously-successful member stays current.
+- This same rule also paints the board correctly **on page load** from real OpenHEXA run dates
+  (no in-app session memory needed): if two alternatives each have a real past success, the newer
+  one shows as active. It dovetails with Phase 3 locking (T3.1), where "is the group satisfied?"
+  should mean _the active member_ has a successful run.
+
+**Visual treatment** (mock-up: [`knowledge/t24_pickone_demo.html`](t24_pickone_demo.html)):
+
+- **Active choice** — green radio ● + green ring + an "active" tag; full colour.
+- **Superseded** — dimmed (~55%) with a hollow radio ○, but **still fully clickable and runnable**
+  (running it to success is exactly how you switch the pick). This is deliberately distinct from
+  the dashed-grey **unavailable/greyed** look (a pipeline not installed in the workspace, T1.4).
+- The group box keeps its existing _"— choose one"_ label; an optional variant names the active
+  method (e.g. _"A.4 — using Data Element"_). Both are shown in the demo for review.
 
 ---
 
 **👩‍🏫 Tutorial for the human (optional, hands-on):** the test is to run one of a pair and watch
-its sibling step aside. 👀
+its sibling step aside — **once the run succeeds**. 👀
 
-1. 🔎 Find an alternative group on the map — the wireframe shows two: the **A.3.1 Outliers
-   Imputation** options and the **A.4 Reporting Rate** options.
-2. ▶️ Run one option in the group.
-3. 🌗 The other option(s) in that same group should now show as "not the current choice" (dimmed
-   / set aside), making it clear which method is the active one.
-4. 🔁 Run the _other_ option instead — the roles should swap, so whichever you ran last is the one
-   shown as current.
+1. 🔎 Find an alternative group on the map — there are two: the **A.3** outlier-imputation methods
+   and the **A.4** reporting-rate options.
+2. ▶️ Run one option in the group and watch it: while it's `running`, nothing else changes yet.
+3. ✅ When it **succeeds**, it becomes the active choice (green radio/ring + "active" tag) and the
+   other option(s) in that group dim to "superseded".
+4. ❌ Bonus check: if a run **fails**, the active choice should _not_ change — whatever last
+   succeeded stays current.
+5. 🔁 Run the _other_ option and let it succeed — the roles swap, so whichever **succeeded** last
+   is the one shown as current.
 
 The point being proven: you can never end up with two conflicting alternatives both looking
-"active" at the same time. ⚖️
-**Acceptance criteria:** running A.3.1 visually supersedes A.3.2, etc.
+"active" at once, and a failed experiment never discards the alternative that still holds a valid
+result. ⚖️
+**Acceptance criteria:** after a successful run of one group member, that member is marked the
+active choice and the others in its `group` render superseded (data-driven via `group`); a failed
+run leaves the current choice unchanged.
 
 ### T2.5 — Missing-pipeline message
 
