@@ -394,10 +394,22 @@ HTML-injected). The friction is building the JSON on Windows, not the deploy:
   (`—`, emoji `📄🗂`, glyphs `✓✕⦸`) into mojibake. Use `Get-Content -Raw -Encoding UTF8`.
 - **Cast content to `[string]` before `ConvertTo-Json`** — otherwise the property serializes as
   `{value, Count}` and balloons (~50×: a 20 KB bundle became 1.17 MB).
+- **Pass the array via `-InputObject`, do NOT pipe it** (confirmed 2026-06-22) — `$arr |
+  ConvertTo-Json` (even with the `,$arr` array-preserve comma) re-wraps each element as a
+  `{value, Count}` object instead of emitting a plain array of `{path, content}`. Use
+  `ConvertTo-Json -InputObject $arr` so you get a real top-level JSON array. Sanity-check the
+  output starts with `[`.
 - **`ConvertTo-Json` emits `<` `>` `&` `'` as escaped unicode sequences (`\uXXXX`), not
-  literal characters** — valid JSON, OpenHEXA parses and serves it fine. Don't "fix" it.
+  literal characters** — valid JSON, OpenHEXA parses and serves it fine. Don't "fix" it. (Bonus:
+  if you also escape any remaining non-ASCII to `\uXXXX`, the payload is pure ASCII, which makes
+  byte-slicing it for read-back split-safe — see the Read-cap workaround above.)
 
-Recipe: `@($files | % { [PSCustomObject]@{ path=$_; content=[string](Get-Content -Raw -Encoding UTF8 $_) } }) | ConvertTo-Json -Compress`
+Recipe (build the array, then serialize with `-InputObject` — not a pipe):
+
+```powershell
+$arr = @($files | % { [PSCustomObject]@{ path = $_; content = [string](Get-Content -Raw -Encoding UTF8 $_) } })
+ConvertTo-Json -InputObject $arr -Depth 5 -Compress | Out-File -Encoding utf8 "$env:TEMP/snt_files_json.json"
+```
 
 ### Pipeline IDs are workspace-specific
 
