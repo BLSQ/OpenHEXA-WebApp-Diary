@@ -745,6 +745,27 @@ var DOWNLOAD_MUTATION =
   "  prepareObjectDownload(input: $input) { success downloadUrl }" +
   "}";
 
+/* T2.3 — trigger a run. Pass the pipeline UUID as `id` and the form-built
+ * `config` (JSON!). Needs the PIPELINES_RUN scope. `errors` is a list of
+ * PipelineError enum values; `run.id` is the UUID we then poll. */
+var RUN_MUTATION =
+  "mutation ($input: RunPipelineInput!) {" +
+  "  runPipeline(input: $input) {" +
+  "    success" +
+  "    errors" +
+  "    run { id status }" +
+  "  }" +
+  "}";
+
+/* T2.3 — poll one run for its live status (PIPELINES_READ). We refetch the
+ * outputs separately (OUTPUTS_QUERY) only once the run is finished. */
+var RUN_POLL_QUERY =
+  "query ($id: UUID!) {" +
+  "  pipelineRun(id: $id) {" +
+  "    id status executionDate duration" +
+  "  }" +
+  "}";
+
 // Human-readable run duration from a count of seconds ("6m 12s", "1h 03m 00s").
 function fmtDuration(sec) {
   if (sec == null) return null;
@@ -1227,9 +1248,10 @@ function renderSidebar(node) {
     '<h3 class="sb-sectitle">Parameters</h3>' +
     paramsFormHtml(node) +
     '<div class="sb-runrow">' +
+    '<button type="button" id="sb-run" class="btn-primary">▶ Run pipeline</button>' +
     '<button type="button" id="sb-preview" class="btn-secondary">Preview config</button>' +
-    '<span class="sb-runhint">Run arrives in the next step (T2.3).</span>' +
     "</div>" +
+    '<div id="sb-runstatus" class="sb-runstatus" hidden></div>' +
     '<pre id="sb-config" class="sb-config" hidden></pre>' +
     "</section>" +
     "</div>";
@@ -1268,6 +1290,27 @@ function renderSidebar(node) {
         );
       }
     });
+  }
+
+  // T2.3 — wire the Run button. If a run for this node is already in flight
+  // (the user navigated away and came back), reflect that on the freshly
+  // rendered panel: disable the button and re-show the live status line.
+  var runBtn = sb.querySelector("#sb-run");
+  if (runBtn) {
+    runBtn.addEventListener("click", function () {
+      runNode(node);
+    });
+    if (APP.activeRun[node.id]) {
+      runBtn.disabled = true;
+      runBtn.classList.add("is-busy");
+      var liveRun = entry ? entry.run : null;
+      if (liveRun)
+        setRunStatusLine(
+          node.id,
+          runStatusLineHtml(node, liveRun),
+          runStatusCls(liveRun.status),
+        );
+    }
   }
 
   loadOutputs(node, run);
@@ -1425,6 +1468,332 @@ async function openBucketObject(key, a) {
 }
 
 /* ------------------------------------------------------------------ *
+ * T2.3 — Run + poll
+ *
+ * Wire the sidebar's Run button to the runPipeline mutation, then poll the run
+ * until it reaches a terminal status, live-updating both the node's on-canvas
+ * status badge and the panel's run-status line. On completion the panel is
+ * re-rendered so the run-page link and Latest outputs reflect the just-finished
+ * run.
+ *
+ * The form-built `config` (buildConfig) is sent verbatim; required-field
+ * validation happens client-side first (same path as Preview config). Runs
+ * survive navigating away — polling keeps the card badge current; the run-status
+ * line in the panel updates only while that node stays selected. APP.activeRun
+ * tracks the in-flight run id per node so a stale poll (or a re-render) never
+ * double-counts and the Run button stays disabled until the run settles.
+ * ------------------------------------------------------------------ */
+
+// Poll cadence + a safety cap so a stuck/long run can't poll forever. At 5s the
+// cap is ~40 min of watching; past that we stop polling but the run keeps going
+// in OpenHEXA (the line says so) and a page reload picks its status back up.
+var POLL_INTERVAL_MS = 5000;
+var POLL_MAX_ATTEMPTS = 480;
+
+// queued / running / terminating are still in flight; the rest are terminal.
+function isRunFinished(status) {
+  return (
+    status === "success" ||
+    status === "failed" ||
+    status === "stopped" ||
+    status === "skipped"
+  );
+}
+
+// The OpenHEXA run-page URL for a node's run — needs the pipeline code (carried
+// on the status entry) + slug. Null when any piece is missing.
+function runPageUrl(node, run) {
+  var slug =
+    window.OPENHEXA && window.OPENHEXA.workspaceSlug
+      ? window.OPENHEXA.workspaceSlug
+      : null;
+  var entry =
+    APP.statusByUuid && node.uuid ? APP.statusByUuid[node.uuid] : null;
+  var code = entry && entry.code ? entry.code : null;
+  if (!slug || !code || !run || !run.id) return null;
+  return (
+    appBaseUrl() +
+    "/workspaces/" +
+    slug +
+    "/pipelines/" +
+    code +
+    "/runs/" +
+    run.id +
+    "/"
+  );
+}
+
+// Fold a fresh run into APP.statusByUuid (preserving the known code) and repaint
+// that node's on-canvas status badge — so the board reflects the run live,
+// whether or not the panel is open.
+function applyRunToNode(node, run) {
+  if (!APP.statusByUuid) APP.statusByUuid = {};
+  var prev = APP.statusByUuid[node.uuid] || {};
+  APP.statusByUuid[node.uuid] = { code: prev.code || null, run: run };
+  setNodeStatusRow(node.id, statusRowHtml("ok", run, runPageUrl(node, run)));
+}
+
+// A status class for the run-status line's colour.
+function runStatusCls(status) {
+  if (status === "success") return "rs-ok";
+  if (status === "failed") return "rs-err";
+  if (status === "stopped" || status === "skipped" || status === "terminating")
+    return "rs-warn";
+  return "rs-run"; // queued / running / starting
+}
+
+// The inner HTML of the run-status line for a run (glyph + label + view-run link).
+function runStatusLineHtml(node, run) {
+  var s = run.status;
+  var glyph =
+    s === "success"
+      ? "✓"
+      : s === "failed"
+        ? "✕"
+        : s === "stopped" || s === "skipped" || s === "terminating"
+          ? "■"
+          : "●";
+  var labels = {
+    queued: "Queued…",
+    running: "Running…",
+    terminating: "Stopping…",
+    success: "Completed successfully",
+    failed: "Run failed",
+    stopped: "Run stopped",
+    skipped: "Run skipped",
+  };
+  var label = labels[s] || s;
+  var spin = s === "queued" || s === "running" ? " spin" : "";
+  var url = runPageUrl(node, run);
+  var link = url
+    ? ' <a class="run-link" href="' +
+      escapeHtml(url) +
+      '" target="_blank" rel="noopener noreferrer">view run ↗</a>'
+    : "";
+  return (
+    '<span class="rs-glyph' + spin + '">' + glyph + "</span> " +
+    escapeHtml(label) +
+    link
+  );
+}
+
+// Show/replace the panel's run-status line — only while this node is selected.
+function setRunStatusLine(nodeId, html, cls) {
+  if (APP.selectedId !== nodeId) return;
+  var box = document.getElementById("sb-runstatus");
+  if (!box) return;
+  box.hidden = false;
+  box.className = "sb-runstatus" + (cls ? " " + cls : "");
+  box.innerHTML = html;
+}
+
+// Enable/disable the Run button — only while this node is selected.
+function setRunBtnBusy(nodeId, busy) {
+  if (APP.selectedId !== nodeId) return;
+  var btn = document.getElementById("sb-run");
+  if (!btn) return;
+  btn.disabled = busy;
+  btn.classList.toggle("is-busy", busy);
+}
+
+/* Trigger a run for the selected node: validate the form, call runPipeline,
+ * then poll. Guards against a double-trigger (APP.activeRun) and against running
+ * outside OpenHEXA / a node with no UUID. */
+async function runNode(node) {
+  if (APP.activeRun[node.id]) return; // a run for this node is already in flight
+
+  var configBox = document.getElementById("sb-config");
+  var built = buildConfig(node);
+  if (built.errors.length) {
+    // Reuse the Preview-config error surface so the offending fields are listed.
+    if (configBox) {
+      configBox.hidden = false;
+      configBox.className = "sb-config has-errors";
+      configBox.textContent =
+        "⚠ Fix these before running:\n  - " + built.errors.join("\n  - ");
+    }
+    setRunStatusLine(
+      node.id,
+      '<span class="rs-glyph">⚠</span> Fix the highlighted fields, then run again.',
+      "rs-err",
+    );
+    return;
+  }
+
+  var slug =
+    window.OPENHEXA && window.OPENHEXA.workspaceSlug
+      ? window.OPENHEXA.workspaceSlug
+      : null;
+  if (!slug) {
+    setRunStatusLine(
+      node.id,
+      '<span class="rs-glyph">⚠</span> Running a pipeline only works inside OpenHEXA.',
+      "rs-err",
+    );
+    return;
+  }
+  if (!node.uuid) {
+    setRunStatusLine(
+      node.id,
+      '<span class="rs-glyph">⚠</span> This pipeline isn’t available in this workspace.',
+      "rs-err",
+    );
+    return;
+  }
+
+  APP.activeRun[node.id] = "starting";
+  setRunBtnBusy(node.id, true);
+  if (configBox) configBox.hidden = true;
+  setRunStatusLine(
+    node.id,
+    '<span class="rs-glyph spin">●</span> Starting run…',
+    "rs-run",
+  );
+
+  var data;
+  try {
+    data = await gql(RUN_MUTATION, {
+      input: { id: node.uuid, config: built.config },
+    });
+  } catch (err) {
+    console.error("SNT Orchestrator — runPipeline error:", err);
+    delete APP.activeRun[node.id];
+    setRunBtnBusy(node.id, false);
+    setRunStatusLine(
+      node.id,
+      '<span class="rs-glyph">⚠</span> Couldn’t start the run: ' +
+        escapeHtml(err.message || "unknown error"),
+      "rs-err",
+    );
+    return;
+  }
+
+  var rp = data && data.runPipeline;
+  if (!rp || !rp.success || !rp.run || !rp.run.id) {
+    var msg =
+      rp && rp.errors && rp.errors.length
+        ? rp.errors.join(", ")
+        : "the run was not accepted.";
+    delete APP.activeRun[node.id];
+    setRunBtnBusy(node.id, false);
+    setRunStatusLine(
+      node.id,
+      '<span class="rs-glyph">⚠</span> Couldn’t start the run: ' +
+        escapeHtml(msg),
+      "rs-err",
+    );
+    return;
+  }
+
+  var run = {
+    id: rp.run.id,
+    status: rp.run.status || "queued",
+    executionDate: null,
+    duration: null,
+  };
+  applyRunToNode(node, run);
+  setRunStatusLine(
+    node.id,
+    runStatusLineHtml(node, run),
+    runStatusCls(run.status),
+  );
+  pollRun(node, run.id);
+}
+
+/* Poll one run until it finishes, live-updating the card badge + panel line. The
+ * loop self-cancels if APP.activeRun[node.id] no longer points at this run (a
+ * newer run started, or the run already settled), so stale ticks never write. */
+function pollRun(node, runId) {
+  APP.activeRun[node.id] = runId;
+  var attempts = 0;
+
+  function stop() {
+    if (APP.activeRun[node.id] === runId) delete APP.activeRun[node.id];
+    setRunBtnBusy(node.id, false);
+  }
+
+  function tick() {
+    if (APP.activeRun[node.id] !== runId) return; // superseded / cleared
+    gql(RUN_POLL_QUERY, { id: runId })
+      .then(function (data) {
+        if (APP.activeRun[node.id] !== runId) return;
+        var pr = data && data.pipelineRun;
+        if (!pr) {
+          stop();
+          setRunStatusLine(
+            node.id,
+            '<span class="rs-glyph">⚠</span> Lost track of the run — check it in OpenHEXA.',
+            "rs-err",
+          );
+          return;
+        }
+        var run = {
+          id: runId,
+          status: pr.status,
+          executionDate: pr.executionDate,
+          duration: pr.duration,
+        };
+        applyRunToNode(node, run);
+        setRunStatusLine(
+          node.id,
+          runStatusLineHtml(node, run),
+          runStatusCls(pr.status),
+        );
+
+        if (isRunFinished(pr.status)) {
+          stop();
+          finishRun(node, run);
+          return;
+        }
+        attempts++;
+        if (attempts >= POLL_MAX_ATTEMPTS) {
+          stop();
+          setRunStatusLine(
+            node.id,
+            runStatusLineHtml(node, run) +
+              ' <small>(stopped watching — still running in OpenHEXA)</small>',
+            runStatusCls(pr.status),
+          );
+          return;
+        }
+        setTimeout(tick, POLL_INTERVAL_MS);
+      })
+      .catch(function (err) {
+        if (APP.activeRun[node.id] !== runId) return;
+        // Transient error — keep retrying up to the cap rather than giving up.
+        console.warn("SNT Orchestrator — run poll error (will retry):", err);
+        attempts++;
+        if (attempts >= POLL_MAX_ATTEMPTS) {
+          stop();
+          setRunStatusLine(
+            node.id,
+            '<span class="rs-glyph">⚠</span> Stopped watching the run — check it in OpenHEXA.',
+            "rs-err",
+          );
+          return;
+        }
+        setTimeout(tick, POLL_INTERVAL_MS);
+      });
+  }
+  setTimeout(tick, 2500);
+}
+
+/* The run reached a terminal status. The card badge + APP.statusByUuid are
+ * already current (applyRunToNode); if the user is still on this node, re-render
+ * the panel so the run-page link and Latest outputs reflect the finished run,
+ * then restore the completion line (the re-render resets it). */
+function finishRun(node, run) {
+  if (APP.selectedId === node.id) {
+    renderSidebar(node);
+    setRunStatusLine(
+      node.id,
+      runStatusLineHtml(node, run),
+      runStatusCls(run.status),
+    );
+  }
+}
+
+/* ------------------------------------------------------------------ *
  * Boot
  * ------------------------------------------------------------------ */
 // Holds the loaded + merged state so later tasks can render from it.
@@ -1445,6 +1814,9 @@ var APP = {
   selectedId: null,
   // T2.2 — workspace connections grouped by type, set by loadConnections.
   connections: null,
+  // T2.3 — in-flight runs keyed by node id (value = the run id being polled).
+  // Guards against double-triggering and lets stale poll ticks self-cancel.
+  activeRun: {},
 };
 
 async function init() {

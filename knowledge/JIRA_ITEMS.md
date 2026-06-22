@@ -491,11 +491,11 @@ work in T2.3. 🔗
 
 ### T2.3 — Run + poll
 
-**Description:** ▶️ The headline moment of Phase 2: make the **Run** button actually launch a
-pipeline. When the user fills in the form (from T2.2) and clicks Run, the app sends that config
-off to OpenHEXA to start the pipeline for real. 🚀 Then, because a pipeline can take a while, the
-app keeps quietly checking back every few seconds — "done yet? done yet?" (this repeated checking
-is called _polling_) — and updates the node live: the status badge moves from 🔄 running to ✅
+**Description:** ▶️ Make the **Run** button actually launch a
+pipeline.
+
+When the user fills in the form (from T2.2) and clicks Run, the app sends that config off to OpenHEXA to start the pipeline for real.
+Then, because a pipeline can take a while, the app keeps quietly checking back every few seconds (aka _polling_) — and updates the node live: the status badge moves from 🔄 running to ✅
 success (or ❌ failed), and once it's finished the node's outputs (datasets, reports) refresh too.
 
 🎮 The result is that a user can drive a real pipeline end-to-end from the board without ever leaving the page or
