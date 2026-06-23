@@ -6,7 +6,8 @@
     "orchestrator": {
       "id": "33912f7d-ee0a-48ad-8f16-b16571321ce3",
       "slug": "snt-pipelines-orchestrator",
-      "url": "https://snt-testing-snt-pipelines-orchestrator.openhexa.io/"
+      "url": "https://snt-testing-snt-pipelines-orchestrator.openhexa.io/",
+      "allowed_operations": ["PIPELINES_READ", "PIPELINES_RUN", "FILES_READ", "USER_READ"]
     },
     "dhis2_reporting_rate": {
       "id": "f97e8df7-57aa-4882-a7ab-1f3f0d53c594",

@@ -217,6 +217,44 @@ The proxy enforces a whitelist of permitted GraphQL operations. Set via `update_
 
 If a query fails with a permission error in the webapp, a scope is missing. The SNT pipeline webapp requires at minimum `PIPELINES_READ, PIPELINES_RUN, FILES_READ`.
 
+**The orchestrator requires four scopes: `PIPELINES_READ, PIPELINES_RUN, FILES_READ, USER_READ`.**
+`USER_READ` is the one most easily forgotten — it's needed for the `workspace { connections }`
+query that powers the **DHIS2-connection dropdown** in the parameter form (T2.2). Without it the
+proxy rejects that query with `Operations not allowed: workspace` and the form silently falls
+back to a plain text slug input (the connection dropdown just never appears — the app doesn't
+otherwise break). This bit `snt-testing` (created June with only the first three; `USER_READ`
+added 2026-06-23). The intended scopes per deployed app are now recorded in each
+`<ws>/workspace_config.json` under `deployed_apps.<app>.allowed_operations`, so drift like this is
+visible.
+
+**Scopes are webapp metadata, not part of the deployed bundle.** They live on the platform's
+webapp object, set **once per webapp at create/update time** — not re-sent with every file
+deploy, and not derivable from the files. So porting the orchestrator to a new workspace is:
+(1) create the webapp **with the four scopes**, then (2) deploy the 4 generic files + that
+workspace's `pipeline_cards.json`. Three ways to set the scopes:
+
+- **OpenHEXA UI** — the webapp settings page has an **"Allowed operations"** checklist (confirmed
+  2026-06-23 — Giulia can tick the four by hand; no agent/API needed).
+- **MCP** — `update_static_webapp` / `create_static_webapp` with the `allowed_operations`
+  parameter (comma-separated).
+- **Raw GraphQL** — the management mutation against the main OH API (`app.openhexa.org/graphql/`,
+  authenticated as the user — **not** the webapp's own `/graphql/` proxy, which can't grant its
+  own scopes). `createWebapp` takes the same `allowedOperations` on creation:
+
+  ```graphql
+  mutation ($input: UpdateWebappInput!) {
+    updateWebapp(input: $input) { success errors webapp { id allowedOperations } }
+  }
+  # variables:
+  # { "input": { "id": "<webapp-uuid>",
+  #              "allowedOperations": ["PIPELINES_READ","PIPELINES_RUN","FILES_READ","USER_READ"] } }
+  ```
+
+  `allowedOperations` is a `[WebappOperationScope!]` enum: `PIPELINES_READ`, `PIPELINES_RUN`,
+  `FILES_READ`, `FILES_WRITE`, `DATASETS_READ`, `DATASETS_WRITE`, `USER_READ`. ⚠️ A scope-only
+  re-apply has been seen to echo stale scopes on the first call — **re-verify with
+  `get_static_webapp` after changing scopes** (a no-files re-apply makes it stick).
+
 ### Reading last-run status for all pipelines (cross-session status board)
 
 **Confirmed working through the static-webapp proxy under `PIPELINES_READ` alone** (status spike — PLAN.md task T0.6,

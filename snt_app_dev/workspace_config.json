@@ -6,7 +6,8 @@
     "orchestrator": {
       "id": "762251a6-7464-4fe1-b608-0f812d90f02c",
       "slug": "snt-pipelines-orchestrator",
-      "url": "https://snt-pipelines-orchestrator.openhexa.io/"
+      "url": "https://snt-pipelines-orchestrator.openhexa.io/",
+      "allowed_operations": ["PIPELINES_READ", "PIPELINES_RUN", "FILES_READ", "USER_READ"]
     }
   },
   "connections": {
