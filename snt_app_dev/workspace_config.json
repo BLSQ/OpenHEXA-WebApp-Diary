@@ -1,5 +1,5 @@
 {
-  "_comment": "Workspace-specific resolved IDs for SNT App Dev. Never copy UUIDs across workspaces — look them up fresh with MCP tools. Pipelines are keyed by Python function name (stable across workspaces); the value is the workspace-specific UUID passed to runPipeline.",
+  "_comment": "Workspace-specific resolved IDs for SNT App Dev. Never copy UUIDs across workspaces — look them up fresh with MCP tools.",
   "workspace_slug": "snt-app-dev",
   "workspace_name": "SNT App Dev",
   "deployed_apps": {
@@ -9,28 +9,5 @@
       "url": "https://snt-pipelines-orchestrator.openhexa.io/",
       "allowed_operations": ["PIPELINES_READ", "PIPELINES_RUN", "FILES_READ", "USER_READ"]
     }
-  },
-  "connections": {
-    "dhis2": "dhis2-nmdr-drc"
-  },
-  "pipelines": {
-    "snt_dhis2_extract": "3d427c7b-79fb-4ea4-84cd-8604affa6489",
-    "snt_dhis2_formatting": "05cab7c8-3602-4af3-b1e1-e31f2da311a7",
-    "snt_dhis2_outliers_imputation_iqr": "bf96ca41-644b-4923-8055-a7eb6ee90cdc",
-    "snt_dhis2_outliers_imputation_magic_glasses": "4a40a7b9-9c57-4ebf-a4d1-ae5e3b7b68d0",
-    "snt_dhis2_outliers_imputation_mean": "8630d3fb-a5c4-4483-ac16-1377766506e1",
-    "snt_dhis2_outliers_imputation_median": "ecba2126-dd9d-466e-8cd6-11ecbe78cb12",
-    "snt_dhis2_outliers_imputation_path": "68da0d38-3525-47f0-b27f-541789510d57",
-    "snt_dhis2_reporting_rate_dataelement": "a7dad7ba-a3c4-4c34-b3c0-9be4a6a55244",
-    "snt_dhis2_reporting_rate_dataset": "5701e79b-75ec-4310-81f5-fe32a5cffbf2",
-    "snt_dhis2_population_transformation": "63fe7818-e87b-46a8-ab92-b25c7c6a9ada",
-    "snt_dhis2_incidence": "8470cc97-d8fe-42e4-bc18-f7bbfb7af3d1",
-    "snt_seasonality_cases": "7bcd5337-2795-4b71-aeaa-4cda6f37e4a6",
-    "snt_worldpop_extract": "76789abf-2ec6-4987-96b6-14cf0cb13a65",
-    "snt_map_extracts": "66d6dc71-dd3c-4f41-8b68-2e4698b59173",
-    "snt_healthcare_access": "70e84f96-6ef3-4b62-8b35-84baeda28eec",
-    "snt_dhs_indicators": "f9382644-eb2c-4c6b-8ccc-2668e1e27bbe",
-    "snt_era5_climate_data": "1c902bcf-1bc1-4468-b0c2-2d25011b3ebb",
-    "snt_seasonality_rainfall": "18564ea3-435f-4e89-9708-b79d819f5c7a"
   }
 }

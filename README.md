@@ -99,7 +99,7 @@ node `id` == the pipeline's Python function name (e.g. `snt_dhis2_extract`).
 | -------------------------------------- | ------------------------------ | -------------------------------------------------------------------------- |
 | `pipeline_map.json`                    | **workspace-independent** (root, shared) | all nodes, grid position, type, mutex group, directed `edges` (deps) |
 | `<ws>/pipeline_cards.json`             | per-workspace                  | which pipelines exist + `uuid` + `parameters` (drives _active vs greyed_)  |
-| `<ws>/workspace_config.json`           | per-workspace                  | IDs, `deployed_apps`, connection slugs                                     |
+| `<ws>/workspace_config.json`           | per-workspace                  | IDs, `deployed_apps` (webapp ID, slug, URL, allowed scopes)                |
 | `index.html` + `app.js` + `styles.css` | shared app shell (multi-file)  | renders the map, merges with cards, runs/polls pipelines                   |
 
 The **map is identical across all workspaces** — every orchestrator shows the same full diagram.
@@ -123,8 +123,8 @@ its own `pipeline_cards.json`.
 | `pipeline_cards.json` | **⚠️ WS-specific**  | The only file that changes per workspace: which pipelines exist here + their `uuid` + `parameters`. |
 
 A 6th file, `<ws>/workspace_config.json`, is also workspace-specific but is **not deployed** —
-the browser never fetches it. It's deploy-time metadata (webapp `id`, connection slugs, pipeline
-UUIDs) used by the agent/build, not by the running app.
+the browser never fetches it. It's deploy-time metadata (webapp `id`, slug, allowed scopes) used
+by the agent/build, not by the running app.
 
 The app **self-adapts at runtime**: OpenHEXA injects `window.OPENHEXA.workspaceSlug` at page
 load (so the same `app.js` queries _this_ workspace), and the generic map greys out any node
@@ -143,14 +143,14 @@ files + a new `pipeline_cards.json`** (proven in Phase 4 / tasks T4.1–T4.2).
 ```
 pipeline_cards_schema.json        ← schema + instructions for building pipeline catalogs (global)
         ↓ (generated once per workspace)
-<workspace>/pipeline_cards.json   ← cached pipeline catalog: names, UUIDs, parameters
-        +
-<workspace>/workspace_config.json ← deployed_apps IDs, pipeline UUIDs, connection slugs
+<workspace>/pipeline_cards.json   ← cached pipeline catalog: names, UUIDs, parameters (fetched at runtime)
         +
 pipeline_map.json                 ← shared, hand-authored map: layout + dependency edges (orchestrator)
+        +
+<workspace>/workspace_config.json ← deploy-time metadata: webapp ID, slug, allowed scopes
         ↓
 <workspace>/<app_key>/            ← bundle deployed to OpenHEXA, mirrored here after every deploy
-    index.html + styles.css + app.js + JSON
+    index.html + styles.css + app.js + pipeline_map.json + pipeline_cards.json
 ```
 
 ---

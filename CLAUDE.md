@@ -30,6 +30,7 @@ This includes:
 - Looking up URLs / paths / IDs in the OpenHEXA UI.
 - Checking the browser DevTools **Console** / Network tab when a deployed webapp misbehaves.
 - Reading a value off a dashboard, or visually confirming something in a running app.
+- **Uploading webapp files** — For any webapp file changes (single files or full bundles), offer the user the option to drag-and-drop changed files directly into the OpenHEXA UI from `<ws>/<app_key>/` instead of having the agent assemble and deploy via MCP. This avoids reading large files into context and is often faster. Mention it as: *"You can also drag the changed file(s) from `<ws>/<app_key>/` straight into the OpenHEXA webapp settings — no size limit and no agent token cost. Want to do that instead, or shall I deploy via the API?"*
 
 Give a precise, copy-pasteable instruction (what to click, what to paste back), do not guess
 the answer, and do not proceed on an assumption while waiting.
@@ -92,14 +93,14 @@ node `id` == the pipeline's Python function name (e.g. `snt_dhis2_extract`).
 | -------------------------------------- | ------------------------------------------------------ | ---------------------------------------------------------------------------------------------- |
 | `pipeline_map.json`                    | **workspace-independent** (repo root, one shared file) | all nodes, grid position (`row`/`col`), `type`, mutex `group`, directed `edges` (dependencies) |
 | `<ws>/pipeline_cards.json`             | per-workspace                                          | which pipelines exist + `uuid` + `parameters` (drives _active vs greyed_)                      |
-| `<ws>/workspace_config.json`           | per-workspace                                          | IDs, `deployed_apps`, connection slugs                                                         |
+| `<ws>/workspace_config.json`           | per-workspace                                          | IDs, `deployed_apps` (webapp ID, slug, URL, allowed scopes)                                    |
 | `index.html` + `app.js` + `styles.css` | shared app shell (multi-file)                          | renders the map, merges it with the workspace cards, runs/polls pipelines                      |
 
 **Generic vs workspace-specific:** the deployed bundle is **5 files — 4 generic + 1
 workspace-specific.** Generic (reused unchanged in every workspace): `index.html`, `styles.css`,
 `app.js`, `pipeline_map.json`. Workspace-specific (the only file that changes per workspace):
 `pipeline_cards.json`. `workspace_config.json` is also per-workspace but **not deployed** (the
-browser never fetches it — it's deploy-time metadata: webapp `id`, connection slugs, UUIDs). The
+browser never fetches it — it's deploy-time metadata: webapp `id`, slug, allowed scopes). The
 app self-adapts at runtime via `window.OPENHEXA.workspaceSlug` + cards-driven greying, so the
 only non-per-workspace assumption baked into `app.js` is the hardcoded SaaS base
 `https://app.openhexa.org`. → **new workspace = same 4 generic files + a new
@@ -408,19 +409,21 @@ To **read back** the currently-deployed files, use `mcp__claude_ai_OpenHEXA__get
 **Large-file deploy friction (Read cap).** `files_json` carries file _contents inline_ — the
 tool can't read from a path on disk. To author the call the agent must pull the bytes into
 context with Read, which caps at ~25k tokens. The orchestrator's `app.js`, once JSON-escaped
-(`ConvertTo-Json`), is ~59 KB (~29k tokens), so a single Read **truncates** it. Workaround
-(confirmed 2026-06-22): write the escaped string to a temp file, then read it back in slices
-with the Bash tool (`cut -c1-20000 file`, `-c20001-40000 file`, …) and concatenate the slices
-**exactly** into the `content` value — ideally inside a **subagent** so the large payload stays
-out of the main context. Smaller files (`styles.css`, the JSON data files) still read in one go.
-**Always verify after a chunked deploy**: re-read live via `get_static_webapp` and diff against
-the local copy (e.g. a quick `node -e` length/equality check) — a single dropped/altered char
-between slices would break the file. **Manual fallback (offload to the user):** the bottleneck
-is only getting bytes _into the agent_, so if the OpenHEXA UI supports replacing files on an
-existing webapp, the user can drag the changed file(s) from `<ws>/<app_key>/` (the canonical
-local copy) straight into the UI — no size limit. The OpenHEXA **CLI deploys pipelines only, not
-static webapps**, so there is no command-line deploy path today (a feature request to the OH devs
-is in flight).
+(`ConvertTo-Json`), is ~59 KB (~29k tokens), so a single Read **truncates** it. 
+
+**PREFERRED: Manual UI upload.** The bottleneck is only getting bytes _into the agent_. For any
+file changes, **offer the user the option to drag the changed file(s) from `<ws>/<app_key>/`
+(the canonical local copy) straight into the OpenHEXA UI** — no agent Read, no token cost, no size limit. This is the fastest and cheapest path and should be offered as the default unless the user prefers automation.
+
+**If API deploy is necessary** (confirmed 2026-06-22): write the escaped string to a temp file,
+then read it back in slices with the Bash tool (`cut -c1-20000 file`, `-c20001-40000 file`, …)
+and concatenate the slices **exactly** into the `content` value — ideally inside a **subagent**
+so the large payload stays out of the main context. Smaller files (`styles.css`, the JSON data
+files) still read in one go. **Always verify after a chunked deploy**: re-read live via
+`get_static_webapp` and diff against the local copy (e.g. a quick `node -e` length/equality
+check) — a single dropped/altered char between slices would break the file. The OpenHEXA
+**CLI deploys pipelines only, not static webapps**, so there is no command-line deploy path
+today (a feature request to the OH devs is in flight).
 
 ### Assembling `files_json` on Windows (PowerShell 5.1)
 
@@ -451,7 +454,7 @@ ConvertTo-Json -InputObject $arr -Depth 5 -Compress | Out-File -Encoding utf8 "$
 
 ### Pipeline IDs are workspace-specific
 
-Pipeline **UUIDs** and **codes/slugs** both differ across workspaces for the same pipeline. The only stable identifier is the **Python function name** (e.g. `snt_dhis2_extract`) — this is used as the key in both `pipeline_cards_schema.json` and `workspace_config.json`. When building a new `workspace_config.json`, find the matching pipeline by searching `list_pipelines` results by display name (e.g. "A.1 DHIS2 Extract") — do not rely on the code/slug matching. Never copy UUIDs from another workspace's config.
+Pipeline **UUIDs** and **codes/slugs** both differ across workspaces for the same pipeline. The only stable identifier is the **Python function name** (e.g. `snt_dhis2_extract`) — this is used as the key in `pipeline_cards_schema.json` and as the `id` in `pipeline_map.json`. The app gets pipeline UUIDs at runtime from `pipeline_cards.json` (which is fetched alongside the app bundle). Never copy UUIDs from another workspace's `pipeline_cards.json`.
 
 ---
 
@@ -549,15 +552,16 @@ Each workspace has its own folder in this repo, named after the workspace slug w
 
 ### How to build or update the webapp for a workspace
 
-The agent's job is to produce the correct `<workspace>/<app_key>/index.html` for a given webapp and deploy it. The two source files are:
+The agent's job is to produce the correct `<workspace>/<app_key>/` bundle for a given webapp and deploy it. The primary source files are:
 
-- **`pipeline_cards_schema.json`** (repo root) — canonical pipeline definitions: which parameters to expose, their types, defaults, and help text. Read this to know what UI to build.
-- **`<workspace>/workspace_config.json`** — workspace-specific UUIDs to embed in the JavaScript (`PIPELINE_CONFIG` object). Read this to get the correct `id` values for each pipeline card.
+- **`pipeline_cards_schema.json`** (repo root) — canonical pipeline definitions: which parameters to expose, their types, defaults, and help text.
+- **`<workspace>/pipeline_cards.json`** — workspace-specific catalog with pipeline UUIDs and parameter definitions. This is fetched at runtime by the app.
+- **`<workspace>/workspace_config.json`** — contains `deployed_apps` metadata (webapp ID, slug, allowed scopes). Used only for deployment, not fetched by the browser.
 
-When building or updating `<workspace>/<app_key>/index.html`:
+When building or updating `<workspace>/<app_key>/`:
 
-1. Use `pipeline_cards_schema.json` to determine the parameters and card layout for each pipeline.
-2. Use `<workspace>/workspace_config.json` to fill in the pipeline UUIDs in the `PIPELINE_CONFIG` JS object.
+1. Use `pipeline_cards_schema.json` and `<workspace>/pipeline_cards.json` to determine which pipelines exist and what UI to build.
+2. For single-pipeline apps, embed pipeline UUIDs directly in the HTML/JS. For the orchestrator, the app fetches `pipeline_cards.json` at runtime.
 3. Follow the runtime patterns above (prefixed IDs, shared functions, `allowed_operations`, etc.).
 4. Deploy via `mcp__claude_ai_OpenHEXA__update_static_webapp` using `deployed_apps.<app_key>.id` from the workspace config.
 5. Write the deployed file(s) to `<workspace>/<app_key>/`.
@@ -583,6 +587,4 @@ When about to **edit an existing webapp**, consider pulling its live files with 
 Keys used in `workspace_config.json`:
 
 - `workspace_slug` — used in all MCP tool calls
-- `deployed_apps` — keyed by a short snake_case app identifier that also names the local subfolder (e.g. `dhis2_reporting_rate`, `population_transformation`). Each value has `id` (passed to `update_static_webapp`), `slug`, and `url`.
-- `pipelines` — keyed by Python function name, value is the UUID passed to `runPipeline`
-- `connections` — keyed by type (e.g. `"dhis2"`), value is the connection slug passed as a `DHIS2Connection` parameter
+- `deployed_apps` — keyed by a short snake_case app identifier that also names the local subfolder (e.g. `orchestrator`, `dhis2_reporting_rate`). Each value has `id` (webapp UUID, passed to `update_static_webapp`), `slug` (for `get_static_webapp`), `url`, and `allowed_operations` (the scopes granted to the webapp).
