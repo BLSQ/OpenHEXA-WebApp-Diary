@@ -161,6 +161,36 @@ svg.edges {
   color: #94a3b8;
 }
 
+/* T2.5 — greyed cards are clickable (they open the "how to install" panel), so
+ * override the base greyed pointer-events:none / not-allowed cursor. They keep
+ * their greyed look but gain a "✚ install" corner hint and a hover wake-up
+ * (opacity lift) so it reads as installable, not active. Higher specificity than
+ * the .node.greyed base, so it wins regardless of source order. */
+.node.greyed.clickable {
+  pointer-events: auto;
+  cursor: pointer;
+}
+.node.greyed.clickable:hover {
+  opacity: 0.9;
+}
+/* Top-left corner hint (top-right may hold the type-badge on mandatory/output).
+ * Inherits the card's grayscale filter, so it reads as a muted grey tag. */
+.node.greyed.clickable::before {
+  content: "✚ install";
+  position: absolute;
+  top: -9px;
+  left: 8px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: #fff;
+  color: #64748b;
+  border: 1px dashed #b0bec5;
+  white-space: nowrap;
+}
+
 /* --- Interactive nodes (T1.6) --- *
  * Only available cards are clickable (they open the detail sidebar). A pointer
  * cursor + lift-on-hover signal that; .selected draws a ring around the active
@@ -478,6 +508,29 @@ svg.edges {
   background: #e8f0fe;
   color: #1a4480;
   border: 1px solid #aecbfa;
+}
+
+/* T2.5 — missing-pipeline panel: an amber "not installed" type badge in the
+ * header + an explanatory notice box in the body. */
+.sb-type.sb-type-missing {
+  color: #b06000;
+  border-color: #f9ab00;
+  background: #fef7e0;
+}
+.sb-missing {
+  padding: 0.7rem 0.85rem;
+  border-radius: 8px;
+  background: #fef7e0;
+  border: 1px solid #f6d57a;
+  color: #6b4a00;
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+.sb-missing p {
+  margin: 0;
+}
+.sb-missing p + p {
+  margin-top: 0.5rem;
 }
 
 /* External / output links. */

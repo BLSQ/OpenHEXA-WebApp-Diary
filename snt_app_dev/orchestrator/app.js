@@ -295,7 +295,7 @@ function renderGrid(nodes) {
       n.type +
       "]  id: " +
       n.id +
-      (n.available ? "" : "\n\n⦸ Not available in this workspace");
+      (n.available ? "" : "\n\n⦸ Not installed here — click to see how to install it");
 
     var badge = FILLED_TYPES[n.type]
       ? '<span class="type-badge filled">' + escapeHtml(n.type) + "</span>"
@@ -309,25 +309,26 @@ function renderGrid(nodes) {
       escapeHtml(n.label) +
       "</div>";
 
-    // T1.6 — only *available* nodes are interactive. Greyed nodes already have
-    // pointer-events:none in CSS, but we also skip the handler + the affordances
-    // (pointer cursor, keyboard focus, button role) for them.
-    if (n.available) {
-      div.classList.add("clickable");
-      div.setAttribute("role", "button");
-      div.setAttribute("tabindex", "0");
-      (function (id) {
-        div.addEventListener("click", function () {
+    // T1.6 / T2.5 — every node is interactive. Available nodes open their live
+    // detail panel; greyed (not-installed) nodes open a lightweight "how to
+    // install" panel instead of being dead ends (selectNode branches on
+    // availability). Both get the pointer affordances + keyboard handler + button
+    // role; greyed cards keep their greyed look (the CSS adds a "✚ install" corner
+    // hint and a hover wake-up), so they read as installable, not as active.
+    div.classList.add("clickable");
+    div.setAttribute("role", "button");
+    div.setAttribute("tabindex", "0");
+    (function (id) {
+      div.addEventListener("click", function () {
+        selectNode(id);
+      });
+      div.addEventListener("keydown", function (e) {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
           selectNode(id);
-        });
-        div.addEventListener("keydown", function (e) {
-          if (e.key === "Enter" || e.key === " ") {
-            e.preventDefault();
-            selectNode(id);
-          }
-        });
-      })(n.id);
-    }
+        }
+      });
+    })(n.id);
 
     canvas.appendChild(div);
     APP.nodeEls[n.id] = div;
@@ -1164,15 +1165,18 @@ function renderEmptySidebar() {
     "</div>";
 }
 
-// Highlight the clicked card, deselect the rest, and render its panel.
+// Highlight the clicked card, deselect the rest, and render its panel. Available
+// nodes get the full live detail panel; greyed (not-installed) nodes get the
+// T2.5 "how to install" panel instead of being silently inert.
 function selectNode(id) {
   var node = APP.nodeById[id];
-  if (!node || !node.available) return;
+  if (!node) return;
   APP.selectedId = id;
   Object.keys(APP.nodeEls).forEach(function (k) {
     APP.nodeEls[k].classList.toggle("selected", k === id);
   });
-  renderSidebar(node);
+  if (node.available) renderSidebar(node);
+  else renderMissingSidebar(node);
 }
 
 function clearSelection() {
@@ -1181,6 +1185,92 @@ function clearSelection() {
     APP.nodeEls[k].classList.remove("selected");
   });
   renderEmptySidebar();
+}
+
+/* ------------------------------------------------------------------ *
+ * T2.5 — Missing-pipeline panel
+ *
+ * A greyed node is a pipeline that's in the shared map but ISN'T installed in
+ * this workspace (no card / uuid), so it has no status, parameters, runs, or
+ * outputs to show. Rather than being a dead-end ghost, it's clickable and opens
+ * this lightweight panel, which explains the situation and points the user at:
+ *   - the pipeline's README on GitHub (so they can see what it does), and
+ *   - the workspace's OpenHEXA "templates" tab, where the official SNT pipelines
+ *     are published and can be installed.
+ *
+ * Only map-level data is used (label / code / type / description / id) — all
+ * present even when greyed. None of the live machinery (status, params form, Run
+ * button, outputs, alternative-group notice) is rendered, so this panel can't
+ * touch the run/poll/mutex state — a missing node correctly stays inert there.
+ * ------------------------------------------------------------------ */
+function renderMissingSidebar(node) {
+  var sb = document.getElementById("sidebar");
+  if (!sb) return;
+
+  var slug =
+    window.OPENHEXA && window.OPENHEXA.workspaceSlug
+      ? window.OPENHEXA.workspaceSlug
+      : null;
+
+  // README works anywhere (GitHub URL). The templates link needs the workspace
+  // slug, so it's only built inside OpenHEXA; otherwise we note that below.
+  var links = extLinkHtml(
+    githubFolderUrl(node.id),
+    "▤",
+    "README on GitHub",
+    "see what this pipeline does",
+  );
+  if (slug) {
+    var templatesUrl =
+      appBaseUrl() + "/workspaces/" + slug + "/pipelines/?tab=templates";
+    links += extLinkHtml(
+      templatesUrl,
+      "✚",
+      "Install from pipeline templates",
+      "browse the available SNT templates in OpenHEXA",
+    );
+  }
+
+  sb.innerHTML =
+    '<div class="sb-head">' +
+    '<div class="sb-titlerow">' +
+    '<h2 class="sb-title">' +
+    escapeHtml(node.label) +
+    "</h2>" +
+    '<button class="sb-close" type="button" aria-label="Close panel" title="Close">✕</button>' +
+    "</div>" +
+    '<div class="sb-sub">' +
+    '<span class="sb-code">' +
+    escapeHtml(node.code) +
+    "</span>" +
+    '<span class="sb-type">' +
+    escapeHtml(node.type) +
+    "</span>" +
+    '<span class="sb-type sb-type-missing">not installed</span>' +
+    "</div>" +
+    "</div>" +
+    '<div class="sb-body">' +
+    '<div class="sb-missing">' +
+    "<p><strong>This pipeline isn’t installed in this workspace yet.</strong></p>" +
+    "<p>It’s part of the standard SNT pipeline map, but it hasn’t been added to " +
+    "<strong>" +
+    escapeHtml(slug || "this workspace") +
+    "</strong>. Install it from the OpenHEXA pipeline templates below, then reload " +
+    "this page — it’ll become active and runnable here.</p>" +
+    "</div>" +
+    (node.description
+      ? '<p class="sb-desc">' + escapeHtml(node.description) + "</p>"
+      : "") +
+    '<div class="sb-links">' +
+    links +
+    "</div>" +
+    (slug
+      ? ""
+      : '<p class="sb-muted">The link to the templates page is only available when this app is opened inside OpenHEXA.</p>') +
+    "</div>";
+
+  var closeBtn = sb.querySelector(".sb-close");
+  if (closeBtn) closeBtn.addEventListener("click", clearSelection);
 }
 
 // Build + inject the detail panel for a node, then kick off the outputs fetch.

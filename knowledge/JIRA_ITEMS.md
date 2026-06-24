@@ -613,33 +613,42 @@ run leaves the current choice unchanged.
 
 ### T2.5 — Missing-pipeline message
 
-**Description:** 🚧 Be kind about pipelines that simply aren't installed in this workspace.
-Remember the same full map is shown everywhere, so some boxes are greyed-out because that
-pipeline doesn't exist here (see T1.4). 🌗 This task makes sure that if a user ever ends up
-trying to _run_ one of those not-installed pipelines, they get a clear, friendly explanation —
-something like _"This pipeline isn't installed in this workspace yet — install it first"_ —
-rather than a confusing technical error or a button that silently does nothing. 💬
+**Description:** Remember the same full map is shown everywhere, so some boxes are greyed-out because that
+pipeline doesn't exist here (see T1.4). 🌗 This task makes greyed nodes **clickable** and opens
+a lightweight "how to install" side panel instead of leaving them as dead-end ghosts.
 
-It's a small but important polish: it turns a dead-end into a helpful signpost, so a
-non-technical user always understands _why_ something can't be run and what to do about it. 🪧
+The panel shows:
+
+- The pipeline's name, code, type, and description (from the shared map — always present even
+  when greyed).
+- A clear amber notice: _"This pipeline isn't installed in this workspace yet"_, with a plain
+  explanation and an instruction to install it and reload.
+- A **README on GitHub** link (so the user can see what the pipeline does).
+- An **Install from pipeline templates ↗** link to the workspace's OpenHEXA templates tab
+  (`/workspaces/<slug>/pipelines/?tab=templates`), where the official SNT pipelines are published
+  and can be installed with one click.
+
+Greyed cards gain a **"✚ install"** corner hint (top-left) and a pointer cursor so they read as
+installable rather than simply inactive. The live panel machinery (status, params form, Run
+button, outputs, mutex notice) is entirely absent from this panel — a missing node correctly
+stays inert in all those systems.
 
 ---
 
-**👩‍🏫 Tutorial for the human (optional, hands-on):** the test is to deliberately poke at a
-not-installed pipeline and confirm you get a helpful message. 👀
+**👩‍🏫 Tutorial for the human (optional, hands-on):** the test is to click a greyed box and
+confirm you land on a helpful, actionable panel. 👀
 
-1. ⚪ Identify a greyed-out (not-installed) box on the map.
-2. 🖱️ Try to act on it as if you wanted to run it.
-3. 💬 Instead of nothing happening or a cryptic error, you should see a plain-language message
-   explaining it isn't installed here and needs installing first.
+1. ⚪ Identify a greyed-out (not-installed) box on the map — look for the **"✚ install"** tag in
+   its top-left corner.
+2. 🖱️ Click it. The side panel should open with the amber notice and two links (GitHub README +
+   OpenHEXA templates).
+3. 🔗 Click **"Install from pipeline templates"** and confirm it lands on the correct workspace's
+   templates tab in OpenHEXA, where the pipeline can be found and installed.
+4. ✅ After installing and reloading the app, the node should appear in full colour and be fully
+   runnable.
 
-> 🔎 **Worth a quick sanity check with Giulia before building:** since Phase 1 (T1.4 / T1.6) made
-> greyed boxes **unclickable**, a user currently can't even open the sidebar — let alone reach a
-> Run button — for a not-installed pipeline. So this guard may be either (a) mostly a safety net
-> for edge cases, or (b) a sign we want greyed boxes to stay clickable enough to _show_ this
-> message. Worth deciding which, so the task targets the real scenario. 🤔
-
-**Acceptance criteria:** the message appears for a deliberately-missing pipeline.
+**Acceptance criteria:** clicking a greyed node opens the "how to install" panel with the
+templates link; the node stays inert in the status/run/mutex systems.
 
 ### T2.6 — Deploy + QA running
 
