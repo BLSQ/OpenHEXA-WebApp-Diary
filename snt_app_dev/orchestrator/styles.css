@@ -185,6 +185,49 @@ svg.edges {
     0 3px 8px rgba(0, 0, 0, 0.16);
 }
 
+/* --- Mutual exclusion: alternative groups (T2.4) --- *
+ * Members of an alternative `group` are mutually exclusive. Running one makes it
+ * the session's chosen method (.is-current) and supersedes its siblings
+ * (.superseded). Toggled by applyGroupExclusion in app.js. Placed after the
+ * track/selected rules so the green "chosen" border + dimming win the
+ * equal-specificity tie. Superseded cards stay clickable (no pointer-events:none
+ * here — unlike .greyed) so the user can switch by running a different member;
+ * the .selected box-shadow still shows through, so a superseded node can still be
+ * inspected with its ring intact. Alternative cards carry no .type-badge, so the
+ * top-right corner is free for these markers. */
+.node.superseded {
+  filter: grayscale(0.85);
+  opacity: 0.5;
+}
+.node.is-current {
+  border-color: #2e7d32;
+}
+.node.superseded::after,
+.node.is-current::after {
+  position: absolute;
+  top: -9px;
+  right: 8px;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  padding: 2px 6px;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+.node.superseded::after {
+  content: "superseded";
+  background: #eceff1;
+  color: #607d8b;
+  border: 1px solid #b0bec5;
+}
+.node.is-current::after {
+  content: "✓ chosen";
+  background: #2e7d32;
+  color: #fff;
+  border: 1px solid #2e7d32;
+}
+
 /* Type label, top-right corner: filled for mandatory/output (the only types
  * app.js labels); alternative/facultative cards are left unlabelled. */
 .type-badge {
@@ -409,6 +452,32 @@ svg.edges {
   font-size: 0.84rem;
   line-height: 1.5;
   color: #334155;
+}
+
+/* T2.4 — alternative-group standing for the selected node this session: either
+ * the chosen method, or superseded by a sibling. A flex child of .sb-body, so
+ * the container's gap handles its spacing. */
+.sb-altnote {
+  margin: 0;
+  padding: 0.5rem 0.7rem;
+  border-radius: 7px;
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+.sb-altnote.is-current {
+  background: #e8f5e9;
+  color: #1b5e20;
+  border: 1px solid #a5d6a7;
+}
+.sb-altnote.superseded {
+  background: #eceff1;
+  color: #455a64;
+  border: 1px solid #cfd8dc;
+}
+.sb-altnote.running {
+  background: #e8f0fe;
+  color: #1a4480;
+  border: 1px solid #aecbfa;
 }
 
 /* External / output links. */

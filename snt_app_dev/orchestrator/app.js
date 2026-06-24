@@ -1234,6 +1234,9 @@ function renderSidebar(node) {
     sidebarStatusHtml(entry) +
     "</div>" +
     '<div class="sb-body">' +
+    '<div id="sb-altnote-slot">' +
+    groupExclusionNoticeHtml(node) +
+    "</div>" +
     (node.description
       ? '<p class="sb-desc">' + escapeHtml(node.description) + "</p>"
       : "") +
@@ -1531,6 +1534,14 @@ function applyRunToNode(node, run) {
   var prev = APP.statusByUuid[node.uuid] || {};
   APP.statusByUuid[node.uuid] = { code: prev.code || null, run: run };
   setNodeStatusRow(node.id, statusRowHtml("ok", run, runPageUrl(node, run)));
+  // T2.4 — a fresh success makes this member its group's most-recent success
+  // (and thus the chosen one). Record it durably so a later re-run doesn't drop
+  // the mark, then recompute the group's chosen / running / superseded display.
+  if (run && run.status === "success") {
+    var d = parseRunDate(run.executionDate);
+    APP.lastSuccessAt[node.id] = d ? d.getTime() : Date.now();
+  }
+  refreshGroupStates();
 }
 
 // A status class for the run-status line's colour.
@@ -1691,6 +1702,9 @@ async function runNode(node) {
     executionDate: null,
     duration: null,
   };
+  // applyRunToNode folds the run into the status + (T2.4) recomputes the group's
+  // chosen/running/superseded display — so the just-triggered member immediately
+  // shows as active (normal), without taking the ✓ mark until it succeeds.
   applyRunToNode(node, run);
   setRunStatusLine(
     node.id,
@@ -1794,6 +1808,149 @@ function finishRun(node, run) {
 }
 
 /* ------------------------------------------------------------------ *
+ * T2.4 — Mutual exclusion (alternative groups)
+ *
+ * Alternative members that share a `group` (the five A.3 outlier methods, the
+ * two A.4 reporting-rate variants) are mutually exclusive. Exactly one member is
+ * the *chosen* method: **the one holding the most recent successful run**. The
+ * choice is therefore derived purely from run history — never from the act of
+ * triggering a run. Entirely data-driven from each node's `group` (set in
+ * mergeNodes); nothing about A.3/A.4 is hardcoded.
+ *
+ * Per-member display (refreshGroupStates):
+ *   - chosen      → "✓ chosen", normal colours. The member with the latest
+ *                   successful run (tracked in APP.lastSuccessAt so it survives a
+ *                   re-run: a newer non-success run does NOT drop the mark).
+ *   - in-flight   → normal colours, NO mark. A member whose latest run is still
+ *                   queued/running/terminating is shown active like any node, but
+ *                   it does not become chosen until/unless it *succeeds*.
+ *   - superseded  → greyed (still clickable). Any other member, once the group
+ *                   has a chosen one. (If no member has ever succeeded, all show
+ *                   normal — no choice has been made yet.)
+ *
+ * So running a member never moves the ✓ mark; only a succeeding run does, at
+ * which point that member becomes the most-recent-success and takes the mark.
+ *
+ * State is set on load/refresh (seedGroupSuccessFromStatus → refreshGroupStates,
+ * from the live status snapshot) and kept current during a run (applyRunToNode
+ * calls refreshGroupStates on every poll tick). APP.groupChoice maps group id ->
+ * chosen node id (recomputed each refresh); APP.lastSuccessAt maps node id -> ms
+ * of its most recent observed success. */
+
+// Record the most recent observed success per alternative-group member from the
+// live status snapshot (boot). Kept in APP.lastSuccessAt so a later re-run (whose
+// in-flight/failed status would otherwise hide the prior success) doesn't drop
+// the chosen mark. Only `success` runs seed it.
+function seedGroupSuccessFromStatus() {
+  if (!APP.statusByUuid) return; // status unavailable (outside OpenHEXA / failed)
+  APP.nodes.forEach(function (n) {
+    if (!(n.available && n.type === "alternative" && n.group)) return;
+    var entry = APP.statusByUuid[n.uuid];
+    var run = entry ? entry.run : null;
+    if (run && run.status === "success") {
+      var d = parseRunDate(run.executionDate);
+      APP.lastSuccessAt[n.id] = d ? d.getTime() : 0;
+    }
+  });
+}
+
+// Recompute every alternative group's chosen / in-flight / superseded display
+// from APP.lastSuccessAt (chosen = latest success) + the live run status
+// (in-flight = latest run not yet finished). Cheap + no network — safe to call on
+// every poll tick. Also refreshes the open sidebar's group notice in place.
+function refreshGroupStates() {
+  var byGroup = {};
+  APP.nodes.forEach(function (n) {
+    if (n.available && n.type === "alternative" && n.group) {
+      (byGroup[n.group] = byGroup[n.group] || []).push(n);
+    }
+  });
+
+  Object.keys(byGroup).forEach(function (gid) {
+    var members = byGroup[gid];
+
+    // Chosen = the member with the most recent observed success.
+    var chosenId = null;
+    var best = -Infinity;
+    members.forEach(function (n) {
+      var t = APP.lastSuccessAt[n.id];
+      if (t != null && t > best) {
+        best = t;
+        chosenId = n.id;
+      }
+    });
+    APP.groupChoice[gid] = chosenId;
+    var hasChosen = chosenId != null;
+
+    members.forEach(function (n) {
+      var el = APP.nodeEls[n.id];
+      if (!el) return;
+      var entry = APP.statusByUuid ? APP.statusByUuid[n.uuid] : null;
+      var run = entry ? entry.run : null;
+      var inFlight = !!(run && run.status && !isRunFinished(run.status));
+      var isChosen = n.id === chosenId;
+      el.classList.toggle("is-current", isChosen);
+      // Greyed only once a chosen exists, and only for members that are neither
+      // the chosen nor currently running (running members show normal/active).
+      el.classList.toggle("superseded", hasChosen && !isChosen && !inFlight);
+    });
+  });
+
+  updateAltNoteSlot();
+}
+
+// Replace the open sidebar's group-notice line in place (no full re-render, so it
+// can run on every poll tick without refetching outputs). No-op if the panel is
+// closed / the slot isn't present.
+function updateAltNoteSlot() {
+  var slot = document.getElementById("sb-altnote-slot");
+  if (!slot) return;
+  var node = APP.selectedId ? APP.nodeById[APP.selectedId] : null;
+  slot.innerHTML = node ? groupExclusionNoticeHtml(node) : "";
+}
+
+// A small notice for the sidebar telling the user where this node stands in its
+// alternative group: the chosen method, a not-yet-chosen run in flight, or
+// superseded by whichever sibling holds the latest success.
+function groupExclusionNoticeHtml(node) {
+  if (!node.group) return "";
+  var chosenId = APP.groupChoice[node.group];
+  var chosen = chosenId ? APP.nodeById[chosenId] : null;
+  var entry = APP.statusByUuid ? APP.statusByUuid[node.uuid] : null;
+  var run = entry ? entry.run : null;
+  var inFlight = !!(run && run.status && !isRunFinished(run.status));
+
+  if (chosenId && chosenId === node.id) {
+    return (
+      '<div class="sb-altnote is-current">' +
+      "✓ Chosen method for this group (it holds the most recent successful run)." +
+      "</div>"
+    );
+  }
+  if (inFlight) {
+    return (
+      '<div class="sb-altnote running">' +
+      "● Running — " +
+      (chosen
+        ? escapeHtml(chosen.label) +
+          " stays the chosen method until this run succeeds."
+        : "this becomes the chosen method if the run succeeds.") +
+      "</div>"
+    );
+  }
+  if (chosenId) {
+    return (
+      '<div class="sb-altnote superseded">' +
+      "⊘ Superseded — " +
+      escapeHtml(chosen ? chosen.label : chosenId) +
+      " is the chosen method for this group (most recent successful run)." +
+      "</div>"
+    );
+  }
+  return ""; // no member has succeeded yet → no choice made
+}
+
+/* ------------------------------------------------------------------ *
  * Boot
  * ------------------------------------------------------------------ */
 // Holds the loaded + merged state so later tasks can render from it.
@@ -1817,6 +1974,12 @@ var APP = {
   // T2.3 — in-flight runs keyed by node id (value = the run id being polled).
   // Guards against double-triggering and lets stale poll ticks self-cancel.
   activeRun: {},
+  // T2.4 — mutual exclusion for alternative groups. groupChoice = group id ->
+  // chosen node id (recomputed each refresh = the member with the latest
+  // success). lastSuccessAt = node id -> ms of its most recent observed success
+  // (durable, so a later re-run doesn't drop the chosen mark).
+  groupChoice: {},
+  lastSuccessAt: {},
 };
 
 async function init() {
@@ -1847,6 +2010,11 @@ async function init() {
     // card, then fetch real last-run status and fill them in.
     stampStatusLoading(APP.nodes);
     await loadStatuses(APP.nodes);
+    // T2.4 — with live status in hand, record each alternative-group member's
+    // most recent success and render the chosen / running / superseded states so
+    // the choice persists across refreshes (it then stays current as runs poll).
+    seedGroupSuccessFromStatus();
+    refreshGroupStates();
     // T2.2 — fetch the workspace's connections so the parameter form can offer a
     // dropdown for DHIS2Connection / CustomConnection params. Best-effort: a
     // failure just leaves the form's text-slug fallback in place.
