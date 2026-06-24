@@ -1,5 +1,5 @@
 {
-  "version": "2026-06-15",
+  "version": "2026-06-24",
   "_notes": "Authoring notes, conventions, group-aware lock/unlock semantics, and change log live in pipeline_map_NOTES.md (repo root, next to this file and pipeline_map_schema.json).",
   "grid": { "cols": 11 },
   "nodes": [
@@ -200,17 +200,20 @@
     { "from": "snt_dhis2_formatting", "to": "snt_dhis2_outliers_imputation_iqr", "type": "solid" },
     { "from": "snt_dhis2_formatting", "to": "snt_dhis2_outliers_imputation_path", "type": "solid" },
 
-    { "from": "snt_dhis2_outliers_imputation_magic_glasses", "to": "snt_dhis2_reporting_rate_dataelement", "type": "solid" },
-    { "from": "snt_dhis2_outliers_imputation_mean", "to": "snt_dhis2_reporting_rate_dataelement", "type": "solid" },
-    { "from": "snt_dhis2_outliers_imputation_median", "to": "snt_dhis2_reporting_rate_dataelement", "type": "solid" },
-    { "from": "snt_dhis2_outliers_imputation_iqr", "to": "snt_dhis2_reporting_rate_dataelement", "type": "solid" },
-    { "from": "snt_dhis2_outliers_imputation_path", "to": "snt_dhis2_reporting_rate_dataelement", "type": "solid" },
+    { "from": "snt_dhis2_formatting", "to": "snt_dhis2_reporting_rate_dataelement", "type": "solid" },
+    { "from": "snt_dhis2_formatting", "to": "snt_dhis2_reporting_rate_dataset", "type": "solid" },
 
-    { "from": "snt_dhis2_outliers_imputation_magic_glasses", "to": "snt_dhis2_reporting_rate_dataset", "type": "solid" },
-    { "from": "snt_dhis2_outliers_imputation_mean", "to": "snt_dhis2_reporting_rate_dataset", "type": "solid" },
-    { "from": "snt_dhis2_outliers_imputation_median", "to": "snt_dhis2_reporting_rate_dataset", "type": "solid" },
-    { "from": "snt_dhis2_outliers_imputation_iqr", "to": "snt_dhis2_reporting_rate_dataset", "type": "solid" },
-    { "from": "snt_dhis2_outliers_imputation_path", "to": "snt_dhis2_reporting_rate_dataset", "type": "solid" },
+    { "from": "snt_dhis2_outliers_imputation_magic_glasses", "to": "snt_dhis2_reporting_rate_dataelement", "type": "optional" },
+    { "from": "snt_dhis2_outliers_imputation_mean", "to": "snt_dhis2_reporting_rate_dataelement", "type": "optional" },
+    { "from": "snt_dhis2_outliers_imputation_median", "to": "snt_dhis2_reporting_rate_dataelement", "type": "optional" },
+    { "from": "snt_dhis2_outliers_imputation_iqr", "to": "snt_dhis2_reporting_rate_dataelement", "type": "optional" },
+    { "from": "snt_dhis2_outliers_imputation_path", "to": "snt_dhis2_reporting_rate_dataelement", "type": "optional" },
+
+    { "from": "snt_dhis2_outliers_imputation_magic_glasses", "to": "snt_dhis2_reporting_rate_dataset", "type": "optional" },
+    { "from": "snt_dhis2_outliers_imputation_mean", "to": "snt_dhis2_reporting_rate_dataset", "type": "optional" },
+    { "from": "snt_dhis2_outliers_imputation_median", "to": "snt_dhis2_reporting_rate_dataset", "type": "optional" },
+    { "from": "snt_dhis2_outliers_imputation_iqr", "to": "snt_dhis2_reporting_rate_dataset", "type": "optional" },
+    { "from": "snt_dhis2_outliers_imputation_path", "to": "snt_dhis2_reporting_rate_dataset", "type": "optional" },
 
     { "from": "snt_dhis2_formatting", "to": "snt_dhis2_population_transformation", "type": "solid" },
     { "from": "snt_dhis2_formatting", "to": "snt_dhis2_incidence", "type": "solid" },
@@ -234,9 +237,6 @@
     { "from": "snt_dhis2_population_transformation", "to": "snt_dhis2_incidence", "type": "optional" },
     { "from": "snt_dhs_indicators", "to": "snt_dhis2_incidence", "type": "optional" },
 
-    { "from": "snt_worldpop_extract", "to": "snt_dhis2_population_transformation", "type": "optional" },
-    { "from": "snt_worldpop_extract", "to": "snt_map_extracts", "type": "optional" },
-    { "from": "snt_worldpop_extract", "to": "snt_healthcare_access", "type": "optional" },
     { "from": "snt_dhis2_formatting", "to": "snt_healthcare_access", "type": "solid" }
   ]
 }

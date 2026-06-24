@@ -112,11 +112,11 @@
 <div class="notes" id="notes"></div>
 
 <script>
-/* ---- Embedded snapshot of pipeline_map.json (v2026-06-15). -------------
+/* ---- Embedded snapshot of pipeline_map.json (v2026-06-24). -------------
    Self-contained so this file opens directly from disk. If the map changes,
    re-paste the nodes/edges below (or regenerate this preview). ---------- */
 const MAP = {
-  version: "2026-06-15",
+  version: "2026-06-24",
   nodes: [
     { id:"snt_dhis2_extract", code:"A.1", label:"DHIS2 Extract", type:"mandatory", row:0, col:5, track:"A", description:"Extracts DHIS2 pyramid, routine analytics, population, shapes, and reporting rates for a period." },
     { id:"snt_dhis2_formatting", code:"A.2", label:"DHIS2 Formatting", type:"mandatory", row:1, col:5, track:"A", description:"Processes and formats the DHIS2 extracts (pyramid, shapes, routine data) for the SNT workflow." },
@@ -144,16 +144,18 @@ const MAP = {
     { from:"snt_dhis2_formatting", to:"snt_dhis2_outliers_imputation_median", type:"solid" },
     { from:"snt_dhis2_formatting", to:"snt_dhis2_outliers_imputation_iqr", type:"solid" },
     { from:"snt_dhis2_formatting", to:"snt_dhis2_outliers_imputation_path", type:"solid" },
-    { from:"snt_dhis2_outliers_imputation_magic_glasses", to:"snt_dhis2_reporting_rate_dataelement", type:"solid" },
-    { from:"snt_dhis2_outliers_imputation_mean", to:"snt_dhis2_reporting_rate_dataelement", type:"solid" },
-    { from:"snt_dhis2_outliers_imputation_median", to:"snt_dhis2_reporting_rate_dataelement", type:"solid" },
-    { from:"snt_dhis2_outliers_imputation_iqr", to:"snt_dhis2_reporting_rate_dataelement", type:"solid" },
-    { from:"snt_dhis2_outliers_imputation_path", to:"snt_dhis2_reporting_rate_dataelement", type:"solid" },
-    { from:"snt_dhis2_outliers_imputation_magic_glasses", to:"snt_dhis2_reporting_rate_dataset", type:"solid" },
-    { from:"snt_dhis2_outliers_imputation_mean", to:"snt_dhis2_reporting_rate_dataset", type:"solid" },
-    { from:"snt_dhis2_outliers_imputation_median", to:"snt_dhis2_reporting_rate_dataset", type:"solid" },
-    { from:"snt_dhis2_outliers_imputation_iqr", to:"snt_dhis2_reporting_rate_dataset", type:"solid" },
-    { from:"snt_dhis2_outliers_imputation_path", to:"snt_dhis2_reporting_rate_dataset", type:"solid" },
+    { from:"snt_dhis2_formatting", to:"snt_dhis2_reporting_rate_dataelement", type:"solid" },
+    { from:"snt_dhis2_formatting", to:"snt_dhis2_reporting_rate_dataset", type:"solid" },
+    { from:"snt_dhis2_outliers_imputation_magic_glasses", to:"snt_dhis2_reporting_rate_dataelement", type:"optional" },
+    { from:"snt_dhis2_outliers_imputation_mean", to:"snt_dhis2_reporting_rate_dataelement", type:"optional" },
+    { from:"snt_dhis2_outliers_imputation_median", to:"snt_dhis2_reporting_rate_dataelement", type:"optional" },
+    { from:"snt_dhis2_outliers_imputation_iqr", to:"snt_dhis2_reporting_rate_dataelement", type:"optional" },
+    { from:"snt_dhis2_outliers_imputation_path", to:"snt_dhis2_reporting_rate_dataelement", type:"optional" },
+    { from:"snt_dhis2_outliers_imputation_magic_glasses", to:"snt_dhis2_reporting_rate_dataset", type:"optional" },
+    { from:"snt_dhis2_outliers_imputation_mean", to:"snt_dhis2_reporting_rate_dataset", type:"optional" },
+    { from:"snt_dhis2_outliers_imputation_median", to:"snt_dhis2_reporting_rate_dataset", type:"optional" },
+    { from:"snt_dhis2_outliers_imputation_iqr", to:"snt_dhis2_reporting_rate_dataset", type:"optional" },
+    { from:"snt_dhis2_outliers_imputation_path", to:"snt_dhis2_reporting_rate_dataset", type:"optional" },
     { from:"snt_dhis2_formatting", to:"snt_dhis2_population_transformation", type:"solid" },
     { from:"snt_dhis2_formatting", to:"snt_dhis2_incidence", type:"solid" },
     { from:"snt_dhis2_formatting", to:"snt_seasonality_cases", type:"solid" },
@@ -171,9 +173,6 @@ const MAP = {
     { from:"snt_dhis2_reporting_rate_dataset", to:"snt_dhis2_incidence", type:"optional" },
     { from:"snt_dhis2_population_transformation", to:"snt_dhis2_incidence", type:"optional" },
     { from:"snt_dhs_indicators", to:"snt_dhis2_incidence", type:"optional" },
-    { from:"snt_worldpop_extract", to:"snt_dhis2_population_transformation", type:"optional" },
-    { from:"snt_worldpop_extract", to:"snt_map_extracts", type:"optional" },
-    { from:"snt_worldpop_extract", to:"snt_healthcare_access", type:"optional" },
     { from:"snt_dhis2_formatting", to:"snt_healthcare_access", type:"solid" }
   ]
 };
@@ -356,9 +355,9 @@ document.getElementById("notes").innerHTML =
   'Solid boxes group <b>alternative</b> pipelines &mdash; run one (running another clears it). An arrow to/from a box ' +
   'means the dependency applies to the group as a whole (whichever member you run), so the five A.3 / two A.4 edges ' +
   'collapse into one line each.' +
-  '<br><br><b>Try the group-aware unlock:</b> run A.1 &rarr; A.2, then run <i>any one</i> A.3 outlier method &mdash; ' +
-  'both A.4 reporting-rate cards unlock immediately (you don\'t need all five). That is the new hard A.3 &rarr; A.4 edge, ' +
-  'gated per <i>group</i> rather than per node.';
+  '<br><br><b>A.4 dependency:</b> run A.1 &rarr; A.2 and both A.4 reporting-rate cards unlock &mdash; A.4 now hard-depends ' +
+  'on A.2 (solid). The A.3 &rarr; A.4 link is <i>optional</i> (soft): outlier-imputed data is used if available, but A.4 ' +
+  'can run on A.2 alone.';
 render();
 </script>
 </body>

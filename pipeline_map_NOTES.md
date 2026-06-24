@@ -28,8 +28,8 @@ Whimsical) plus Giulia's dependency notes.
 ## Hard A.2 dependents
 
 Per Giulia, these need the pyramid and/or shapes from A.2, so they hard-depend on it:
-**A.3, A.5, A.6, A.7, B.1, B.2, B.3, C.1, D.1.** (A.4 was removed from this list on 2026-06-15
-— see change log.)
+**A.3, A.4, A.5, A.6, A.7, B.1, B.2, B.3, C.1, D.1.** (A.4 was removed from this list on
+2026-06-15, then restored on 2026-06-24 — see change log.)
 
 ## Modeling decision: edges out of an alternative group are drawn per member
 
@@ -50,14 +50,31 @@ edges:
 A non-grouped prerequisite is just a bucket of size 1, so the same rule covers both cases. This
 means:
 
-- **A.3 → A.4** (the 2026-06-15 hard edge): A.4 unlocks when **any one** A.3 outlier method has
-  completed — not all five.
-- **A.2 → A.4** (had it still existed) would have required A.2 (a size-1 bucket) to complete.
+- **A.2 → A.4** (restored as `solid` on 2026-06-24): A.2 is a size-1 bucket, so A.4 unlocks once
+  A.2 has completed.
+- **A.3 → A.4** (was the 2026-06-15 hard edge; **made `optional` on 2026-06-24**): no longer
+  gating — soft data flow only. The bucket rule below is retained to illustrate the semantics for
+  any future solid edge out of an alternative group.
 
 `optional` edges are **never** gating, regardless of group — they only signal soft data flow
 (and styling).
 
 ## Change log
+
+### 2026-06-24 — edges (per Giulia)
+
+- **A.3 → A.4 changed `solid` → `optional`** (all 5 × 2 = 10 per-member edges). A.4 reporting
+  rate no longer hard-depends on the A.3 outlier group; the link is now a soft, non-gating data
+  flow (outlier-imputed data is used if available, else A.4 runs on A.2 alone). This reverses
+  the 2026-06-15 "A.4 HARD-depends on A.3" decision below and retires the "first solid edge out
+  of an alternative group" case.
+- **Added A.2 → A.4 `solid`** (2 edges, one per A.4 member). A.4 now hard-depends on A.2
+  (DHIS2 Formatting) instead of on A.3. So A.4 unlocks once A.2 has completed, and **A.1 remains
+  the only root.** (This re-establishes the A.2 → A.4 hard dependency that had been removed on
+  2026-06-15.)
+- **Deleted B.1 → A.5, B.1 → B.2, B.1 → B.3** (all were `optional`). WorldPop Extract (B.1) no
+  longer feeds Population Transformation, MAP Extracts, or Access to Health Care. B.1 now has no
+  outgoing edges (it remains a leaf, still hard-depending on A.2).
 
 ### 2026-06-15 — edges (per Giulia, review of the interactive preview)
 
@@ -79,8 +96,9 @@ solid edges). See group-aware lock/unlock above.
 
 ## Open for T0.5 review
 
-- the exact set of dashed (`optional`) edges into A.6;
-- the B.1 → A.5 soft link;
-- the group-aware unlock semantics for the A.3 → A.4 hard edge.
+- the exact set of dashed (`optional`) edges into A.6.
 
-Confirm all three with Giulia + PM against the rendered layout.
+(The B.1 → A.5 soft link and the A.3 → A.4 hard edge were both resolved on 2026-06-24 — see
+change log: B.1 → A.5 deleted, A.3 → A.4 made `optional`.)
+
+Confirm with Giulia + PM against the rendered layout.
