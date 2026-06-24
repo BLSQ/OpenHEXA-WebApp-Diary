@@ -557,6 +557,40 @@ pipeline is hard-coded, so if the map adds or changes an alternative group later
 
 ---
 
+Alternative Groups: Chosen vs Superseded States
+What triggers it: Nodes with type: "alternative" that share the same group value form a mutually exclusive set (e.g., the five A.3 outlier methods, the two A.4 reporting-rate variants).
+
+The choice rule: Exactly one member per group is chosen — the one holding the most recent successful run. The choice is purely data-driven from run history, never from the act of triggering a run.
+
+**Three display states per member**:
+
+1. "✓ Chosen" (normal colors, no greying)
+   - The member with the latest successful run timestamp
+   - Label in sidebar: "✓ Chosen method for this group (it holds the most recent successful run)."
+     \*CSS class: `is-current`
+
+2. **In-flight** (normal colors, no greying, no label)
+   - A member whose latest run is queued/running/terminating
+   - Shows active like any other node
+   - Does NOT become chosen until/unless it succeeds
+   - Label in sidebar: "⊘ Not yet chosen — waiting for this run to complete" (if it's the selected node)
+
+3. "**⊘ Superseded**" (greyed out, still clickable)
+   - Any other member once the group has a chosen one
+   - Only greyed if: (a) the group has a chosen member AND (b) this member is neither chosen nor in-flight
+   - Label in sidebar: "⊘ Superseded — [chosen member name] is the chosen method for this group (most recent successful run)."
+   - CSS class: `superseded`
+
+**Key behaviors**:
+
+- If no member has ever succeeded, all show normal (no choice yet made).
+- Running a member never moves the ✓ mark — only a succeeding run does.
+- Success timestamps are tracked durably in APP.lastSuccessAt per node, so a later re-run whose status is in-flight/failed doesn't drop the chosen mark.
+- The group state is recomputed cheaply on every poll tick from run status + success history (no network call).
+- The sidebar notice updates in place to reflect the selected node's position in its group.
+
+---
+
 **👩‍🏫 Tutorial for the human (optional, hands-on):** the test is to run one of a pair and watch
 its sibling step aside — **once the run succeeds**. 👀
 
