@@ -1625,8 +1625,8 @@ function applyRunToNode(node, run) {
   APP.statusByUuid[node.uuid] = { code: prev.code || null, run: run };
   setNodeStatusRow(node.id, statusRowHtml("ok", run, runPageUrl(node, run)));
   // T2.4 — a fresh success makes this member its group's most-recent success
-  // (and thus the chosen one). Record it durably so a later re-run doesn't drop
-  // the mark, then recompute the group's chosen / running / superseded display.
+  // (and thus the in-use one). Record it durably so a later re-run doesn't drop
+  // the mark, then recompute the group's in-use / running / superseded display.
   if (run && run.status === "success") {
     var d = parseRunDate(run.executionDate);
     APP.lastSuccessAt[node.id] = d ? d.getTime() : Date.now();
@@ -1793,7 +1793,7 @@ async function runNode(node) {
     duration: null,
   };
   // applyRunToNode folds the run into the status + (T2.4) recomputes the group's
-  // chosen/running/superseded display — so the just-triggered member immediately
+  // in-use/running/superseded display — so the just-triggered member immediately
   // shows as active (normal), without taking the ✓ mark until it succeeds.
   applyRunToNode(node, run);
   setRunStatusLine(
@@ -1902,20 +1902,20 @@ function finishRun(node, run) {
  *
  * Alternative members that share a `group` (the five A.3 outlier methods, the
  * two A.4 reporting-rate variants) are mutually exclusive. Exactly one member is
- * the *chosen* method: **the one holding the most recent successful run**. The
+ * the *in-use* method: **the one holding the most recent successful run**. The
  * choice is therefore derived purely from run history — never from the act of
  * triggering a run. Entirely data-driven from each node's `group` (set in
  * mergeNodes); nothing about A.3/A.4 is hardcoded.
  *
  * Per-member display (refreshGroupStates):
- *   - chosen      → "✓ chosen", normal colours. The member with the latest
+ *   - in use      → "✓ in use", normal colours. The member with the latest
  *                   successful run (tracked in APP.lastSuccessAt so it survives a
  *                   re-run: a newer non-success run does NOT drop the mark).
  *   - in-flight   → normal colours, NO mark. A member whose latest run is still
  *                   queued/running/terminating is shown active like any node, but
- *                   it does not become chosen until/unless it *succeeds*.
+ *                   it does not become in-use until/unless it *succeeds*.
  *   - superseded  → greyed (still clickable). Any other member, once the group
- *                   has a chosen one. (If no member has ever succeeded, all show
+ *                   has an in-use one. (If no member has ever succeeded, all show
  *                   normal — no choice has been made yet.)
  *
  * So running a member never moves the ✓ mark; only a succeeding run does, at
@@ -1923,14 +1923,14 @@ function finishRun(node, run) {
  *
  * State is set on load/refresh (seedGroupSuccessFromStatus → refreshGroupStates,
  * from the live status snapshot) and kept current during a run (applyRunToNode
- * calls refreshGroupStates on every poll tick). APP.groupChoice maps group id ->
- * chosen node id (recomputed each refresh); APP.lastSuccessAt maps node id -> ms
+ * calls refreshGroupStates on every poll tick). APP.groupInUse maps group id ->
+ * in-use node id (recomputed each refresh); APP.lastSuccessAt maps node id -> ms
  * of its most recent observed success. */
 
 // Record the most recent observed success per alternative-group member from the
 // live status snapshot (boot). Kept in APP.lastSuccessAt so a later re-run (whose
 // in-flight/failed status would otherwise hide the prior success) doesn't drop
-// the chosen mark. Only `success` runs seed it.
+// the in-use mark. Only `success` runs seed it.
 function seedGroupSuccessFromStatus() {
   if (!APP.statusByUuid) return; // status unavailable (outside OpenHEXA / failed)
   APP.nodes.forEach(function (n) {
@@ -1944,8 +1944,8 @@ function seedGroupSuccessFromStatus() {
   });
 }
 
-// Recompute every alternative group's chosen / in-flight / superseded display
-// from APP.lastSuccessAt (chosen = latest success) + the live run status
+// Recompute every alternative group's in-use / in-flight / superseded display
+// from APP.lastSuccessAt (in use = latest success) + the live run status
 // (in-flight = latest run not yet finished). Cheap + no network — safe to call on
 // every poll tick. Also refreshes the open sidebar's group notice in place.
 function refreshGroupStates() {
@@ -1959,18 +1959,18 @@ function refreshGroupStates() {
   Object.keys(byGroup).forEach(function (gid) {
     var members = byGroup[gid];
 
-    // Chosen = the member with the most recent observed success.
-    var chosenId = null;
+    // In use = the member with the most recent observed success.
+    var inUseId = null;
     var best = -Infinity;
     members.forEach(function (n) {
       var t = APP.lastSuccessAt[n.id];
       if (t != null && t > best) {
         best = t;
-        chosenId = n.id;
+        inUseId = n.id;
       }
     });
-    APP.groupChoice[gid] = chosenId;
-    var hasChosen = chosenId != null;
+    APP.groupInUse[gid] = inUseId;
+    var hasInUse = inUseId != null;
 
     members.forEach(function (n) {
       var el = APP.nodeEls[n.id];
@@ -1978,11 +1978,11 @@ function refreshGroupStates() {
       var entry = APP.statusByUuid ? APP.statusByUuid[n.uuid] : null;
       var run = entry ? entry.run : null;
       var inFlight = !!(run && run.status && !isRunFinished(run.status));
-      var isChosen = n.id === chosenId;
-      el.classList.toggle("is-current", isChosen);
-      // Greyed only once a chosen exists, and only for members that are neither
-      // the chosen nor currently running (running members show normal/active).
-      el.classList.toggle("superseded", hasChosen && !isChosen && !inFlight);
+      var isInUse = n.id === inUseId;
+      el.classList.toggle("is-current", isInUse);
+      // Greyed only once an in-use member exists, and only for members that are
+      // neither in use nor currently running (running members show normal/active).
+      el.classList.toggle("superseded", hasInUse && !isInUse && !inFlight);
     });
   });
 
@@ -2000,20 +2000,20 @@ function updateAltNoteSlot() {
 }
 
 // A small notice for the sidebar telling the user where this node stands in its
-// alternative group: the chosen method, a not-yet-chosen run in flight, or
+// alternative group: the in-use method, an in-flight run not yet in use, or
 // superseded by whichever sibling holds the latest success.
 function groupExclusionNoticeHtml(node) {
   if (!node.group) return "";
-  var chosenId = APP.groupChoice[node.group];
-  var chosen = chosenId ? APP.nodeById[chosenId] : null;
+  var inUseId = APP.groupInUse[node.group];
+  var inUseNode = inUseId ? APP.nodeById[inUseId] : null;
   var entry = APP.statusByUuid ? APP.statusByUuid[node.uuid] : null;
   var run = entry ? entry.run : null;
   var inFlight = !!(run && run.status && !isRunFinished(run.status));
 
-  if (chosenId && chosenId === node.id) {
+  if (inUseId && inUseId === node.id) {
     return (
       '<div class="sb-altnote is-current">' +
-      "✓ Chosen method for this group (it holds the most recent successful run)." +
+      "✓ In use — this method holds the most recent successful run for this group." +
       "</div>"
     );
   }
@@ -2021,19 +2021,19 @@ function groupExclusionNoticeHtml(node) {
     return (
       '<div class="sb-altnote running">' +
       "● Running — " +
-      (chosen
-        ? escapeHtml(chosen.label) +
-          " stays the chosen method until this run succeeds."
-        : "this becomes the chosen method if the run succeeds.") +
+      (inUseNode
+        ? escapeHtml(inUseNode.label) +
+          " stays in use until this run succeeds."
+        : "this becomes the method in use if the run succeeds.") +
       "</div>"
     );
   }
-  if (chosenId) {
+  if (inUseId) {
     return (
       '<div class="sb-altnote superseded">' +
       "⊘ Superseded — " +
-      escapeHtml(chosen ? chosen.label : chosenId) +
-      " is the chosen method for this group (most recent successful run)." +
+      escapeHtml(inUseNode ? inUseNode.label : inUseId) +
+      " is in use for this group (most recent successful run)." +
       "</div>"
     );
   }
@@ -2064,11 +2064,11 @@ var APP = {
   // T2.3 — in-flight runs keyed by node id (value = the run id being polled).
   // Guards against double-triggering and lets stale poll ticks self-cancel.
   activeRun: {},
-  // T2.4 — mutual exclusion for alternative groups. groupChoice = group id ->
-  // chosen node id (recomputed each refresh = the member with the latest
+  // T2.4 — mutual exclusion for alternative groups. groupInUse = group id ->
+  // in-use node id (recomputed each refresh = the member with the latest
   // success). lastSuccessAt = node id -> ms of its most recent observed success
-  // (durable, so a later re-run doesn't drop the chosen mark).
-  groupChoice: {},
+  // (durable, so a later re-run doesn't drop the in-use mark).
+  groupInUse: {},
   lastSuccessAt: {},
 };
 
@@ -2101,8 +2101,8 @@ async function init() {
     stampStatusLoading(APP.nodes);
     await loadStatuses(APP.nodes);
     // T2.4 — with live status in hand, record each alternative-group member's
-    // most recent success and render the chosen / running / superseded states so
-    // the choice persists across refreshes (it then stays current as runs poll).
+    // most recent success and render the in-use / running / superseded states so
+    // the selection persists across refreshes (it then stays current as runs poll).
     seedGroupSuccessFromStatus();
     refreshGroupStates();
     // T2.2 — fetch the workspace's connections so the parameter form can offer a
