@@ -300,7 +300,9 @@ function renderGrid(nodes) {
       n.type +
       "]  id: " +
       n.id +
-      (n.available ? "" : "\n\n⦸ Not installed here — click to see how to install it");
+      (n.available
+        ? ""
+        : "\n\n⦸ Not installed here — click to see how to install it");
 
     var badge = FILLED_TYPES[n.type]
       ? '<span class="type-badge filled">' + escapeHtml(n.type) + "</span>"
@@ -647,7 +649,8 @@ async function loadStatuses(nodes) {
   var items = (data.pipelines && data.pipelines.items) || [];
   var byUuid = {};
   items.forEach(function (p) {
-    var run = p.runs && p.runs.items && p.runs.items.length ? p.runs.items[0] : null;
+    var run =
+      p.runs && p.runs.items && p.runs.items.length ? p.runs.items[0] : null;
     byUuid[p.id] = { code: p.code, run: run };
   });
   APP.statusByUuid = byUuid;
@@ -664,7 +667,14 @@ async function loadStatuses(nodes) {
     }
     var run = entry.run;
     var runUrl = run
-      ? base + "/workspaces/" + slug + "/pipelines/" + entry.code + "/runs/" + run.id + "/"
+      ? base +
+        "/workspaces/" +
+        slug +
+        "/pipelines/" +
+        entry.code +
+        "/runs/" +
+        run.id +
+        "/"
       : null;
     setNodeStatusRow(n.id, statusRowHtml("ok", run, runUrl));
   });
@@ -910,7 +920,8 @@ function fieldControlHtml(p) {
 
   // single choice -> select.
   if (p.choices && p.choices.length) {
-    var dv = p.default !== undefined && p.default !== null ? String(p.default) : "";
+    var dv =
+      p.default !== undefined && p.default !== null ? String(p.default) : "";
     return (
       '<select id="' +
       id +
@@ -1021,7 +1032,9 @@ function fieldControlHtml(p) {
     p.default !== undefined && p.default !== null
       ? escapeHtml(String(p.default))
       : "";
-  return '<input id="' + id + '" class="finput" type="text" value="' + sv + '">';
+  return (
+    '<input id="' + id + '" class="finput" type="text" value="' + sv + '">'
+  );
 }
 
 // Build the <form> of editable fields for a node's parameters.
@@ -1081,7 +1094,11 @@ function paramsFormHtml(node) {
     })
     .join("");
 
-  return '<form id="sb-form" class="sb-form" autocomplete="off">' + fields + "</form>";
+  return (
+    '<form id="sb-form" class="sb-form" autocomplete="off">' +
+    fields +
+    "</form>"
+  );
 }
 
 /* Read the form back into a `config` object in runPipeline's shape, validating
@@ -1168,7 +1185,7 @@ function renderEmptySidebar() {
   if (!sb) return;
   sb.innerHTML =
     '<div class="sb-empty">' +
-    "<p>Select a pipeline node to see its description, parameters, links, and latest outputs.</p>" +
+    "<p>Hi! Welcome to the pipeline map. Click on a pipeline node to see its description, parameters, links, and latest outputs.</p>" +
     "</div>";
 }
 
@@ -1294,17 +1311,27 @@ function renderSidebar(node) {
       : null;
   var base = appBaseUrl();
 
-  // Links: README always; the run page only when there's a run (+ slug + code).
+  // README link (always) stays in the top links block. The "open latest run"
+  // link is built separately and rendered inside the Latest outputs section
+  // (below Parameters), only when there's a run to link to.
   var links = extLinkHtml(
     githubFolderUrl(node.id),
     "▤",
     "README on GitHub",
     "snt_development / " + node.id,
   );
+  var runLink = "";
   if (run && slug && entry && entry.code) {
     var runUrl =
-      base + "/workspaces/" + slug + "/pipelines/" + entry.code + "/runs/" + run.id + "/";
-    links += extLinkHtml(
+      base +
+      "/workspaces/" +
+      slug +
+      "/pipelines/" +
+      entry.code +
+      "/runs/" +
+      run.id +
+      "/";
+    runLink = extLinkHtml(
       runUrl,
       "▶",
       "Open latest run in OpenHEXA",
@@ -1341,10 +1368,6 @@ function renderSidebar(node) {
     links +
     "</div>" +
     '<section class="sb-sec">' +
-    '<h3 class="sb-sectitle">Latest outputs</h3>' +
-    '<div id="sb-outputs" class="sb-outputs"></div>' +
-    "</section>" +
-    '<section class="sb-sec">' +
     '<h3 class="sb-sectitle">Parameters</h3>' +
     paramsFormHtml(node) +
     '<div class="sb-runrow">' +
@@ -1353,6 +1376,11 @@ function renderSidebar(node) {
     "</div>" +
     '<div id="sb-runstatus" class="sb-runstatus" hidden></div>' +
     '<pre id="sb-config" class="sb-config" hidden></pre>' +
+    "</section>" +
+    '<section class="sb-sec">' +
+    '<h3 class="sb-sectitle">Latest outputs</h3>' +
+    (runLink ? '<div class="sb-links">' + runLink + "</div>" : "") +
+    '<div id="sb-outputs" class="sb-outputs"></div>' +
     "</section>" +
     "</div>";
 
@@ -1679,7 +1707,11 @@ function runStatusLineHtml(node, run) {
       '" target="_blank" rel="noopener noreferrer">view run ↗</a>'
     : "";
   return (
-    '<span class="rs-glyph' + spin + '">' + glyph + "</span> " +
+    '<span class="rs-glyph' +
+    spin +
+    '">' +
+    glyph +
+    "</span> " +
     escapeHtml(label) +
     link
   );
@@ -1862,7 +1894,7 @@ function pollRun(node, runId) {
           setRunStatusLine(
             node.id,
             runStatusLineHtml(node, run) +
-              ' <small>(stopped watching — still running in OpenHEXA)</small>',
+              " <small>(stopped watching — still running in OpenHEXA)</small>",
             runStatusCls(pr.status),
           );
           return;
@@ -2029,8 +2061,7 @@ function groupExclusionNoticeHtml(node) {
       '<div class="sb-altnote running">' +
       "● Running — " +
       (inUseNode
-        ? escapeHtml(inUseNode.label) +
-          " stays in use until this run succeeds."
+        ? escapeHtml(inUseNode.label) + " stays in use until this run succeeds."
         : "this becomes the method in use if the run succeeds.") +
       "</div>"
     );
