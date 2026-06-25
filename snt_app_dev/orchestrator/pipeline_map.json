@@ -106,8 +106,8 @@
       "label": "Population Transformation",
       "description": "Scales, projects, and disaggregates DHIS2 population by demographic group.",
       "type": "facultative",
-      "row": 3,
-      "col": 6,
+      "row": 4,
+      "col": 5.5,
       "track": "A"
     },
     {
@@ -116,7 +116,7 @@
       "label": "DHIS2 Incidence",
       "description": "Computes malaria case metrics and yearly incidence from routine HMIS data.",
       "type": "facultative",
-      "row": 4,
+      "row": 6,
       "col": 5,
       "track": "A"
     },
@@ -126,8 +126,8 @@
       "label": "Seasonality - Cases",
       "description": "Classifies case seasonality at ADM2 from routine confirmed-malaria data.",
       "type": "facultative",
-      "row": 4,
-      "col": 6,
+      "row": 5,
+      "col": 6.5,
       "track": "A"
     },
     {
@@ -136,7 +136,7 @@
       "label": "WorldPop Extract",
       "description": "Extracts WorldPop population raster data for the country.",
       "type": "facultative",
-      "row": 2,
+      "row": 4,
       "col": 7,
       "track": "B"
     },
@@ -146,8 +146,8 @@
       "label": "MAP Extracts",
       "description": "Extracts Malaria Atlas Project rasters and computes zonal statistics.",
       "type": "facultative",
-      "row": 4,
-      "col": 7,
+      "row": 3,
+      "col": 7.5,
       "track": "B"
     },
     {
@@ -156,7 +156,7 @@
       "label": "Access to Health Care",
       "description": "Computes access-to-care metrics from facilities, population, and catchments.",
       "type": "facultative",
-      "row": 4,
+      "row": 2,
       "col": 8,
       "track": "B"
     },
@@ -166,8 +166,8 @@
       "label": "DHS Indicators",
       "description": "Computes DHS survey-based indicators for the SNT process.",
       "type": "facultative",
-      "row": 2,
-      "col": 9,
+      "row": 5,
+      "col": 5.5,
       "track": "C"
     },
     {
@@ -177,7 +177,7 @@
       "description": "Extracts ERA5 climate data from the Copernicus Climate Data Store.",
       "type": "facultative",
       "row": 2,
-      "col": 10,
+      "col": 9.5,
       "track": "D"
     },
     {
@@ -187,7 +187,7 @@
       "description": "Computes rainfall seasonality metrics from ERA5 climate data.",
       "type": "facultative",
       "row": 4,
-      "col": 10,
+      "col": 9.5,
       "track": "D"
     }
   ],
