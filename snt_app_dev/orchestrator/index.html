@@ -52,7 +52,16 @@
       </details>
 
       <section class="canvas" id="canvas" aria-label="Pipeline map">
-        <!-- Nodes + SVG edges get rendered here in T1.2 / T1.3. -->
+        <!-- Pan/zoom controls — an overlay that sits OUTSIDE the transformed
+             #stage, so it stays put while the map is dragged/zoomed. -->
+        <div class="map-controls" id="mapControls" aria-label="Map zoom controls">
+          <button type="button" class="map-btn" data-zoom="in" title="Zoom in" aria-label="Zoom in">+</button>
+          <button type="button" class="map-btn" data-zoom="out" title="Zoom out" aria-label="Zoom out">&#8722;</button>
+          <button type="button" class="map-btn" data-zoom="fit" title="Fit map to view" aria-label="Fit map to view">&#10530;</button>
+        </div>
+        <!-- Nodes + SVG edges are rendered by app.js into #stage (created at
+             runtime); #stage is the element that gets panned and zoomed. Drag
+             anywhere to pan, scroll to zoom. -->
       </section>
 
       <aside class="sidebar" id="sidebar" aria-label="Pipeline details">

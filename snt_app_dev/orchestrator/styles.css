@@ -193,11 +193,69 @@ body {
   border-color: #8e24aa;
 }
 
+/* The canvas is now a fixed clipping viewport: the map lives in #stage (a child)
+ * which is panned/zoomed via a CSS transform. overflow:hidden so the transformed
+ * stage is clipped to this box instead of producing scrollbars. grab cursor
+ * advertises that the map is draggable. */
 .canvas {
   flex: 1;
   position: relative;
-  overflow: auto;
-  padding: 1.5rem;
+  overflow: hidden;
+  padding: 0;
+  cursor: grab;
+  touch-action: none;
+}
+.canvas.panning {
+  cursor: grabbing;
+}
+.canvas.panning * {
+  cursor: grabbing !important;
+}
+
+/* The pan/zoom surface. renderGrid/renderEdges draw the cards + SVG into this;
+ * setupPanZoom applies translate()+scale() to it (transform-origin at 0,0 so the
+ * pan/zoom math is a simple screen<->stage mapping). */
+#stage {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: 0 0;
+  will-change: transform;
+}
+
+/* Floating zoom controls — pinned to the bottom-right of the canvas viewport,
+ * outside #stage so they don't move with the map. */
+.map-controls {
+  position: absolute;
+  right: 0.9rem;
+  bottom: 0.9rem;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.map-btn {
+  width: 34px;
+  height: 34px;
+  border: 1px solid #e2e8f0;
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.96);
+  color: #334155;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+.map-btn:hover {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+}
+.map-btn:active {
+  background: #e2e8f0;
 }
 
 /* --- SVG edge layer (T1.3) --- *

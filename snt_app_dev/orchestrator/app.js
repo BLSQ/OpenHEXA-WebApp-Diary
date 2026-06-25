@@ -270,9 +270,14 @@ function renderGrid(nodes) {
   APP.layout = layout;
   APP.nodeEls = {};
 
-  canvas.innerHTML = "";
-  canvas.style.width = layout.width + "px";
-  canvas.style.height = layout.height + "px";
+  // The cards + edges live in #stage (the pan/zoom surface), not directly in the
+  // canvas — the canvas is the fixed clipping viewport. Clear only the stage so
+  // the overlay controls (siblings of #stage in the canvas) survive a re-render.
+  var stage = ensureStage(canvas);
+  APP.stage = stage;
+  stage.innerHTML = "";
+  stage.style.width = layout.width + "px";
+  stage.style.height = layout.height + "px";
 
   nodes.forEach(function (n) {
     var div = document.createElement("div");
@@ -330,7 +335,7 @@ function renderGrid(nodes) {
       });
     })(n.id);
 
-    canvas.appendChild(div);
+    stage.appendChild(div);
     APP.nodeEls[n.id] = div;
   });
 }
@@ -381,7 +386,9 @@ function renderEdges(nodes, edges) {
     '<marker id="ah-opt" markerWidth="8" markerHeight="8" refX="6.5" refY="2.6" orient="auto" markerUnits="userSpaceOnUse">' +
     '<path d="M0,0 L6,2.6 L0,5.2 Z" fill="#b0bec5"/></marker>' +
     "</defs>";
-  canvas.insertBefore(svg, canvas.firstChild);
+  // Into #stage (the pan/zoom surface), behind the cards renderGrid appended.
+  var stage = APP.stage || ensureStage(canvas);
+  stage.insertBefore(svg, stage.firstChild);
   APP.edgesSvg = svg;
 
   // Bucket alternative-group members by their `group`.
@@ -2041,6 +2048,185 @@ function groupExclusionNoticeHtml(node) {
 }
 
 /* ------------------------------------------------------------------ *
+ * Pan & zoom
+ *
+ * The map is drawn into #stage; this module makes #stage draggable (pan) and
+ * zoomable (wheel + the +/-/fit buttons) by applying a single CSS transform —
+ * no graph/canvas library. The canvas is the fixed clipping viewport.
+ *
+ * Screen<->stage mapping (transform-origin 0,0):
+ *   screen = stage * scale + offset      stage = (screen - offset) / scale
+ * so to keep the point under the cursor fixed while zooming we solve offset for
+ * the new scale (zoomAt). Panning just adds the pointer delta to the offset.
+ *
+ * Click vs drag: pointer capture is taken ONLY once the pointer moves past a
+ * small threshold — so a plain click still reaches a node's own click handler
+ * (selecting it); a real drag pans and then swallows the trailing click so it
+ * doesn't also select whatever was under the release.
+ * ------------------------------------------------------------------ */
+var ZOOM_MIN = 0.25;
+var ZOOM_MAX = 2.5;
+var ZOOM_STEP = 1.15;
+var PAN_THRESHOLD = 4; // px before a press becomes a pan (not a click)
+
+// Get-or-create the #stage surface inside the canvas.
+function ensureStage(canvas) {
+  var stage = canvas.querySelector("#stage");
+  if (!stage) {
+    stage = document.createElement("div");
+    stage.id = "stage";
+    canvas.appendChild(stage);
+  }
+  return stage;
+}
+
+function clampScale(s) {
+  return Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, s));
+}
+
+// Push APP.view onto the stage's transform.
+function applyView() {
+  if (!APP.stage) return;
+  var v = APP.view;
+  APP.stage.style.transform =
+    "translate(" + v.x + "px," + v.y + "px) scale(" + v.scale + ")";
+}
+
+// Zoom by `factor` while keeping the canvas-space point (cx,cy) fixed.
+function zoomAt(cx, cy, factor) {
+  var v = APP.view;
+  var ns = clampScale(v.scale * factor);
+  if (ns === v.scale) return;
+  v.x = cx - ((cx - v.x) / v.scale) * ns;
+  v.y = cy - ((cy - v.y) / v.scale) * ns;
+  v.scale = ns;
+  applyView();
+}
+
+// Reset the view so the whole map fits the viewport (centred, small margin).
+// Never zooms past 1:1 — a small map stays readable rather than ballooning.
+function fitView() {
+  var canvas = document.getElementById("canvas");
+  if (!canvas || !APP.layout) return;
+  var vw = canvas.clientWidth;
+  var vh = canvas.clientHeight;
+  var mw = APP.layout.width;
+  var mh = APP.layout.height;
+  if (!vw || !vh || !mw || !mh) return;
+  var margin = 24;
+  var scale = clampScale(
+    Math.min((vw - margin * 2) / mw, (vh - margin * 2) / mh),
+  );
+  if (scale > 1) scale = 1;
+  APP.view.scale = scale;
+  APP.view.x = Math.max(margin, (vw - mw * scale) / 2);
+  APP.view.y = Math.max(margin, (vh - mh * scale) / 2);
+  applyView();
+}
+
+// Wire pan (pointer drag), zoom (wheel), and the control buttons. Idempotent.
+function setupPanZoom() {
+  var canvas = document.getElementById("canvas");
+  if (!canvas || APP._panzoomReady) return;
+  APP._panzoomReady = true;
+
+  // Wheel = zoom toward the cursor.
+  canvas.addEventListener(
+    "wheel",
+    function (e) {
+      e.preventDefault();
+      var rect = canvas.getBoundingClientRect();
+      zoomAt(
+        e.clientX - rect.left,
+        e.clientY - rect.top,
+        e.deltaY < 0 ? ZOOM_STEP : 1 / ZOOM_STEP,
+      );
+    },
+    { passive: false },
+  );
+
+  var down = null;
+  canvas.addEventListener("pointerdown", function (e) {
+    if (e.button !== 0) return;
+    // Presses on the zoom buttons must not start a pan.
+    if (e.target.closest && e.target.closest(".map-controls")) return;
+    down = {
+      x: e.clientX,
+      y: e.clientY,
+      vx: APP.view.x,
+      vy: APP.view.y,
+      id: e.pointerId,
+      moved: false,
+    };
+  });
+  canvas.addEventListener("pointermove", function (e) {
+    if (!down) return;
+    var dx = e.clientX - down.x;
+    var dy = e.clientY - down.y;
+    if (
+      !down.moved &&
+      (Math.abs(dx) > PAN_THRESHOLD || Math.abs(dy) > PAN_THRESHOLD)
+    ) {
+      down.moved = true;
+      canvas.classList.add("panning");
+      // Capture only now, so a plain click never steals the node's click event.
+      try {
+        canvas.setPointerCapture(down.id);
+      } catch (_) {}
+    }
+    if (down.moved) {
+      APP.view.x = down.vx + dx;
+      APP.view.y = down.vy + dy;
+      applyView();
+    }
+  });
+  function endDrag(e) {
+    if (!down) return;
+    APP._dragged = down.moved; // tells the capture-phase click handler to swallow
+    try {
+      canvas.releasePointerCapture(down.id);
+    } catch (_) {}
+    down = null;
+    canvas.classList.remove("panning");
+  }
+  canvas.addEventListener("pointerup", endDrag);
+  canvas.addEventListener("pointercancel", endDrag);
+
+  // Swallow the click that ends a drag so the release doesn't select a node.
+  canvas.addEventListener(
+    "click",
+    function (e) {
+      if (APP._dragged) {
+        e.stopPropagation();
+        e.preventDefault();
+        APP._dragged = false;
+      }
+    },
+    true,
+  );
+
+  // Zoom buttons (+ / - / fit).
+  var ctl = document.getElementById("mapControls");
+  if (ctl) {
+    ctl.addEventListener("click", function (e) {
+      var btn = e.target.closest("[data-zoom]");
+      if (!btn) return;
+      var act = btn.getAttribute("data-zoom");
+      if (act === "fit") {
+        fitView();
+        return;
+      }
+      var rect = canvas.getBoundingClientRect();
+      zoomAt(
+        rect.width / 2,
+        rect.height / 2,
+        act === "in" ? ZOOM_STEP : 1 / ZOOM_STEP,
+      );
+    });
+  }
+}
+
+/* ------------------------------------------------------------------ *
  * Boot
  * ------------------------------------------------------------------ */
 // Holds the loaded + merged state so later tasks can render from it.
@@ -2054,6 +2240,12 @@ var APP = {
   layout: null,
   nodeEls: {},
   edgesSvg: null,
+  // Pan/zoom: #stage is the transformed surface; view = its current
+  // translate (x,y px) + scale. _dragged flags a just-finished pan so the
+  // trailing click is swallowed instead of selecting a node.
+  stage: null,
+  view: { x: 0, y: 0, scale: 1 },
+  _dragged: false,
   // T1.5 — latest run per pipeline UUID, set by loadStatuses.
   statusByUuid: null,
   // T1.6 — node lookup by id + the currently-selected node (null = none).
@@ -2096,6 +2288,11 @@ async function init() {
     logMergedNodes(APP.nodes, data.map, data.cards);
     renderGrid(APP.nodes);
     renderEdges(APP.nodes, data.map.edges);
+    // Make the map draggable + zoomable, then fit the whole map in view so
+    // nothing starts hidden off-screen (the old scroll-only canvas hid the
+    // right/bottom edges behind scrollbars).
+    setupPanZoom();
+    fitView();
     // T1.5 — the map is now on screen; stamp a loading badge on every available
     // card, then fetch real last-run status and fill them in.
     stampStatusLoading(APP.nodes);
