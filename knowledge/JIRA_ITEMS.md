@@ -46,8 +46,8 @@ creating/updating issues in the UI, not steps for an agent to run.
 | Story — Phase 0                   | [SNT25-537](https://bluesquare.atlassian.net/browse/SNT25-537) | In Progress                                  |
 | Story — Phase 1                   | [SNT25-547](https://bluesquare.atlassian.net/browse/SNT25-547) | In Progress                                  |
 | Story — Phase 2                   | [SNT25-548](https://bluesquare.atlassian.net/browse/SNT25-548) | Backlog                                      |
-| Story — Phase 3                   | [SNT25-549](https://bluesquare.atlassian.net/browse/SNT25-549) | Backlog                                      |
-| Story — Phase 4                   | [SNT25-550](https://bluesquare.atlassian.net/browse/SNT25-550) | Backlog                                      |
+| Story — Phase 3 _(retitled)_      | [SNT25-549](https://bluesquare.atlassian.net/browse/SNT25-549) | Backlog — update title to "Visual & UI/UX polish" |
+| ~~Story — Phase 4~~               | [SNT25-550](https://bluesquare.atlassian.net/browse/SNT25-550) | **Remove** — phase dropped from plan        |
 | Phase 0 Tasks T0.0–T0.7           | SNT25-538, SNT25-540–546                                       | T0.1–T0.4/T0.6/T0.7 Done; T0.0, T0.5 Backlog |
 
 ---
@@ -405,7 +405,7 @@ poll the run, and refresh that node's status and outputs.
 | T2.3 | _tbd_ | Task | T2.3 — Run + poll                            | agent         | T2.2       | Backlog |
 | T2.4 | _tbd_ | Task | T2.4 — Mutual exclusion (alternative groups) | agent         | T2.3       | Backlog |
 | T2.5 | _tbd_ | Task | T2.5 — Missing-pipeline message              | agent         | T1.4       | Backlog |
-| T2.6 | _tbd_ | Task | T2.6 — Deploy + QA running                   | agent, giulia | T2.3       | Backlog |
+| T2.6 | _tbd_ | Task | T2.6 — Upstream locking                      | agent         | T2.3       | Backlog |
 
 ### T2.1 — Confirm params aren't stale
 
@@ -650,76 +650,59 @@ confirm you land on a helpful, actionable panel. 👀
 **Acceptance criteria:** clicking a greyed node opens the "how to install" panel with the
 templates link; the node stays inert in the status/run/mutex systems.
 
-### T2.6 — Deploy + QA running
+### T2.6 — Upstream locking
 
-**Description:** Deploy the runnable version to SNT App Dev and QA by running real pipelines from
-the board.
-**Acceptance criteria:** Giulia runs several pipelines from the deployed app successfully.
+**Description:** Implement dependency locking. A node unlocks only once every upstream `solid`
+edge — i.e. every hard prerequisite — has a completed/successful run in the current session.
+Soft (`optional`) edges draw an arrow but do not gate the downstream node: their output is
+used if available, with a parameter fallback otherwise. This is entirely data-driven from the
+`edges` list in `pipeline_map.json`; no pipeline is hardcoded.
+**Acceptance criteria:** downstream nodes stay locked (visually disabled, not runnable) until
+every hard-dependency predecessor has a successful run in the current session; nodes gated only
+by `optional` edges are unaffected.
 
 ---
 
-## Story — Phase 3 · Dependency locking + polish (SNT25-549)
+## Story — Phase 3 · Visual & UI/UX polish (SNT25-549)
 
-**Description:** Dependency locking + polish — lock downstream nodes until upstream runs
-succeed, add loading/empty/error states, and apply the Phase 1 UI-review feedback.
+> ⚠️ **Jira story SNT25-549 was originally titled "Dependency locking + polish".** The plan was
+> restructured: upstream locking moved to T2.6 in Phase 2; Phase 3 now covers only visual and
+> UX improvements. Update the Jira story title/description manually.
+>
+> **Jira story SNT25-550 ("Generalize across workspaces") has been removed from the plan** —
+> workspace generalization has been verified incrementally at each step. Close or delete
+> SNT25-550 and its tasks in Jira.
 
-| Ref  | Key   | Type | Summary                 | Owner     | Blocked by | Status  |
-| ---- | ----- | ---- | ----------------------- | --------- | ---------- | ------- |
-| T3.1 | _tbd_ | Task | T3.1 — Upstream locking | agent     | T2.3       | Backlog |
-| T3.2 | _tbd_ | Task | T3.2 — States & errors  | agent     | T1.7       | Backlog |
-| T3.3 | _tbd_ | Task | T3.3 — Aesthetics pass  | agent, pm | T1.8       | Backlog |
+**Description:** Polish the first complete working version of the webapp — fix the one remaining
+unhandled failure state, apply the Phase 1 UI-review feedback, and bring the visual quality to
+production-ready.
+**Exit criteria:** the app handles all failure states gracefully; Giulia and the PM are happy
+with the visual quality.
 
-### T3.1 — Upstream locking
+| Ref  | Key   | Type | Summary                           | Owner     | Blocked by | Status  |
+| ---- | ----- | ---- | --------------------------------- | --------- | ---------- | ------- |
+| T3.1 | _tbd_ | Task | T3.1 — Initial-load error banner  | agent     | —          | Backlog |
+| T3.2 | _tbd_ | Task | T3.2 — Aesthetics & UX pass       | agent, pm | T1.7       | Backlog |
 
-**Description:** Implement upstream locking — a node unlocks only once every upstream `edge` has
-a completed/successful run.
-**Acceptance criteria:** downstream nodes stay locked until their prerequisites succeed.
+### T3.1 — Initial-load error banner
 
-### T3.2 — States & errors
+**Description:** Almost every failure mode is already handled gracefully in the app: status-fetch
+failures show a "status unavailable" badge on each node; outputs-fetch failures show an inline
+message; run errors and validation problems surface in the run-status line. The one remaining gap
+is the initial data load: if `pipeline_map.json` or `pipeline_cards.json` can't be fetched,
+`init()` currently only calls `console.error` — the user sees a completely blank canvas with no
+explanation. This task adds a single user-facing error banner rendered into the canvas area for
+that specific case.
+**Acceptance criteria:** a simulated load failure (e.g. temporarily rename one JSON file) shows
+a clear, human-readable error message on screen instead of a blank canvas.
 
-**Description:** Add loading, empty, and error states for status fetch and pipeline runs.
-**Acceptance criteria:** _(proposed)_ each state renders a clear message instead of a blank or
-broken UI.
+### T3.2 — Aesthetics & UX pass
 
-### T3.3 — Aesthetics pass
-
-**Description:** Apply the Phase 1 UI-review feedback; polish for desktop-landscape use.
+**Description:** Apply the feedback collected during the Phase 1 UI review (T1.7) and any UX
+improvements gathered during Phase 2 QA — typography, spacing, colour, readability, and any
+interaction improvements Giulia or the PM flag. Polish for desktop-landscape use.
 **Acceptance criteria:** _(proposed)_ the agreed review-feedback items are addressed and signed
-off by the PM.
-
----
-
-## Story — Phase 4 · Generalize across workspaces (SNT25-550)
-
-**Description:** Generalize across workspaces — confirm the generic-bundle vs per-workspace-config
-separation, prove portability on a second workspace, and document the runbook.
-
-| Ref  | Key   | Type | Summary                                 | Owner         | Blocked by | Status  |
-| ---- | ----- | ---- | --------------------------------------- | ------------- | ---------- | ------- |
-| T4.1 | _tbd_ | Task | T4.1 — Verify generic/per-ws separation | agent         | T2.6       | Backlog |
-| T4.2 | _tbd_ | Task | T4.2 — Deploy to a second workspace     | agent, giulia | T4.1       | Backlog |
-| T4.3 | _tbd_ | Task | T4.3 — Document the runbook             | agent, giulia | T4.2       | Backlog |
-
-### T4.1 — Verify generic/per-ws separation
-
-**Description:** Confirm the bundle has zero hardcoded workspace specifics; everything
-workspace-specific lives in the per-workspace config + cards files.
-**Acceptance criteria:** the same `index.html`/`styles.css`/`app.js`/`pipeline_map.json` work
-unchanged in a second workspace.
-
-### T4.2 — Deploy to a second workspace
-
-**Description:** Prove portability by deploying the orchestrator to one more workspace using only
-a new `workspace_config.json` + `pipeline_cards.json`.
-**Acceptance criteria:** _(proposed)_ the second workspace's orchestrator works with no code
-changes — only new config + cards.
-
-### T4.3 — Document the runbook
-
-**Description:** Update `CLAUDE.md` / `README.md` with the "add a new workspace orchestrator"
-runbook.
-**Acceptance criteria:** _(proposed)_ a new-workspace deploy can be followed step-by-step from
-the docs.
+off by Giulia and the PM.
 
 ---
 
@@ -790,6 +773,8 @@ confirm the pipeline's credentials/scopes for it:
 
 ## Totals
 
-1 Epic + 5 Stories + 28 Tasks = **34 issues** (+ extra created directly in the Jira UI, without being referenced here)
+1 Epic + 4 Stories + 24 Tasks = **29 issues** (+ extras created directly in the Jira UI)
 
-_Backlog (unphased) candidates not counted above: B.1._
+_Phase 4 (SNT25-550, 3 tasks) removed from plan — close/delete in Jira._
+_T2.6 "Deploy + QA running" dropped (redundant); replaced by T2.6 "Upstream locking". Phase 3 reduced to 2 tasks (T3.1 + T3.2)._
+_Backlog (unphased) candidates not counted above: G.1._

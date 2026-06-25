@@ -39,7 +39,7 @@ These were decided in the planning discussion. Revisit only deliberately.
 | -------------------- | -------------------------- | --------------------------------------------------------------------------------- |
 | First milestone      | **Read-only status board** | Lowest risk, shippable, immediately useful as an overview                         |
 | Cross-session status | **Must-have in v1**        | It's the core value; confirmed feasible via `Pipeline.runs` in the GraphQL schema |
-| Dependency locking   | **Deferred to Phase 3**    | Endgoal doc says "added later"; v1 draws arrows but keeps nodes clickable         |
+| Dependency locking   | **T2.6 in Phase 2**        | Endgoal doc says "added later"; moved forward since the rest of Phase 2 is done   |
 | Plan & tasks         | **Markdown in this repo**  | Single source of truth next to code + context                                     |
 | Build/test workspace | **New "SNT App Dev" ws**   | Dedicated, stable, fully populated — not the shared `snt_testing`                 |
 | Timeline             | **No hard deadline**       | Optimize for solid foundations + Giulia's ownership, not speed                    |
@@ -229,38 +229,33 @@ that node's status and outputs.
   message instead of a cryptic error.
   _Done when:_ the message appears for a deliberately-missing pipeline.
 
-- **T2.6 — Deploy + QA running** · 🤖 + 🤿 · Dep: T2.3
-  _Done when:_ Giulia runs several pipelines from the deployed app successfully.
-
----
-
-## Phase 3 — Dependency locking + polish
-
-- **T3.1 — Upstream locking** · 🤖 · Dep: T2.3
-  A node unlocks only once every upstream `edge` has a completed/successful run.
+- **T2.6 — Upstream locking** · 🤖 · Dep: T2.3
+  A node unlocks only once every upstream `solid` edge has a completed/successful run in the
+  current session. Soft (`optional`) edges draw an arrow but do not gate.
   _Done when:_ downstream nodes stay locked until prerequisites succeed.
 
-- **T3.2 — States & errors** · 🤖 · Dep: T1.7
-  Loading, empty, and error states for status fetch and runs.
-
-- **T3.3 — Aesthetics pass** · 🤖 + 👔 · Dep: T1.8
-  Apply the Phase 1 review feedback; desktop-landscape polish.
-
 ---
 
-## Phase 4 — Generalize across workspaces
+## Phase 3 — Visual & UI/UX polish
 
-- **T4.1 — Verify generic/per-ws separation** · 🤖 · Dep: T2.6
-  Confirm the bundle has _zero_ hardcoded workspace specifics; everything ws-specific lives in
-  the per-ws config + cards files.
-  _Done when:_ the same `index.html`/`styles.css`/`app.js`/`pipeline_map.json` work unchanged
-  in a second workspace.
+**Exit criteria:** the app looks and feels production-ready; loading/error states are handled
+gracefully; Giulia and the PM are happy with the visual quality.
 
-- **T4.2 — Deploy to a second workspace** · 🤖 + 🤿 · Dep: T4.1
-  Prove portability by deploying to one more workspace with only new config + cards.
+- **T3.1 — Initial-load error banner** · 🤖 · Dep: —
+  Almost every failure mode is already handled: status-fetch failures show a "status
+  unavailable" badge on each node; outputs-fetch failures show an inline "Couldn't load
+  outputs" message; run errors and validation problems surface in the run-status line. The
+  one remaining gap: if `loadData()` fails — i.e. `pipeline_map.json` or `pipeline_cards.json`
+  can't be fetched — `init()` only calls `console.error`; the user sees a completely blank
+  canvas with no explanation. This task adds a single user-facing error banner rendered into
+  the canvas area for that specific case.
+  _Done when:_ a simulated load failure (e.g. rename one JSON file) shows a clear error
+  message on screen instead of a blank canvas.
 
-- **T4.3 — Document the runbook** · 🤖 + 🤿 · Dep: T4.2
-  Update `CLAUDE.md`/`README.md` with the "add a new workspace orchestrator" steps.
+- **T3.2 — Aesthetics & UX pass** · 🤖 + 👔 · Dep: T1.7
+  Apply the Phase 1 review feedback; desktop-landscape polish; typography, spacing, colour, and
+  any UX improvements collected during Phase 2 QA.
+  _Done when:_ Giulia and the PM sign off on the visual quality.
 
 ---
 
