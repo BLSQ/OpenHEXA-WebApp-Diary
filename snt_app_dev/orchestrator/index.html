@@ -17,6 +17,40 @@
     </header>
 
     <main class="layout">
+      <!-- Collapsible map legend, pinned to the top-left of the canvas area.
+           Native <details> handles the collapse — no JS needed. -->
+      <details class="legend" id="legend" open>
+        <summary class="legend-toggle">Legend</summary>
+        <div class="legend-body">
+          <div class="legend-section">
+            <h4>Arrows</h4>
+            <div class="legend-row">
+              <span class="lg-arrow lg-arrow-hard"></span>
+              <span>Hard dependency — must complete first</span>
+            </div>
+            <div class="legend-row">
+              <span class="lg-arrow lg-arrow-opt"></span>
+              <span>Optional link — used if available</span>
+            </div>
+          </div>
+          <div class="legend-section">
+            <h4>Tracks</h4>
+            <div class="legend-row">
+              <span class="lg-swatch lg-track-A"></span><span>A — DHIS2</span>
+            </div>
+            <div class="legend-row">
+              <span class="lg-swatch lg-track-B"></span><span>B — WorldPop &amp; MAP</span>
+            </div>
+            <div class="legend-row">
+              <span class="lg-swatch lg-track-C"></span><span>C — DHS</span>
+            </div>
+            <div class="legend-row">
+              <span class="lg-swatch lg-track-D"></span><span>D — ERA5</span>
+            </div>
+          </div>
+        </div>
+      </details>
+
       <section class="canvas" id="canvas" aria-label="Pipeline map">
         <!-- Nodes + SVG edges get rendered here in T1.2 / T1.3. -->
       </section>

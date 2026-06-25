@@ -26,7 +26,7 @@
       {
         "id":          "string — Python function name; join key to pipeline_cards.json. REQUIRED",
         "code":        "string — short human code shown as a tag, e.g. 'A.1', 'A.3.1'. REQUIRED",
-        "label":       "string — canonical display title, e.g. 'A.1 DHIS2 Extract'. REQUIRED",
+        "label":       "string — canonical display title WITHOUT the code prefix, e.g. 'DHIS2 Extract' (the code, e.g. 'A.1', is carried separately in `code` and shown alongside). REQUIRED",
         "description": "string — short subtitle shown in the sidebar (optional)",
         "type":        "string — mandatory | alternative | facultative. REQUIRED",
         "row":         "int — execution stage, top-to-bottom (lower = earlier). REQUIRED",
