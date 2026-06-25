@@ -1395,8 +1395,17 @@ function renderSidebar(node) {
   var configBox = sb.querySelector("#sb-config");
   if (previewBtn && configBox) {
     previewBtn.addEventListener("click", function () {
+      // Toggle: a second click hides the box and reverts the button.
+      if (!configBox.hidden) {
+        configBox.hidden = true;
+        previewBtn.classList.remove("is-active");
+        previewBtn.setAttribute("aria-pressed", "false");
+        return;
+      }
       var built = buildConfig(node);
       configBox.hidden = false;
+      previewBtn.classList.add("is-active");
+      previewBtn.setAttribute("aria-pressed", "true");
       if (built.errors.length) {
         configBox.className = "sb-config has-errors";
         configBox.textContent =
@@ -1784,6 +1793,12 @@ async function runNode(node) {
   APP.activeRun[node.id] = "starting";
   setRunBtnBusy(node.id, true);
   if (configBox) configBox.hidden = true;
+  // Keep the Preview toggle's look in sync with its now-hidden box.
+  var previewBtn = document.getElementById("sb-preview");
+  if (previewBtn) {
+    previewBtn.classList.remove("is-active");
+    previewBtn.setAttribute("aria-pressed", "false");
+  }
   setRunStatusLine(
     node.id,
     '<span class="rs-glyph spin">●</span> Starting run…',

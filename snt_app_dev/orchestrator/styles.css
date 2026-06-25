@@ -995,6 +995,17 @@ select.finput {
   border-color: #1e88e5;
   background: #f0f7ff;
 }
+/* Toggled-on state: the Preview-config box is showing. Darker fill so the button
+ * reads as "pressed"; click again to hide the box and revert. */
+.btn-secondary.is-active {
+  background: #334155;
+  border-color: #334155;
+  color: #f8fafc;
+}
+.btn-secondary.is-active:hover {
+  background: #1e293b;
+  border-color: #1e293b;
+}
 /* T2.3 — live run-status line below the run row. */
 .sb-runstatus {
   margin-top: 0.7rem;
