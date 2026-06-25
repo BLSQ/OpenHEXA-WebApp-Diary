@@ -218,9 +218,9 @@ var LAYOUT = {
 // createElementNS, not createElement, or the browser won't render them.
 var SVGNS = "http://www.w3.org/2000/svg";
 
-// Only mandatory/output nodes carry a visible type label (top-right corner);
+// Only mandatory nodes carry a visible type label (top-right corner);
 // alternative/facultative are left unlabelled, per the map conventions.
-var FILLED_TYPES = { mandatory: true, output: true };
+var FILLED_TYPES = { mandatory: true };
 
 function escapeHtml(s) {
   return String(s == null ? "" : s)

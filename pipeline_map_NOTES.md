@@ -22,8 +22,10 @@ Whimsical) plus Giulia's dependency notes.
 - **alternative** — mutually-exclusive members sharing a `group`: A.3 (5 outlier methods, group
   `a3_outliers`) and A.4 (2 reporting-rate methods, group `a4_reporting_rate`). Running one
   marks the others not-run.
-- **output** — produces an SNT Explorer layer: A.6, A.7, B.2, B.3, D.2.
-- **facultative** — optional add-on that produces no layer: A.5, B.1, C.1, D.1.
+- **facultative** — optional pipeline whose output may itself become an SNT Explorer layer.
+  Covers everything that is neither mandatory nor a mutually-exclusive alternative: A.5, A.6,
+  A.7, B.1, B.2, B.3, C.1, D.1, D.2. (The former `output` type was folded into `facultative`
+  on 2026-06-25 — in practice every pipeline's output can be a layer.)
 
 ## Hard A.2 dependents
 

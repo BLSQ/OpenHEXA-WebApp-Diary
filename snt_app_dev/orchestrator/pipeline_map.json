@@ -1,12 +1,12 @@
 {
-  "version": "2026-06-24",
+  "version": "2026-06-25",
   "_notes": "Authoring notes, conventions, group-aware lock/unlock semantics, and change log live in pipeline_map_NOTES.md (repo root, next to this file and pipeline_map_schema.json).",
   "grid": { "cols": 11 },
   "nodes": [
     {
       "id": "snt_dhis2_extract",
       "code": "A.1",
-      "label": "A.1 DHIS2 Extract",
+      "label": "DHIS2 Extract",
       "description": "Extracts DHIS2 pyramid, routine analytics, population, shapes, and reporting rates for a period.",
       "type": "mandatory",
       "row": 0,
@@ -16,7 +16,7 @@
     {
       "id": "snt_dhis2_formatting",
       "code": "A.2",
-      "label": "A.2 DHIS2 Formatting",
+      "label": "DHIS2 Formatting",
       "description": "Processes and formats the DHIS2 extracts (pyramid, shapes, routine data) for the SNT workflow.",
       "type": "mandatory",
       "row": 1,
@@ -26,7 +26,7 @@
     {
       "id": "snt_dhis2_outliers_imputation_magic_glasses",
       "code": "A.3",
-      "label": "A.3 Outliers: Magic Glasses",
+      "label": "Outliers: Magic Glasses",
       "description": "Outlier detection and imputation using the Magic Glasses (MAD-based) method.",
       "type": "alternative",
       "group": "a3_outliers",
@@ -37,7 +37,7 @@
     {
       "id": "snt_dhis2_outliers_imputation_mean",
       "code": "A.3",
-      "label": "A.3 Outliers: Mean",
+      "label": "Outliers: Mean",
       "description": "Outlier detection and imputation using the mean +/- k x SD method.",
       "type": "alternative",
       "group": "a3_outliers",
@@ -48,7 +48,7 @@
     {
       "id": "snt_dhis2_outliers_imputation_median",
       "code": "A.3",
-      "label": "A.3 Outliers: Median",
+      "label": "Outliers: Median",
       "description": "Outlier detection and imputation using the median +/- k x MAD method.",
       "type": "alternative",
       "group": "a3_outliers",
@@ -59,7 +59,7 @@
     {
       "id": "snt_dhis2_outliers_imputation_iqr",
       "code": "A.3",
-      "label": "A.3 Outliers: IQR",
+      "label": "Outliers: IQR",
       "description": "Outlier detection and imputation using the IQR (inter-quartile range) method.",
       "type": "alternative",
       "group": "a3_outliers",
@@ -70,7 +70,7 @@
     {
       "id": "snt_dhis2_outliers_imputation_path",
       "code": "A.3",
-      "label": "A.3 Outliers: PATH",
+      "label": "Outliers: PATH",
       "description": "Outlier detection and imputation using the PATH method (mean +/- 10 x SD).",
       "type": "alternative",
       "group": "a3_outliers",
@@ -81,7 +81,7 @@
     {
       "id": "snt_dhis2_reporting_rate_dataelement",
       "code": "A.4",
-      "label": "A.4 Reporting Rate: Data element",
+      "label": "Reporting Rate: Data element",
       "description": "Reporting rate computed from routine data elements.",
       "type": "alternative",
       "group": "a4_reporting_rate",
@@ -92,7 +92,7 @@
     {
       "id": "snt_dhis2_reporting_rate_dataset",
       "code": "A.4",
-      "label": "A.4 Reporting Rate: Dataset",
+      "label": "Reporting Rate: Dataset",
       "description": "Reporting rate from DHIS2 dataset-level rate indicators.",
       "type": "alternative",
       "group": "a4_reporting_rate",
@@ -103,7 +103,7 @@
     {
       "id": "snt_dhis2_population_transformation",
       "code": "A.5",
-      "label": "A.5 Population Transformation",
+      "label": "Population Transformation",
       "description": "Scales, projects, and disaggregates DHIS2 population by demographic group.",
       "type": "facultative",
       "row": 3,
@@ -113,9 +113,9 @@
     {
       "id": "snt_dhis2_incidence",
       "code": "A.6",
-      "label": "A.6 DHIS2 Incidence",
+      "label": "DHIS2 Incidence",
       "description": "Computes malaria case metrics and yearly incidence from routine HMIS data.",
-      "type": "output",
+      "type": "facultative",
       "row": 4,
       "col": 5,
       "track": "A"
@@ -123,9 +123,9 @@
     {
       "id": "snt_seasonality_cases",
       "code": "A.7",
-      "label": "A.7 Seasonality - Cases",
+      "label": "Seasonality - Cases",
       "description": "Classifies case seasonality at ADM2 from routine confirmed-malaria data.",
-      "type": "output",
+      "type": "facultative",
       "row": 4,
       "col": 6,
       "track": "A"
@@ -133,7 +133,7 @@
     {
       "id": "snt_worldpop_extract",
       "code": "B.1",
-      "label": "B.1 WorldPop Extract",
+      "label": "WorldPop Extract",
       "description": "Extracts WorldPop population raster data for the country.",
       "type": "facultative",
       "row": 2,
@@ -143,9 +143,9 @@
     {
       "id": "snt_map_extracts",
       "code": "B.2",
-      "label": "B.2 MAP Extracts",
+      "label": "MAP Extracts",
       "description": "Extracts Malaria Atlas Project rasters and computes zonal statistics.",
-      "type": "output",
+      "type": "facultative",
       "row": 4,
       "col": 7,
       "track": "B"
@@ -153,9 +153,9 @@
     {
       "id": "snt_healthcare_access",
       "code": "B.3",
-      "label": "B.3 Access to Health Care",
+      "label": "Access to Health Care",
       "description": "Computes access-to-care metrics from facilities, population, and catchments.",
-      "type": "output",
+      "type": "facultative",
       "row": 4,
       "col": 8,
       "track": "B"
@@ -163,7 +163,7 @@
     {
       "id": "snt_dhs_indicators",
       "code": "C.1",
-      "label": "C.1 DHS Indicators",
+      "label": "DHS Indicators",
       "description": "Computes DHS survey-based indicators for the SNT process.",
       "type": "facultative",
       "row": 2,
@@ -173,7 +173,7 @@
     {
       "id": "snt_era5_climate_data",
       "code": "D.1",
-      "label": "D.1 ERA5 Climate Data",
+      "label": "ERA5 Climate Data",
       "description": "Extracts ERA5 climate data from the Copernicus Climate Data Store.",
       "type": "facultative",
       "row": 2,
@@ -183,9 +183,9 @@
     {
       "id": "snt_seasonality_rainfall",
       "code": "D.2",
-      "label": "D.2 ERA5 Seasonality - Rainfall",
+      "label": "ERA5 Seasonality - Rainfall",
       "description": "Computes rainfall seasonality metrics from ERA5 climate data.",
-      "type": "output",
+      "type": "facultative",
       "row": 4,
       "col": 10,
       "track": "D"
