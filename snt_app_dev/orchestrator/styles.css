@@ -225,9 +225,11 @@ body {
 
 /* Floating zoom controls — pinned to the bottom-right of the canvas viewport,
  * outside #stage so they don't move with the map. */
+/* Bottom-left so the floating detail panel (top-right, can grow tall) never
+ * covers the zoom buttons. */
 .map-controls {
   position: absolute;
-  right: 0.9rem;
+  left: 0.9rem;
   bottom: 0.9rem;
   z-index: 50;
   display: flex;
@@ -568,12 +570,26 @@ svg.edges {
 /* --- Detail sidebar (T1.6) --- *
  * Read-only panel that opens when an available node is clicked: a sticky header
  * (name + code + type + status line), then a scrollable body with the
- * description, external links, latest outputs, and the parameter definitions. */
+ * description, external links, latest outputs, and the parameter definitions.
+ *
+ * It's a FLOATING card pinned to the top-right of the canvas (overlaying the
+ * map, like the legend), not a fixed column — so its height tracks its content:
+ * small for the empty placeholder, taller when a node is selected, and it caps
+ * at the viewport height (scrolling internally) for long parameter forms. Being
+ * position:absolute takes it out of the flex flow, so the map canvas now uses
+ * the full layout width. */
 .sidebar {
+  position: absolute;
+  top: 0.9rem;
+  right: 0.9rem;
+  z-index: 60;
   width: 360px;
-  flex-shrink: 0;
+  height: auto;
+  max-height: calc(100% - 1.8rem);
   background: #ffffff;
-  border-left: 1px solid #e2e8f0;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.16);
   overflow: auto;
   padding: 0;
 }
