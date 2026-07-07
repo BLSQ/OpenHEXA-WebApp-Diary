@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>SNT Pipelines Orchestrator</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <!-- App shell: a scrollable canvas (the pipeline map) on the left,
+         a detail sidebar on the right. Both are empty at T1.1 — the grid,
+         arrows, and sidebar content arrive in later tasks (T1.2+). The only
+         job at this stage is the data plumbing in app.js. -->
+    <header class="topbar">
+      <h1 class="topbar-title">SNT Pipelines Orchestrator</h1>
+      <span class="topbar-ws" id="workspaceLabel"></span>
+    </header>
+
+    <main class="layout">
+      <!-- Collapsible map legend, pinned to the top-left of the canvas area.
+           Native <details> handles the collapse — no JS needed. -->
+      <details class="legend" id="legend" open>
+        <summary class="legend-toggle">Legend</summary>
+        <div class="legend-body">
+          <div class="legend-section">
+            <h4>Arrows</h4>
+            <div class="legend-row">
+              <span class="lg-arrow lg-arrow-hard"></span>
+              <span>Hard dependency — must complete first</span>
+            </div>
+            <div class="legend-row">
+              <span class="lg-arrow lg-arrow-opt"></span>
+              <span>Optional link — used if available</span>
+            </div>
+          </div>
+          <div class="legend-section">
+            <h4>Tracks</h4>
+            <div class="legend-row">
+              <span class="lg-swatch lg-track-A"></span><span>A — DHIS2</span>
+            </div>
+            <div class="legend-row">
+              <span class="lg-swatch lg-track-B"></span><span>B — WorldPop &amp; MAP</span>
+            </div>
+            <div class="legend-row">
+              <span class="lg-swatch lg-track-C"></span><span>C — DHS</span>
+            </div>
+            <div class="legend-row">
+              <span class="lg-swatch lg-track-D"></span><span>D — ERA5</span>
+            </div>
+          </div>
+        </div>
+      </details>
+
+      <section class="canvas" id="canvas" aria-label="Pipeline map">
+        <!-- Pan/zoom controls — an overlay that sits OUTSIDE the transformed
+             #stage, so it stays put while the map is dragged/zoomed. -->
+        <div class="map-controls" id="mapControls" aria-label="Map zoom controls">
+          <button type="button" class="map-btn" data-zoom="in" title="Zoom in" aria-label="Zoom in">+</button>
+          <button type="button" class="map-btn" data-zoom="out" title="Zoom out" aria-label="Zoom out">&#8722;</button>
+          <button type="button" class="map-btn" data-zoom="fit" title="Fit map to view" aria-label="Fit map to view">&#10530;</button>
+        </div>
+        <!-- Nodes + SVG edges are rendered by app.js into #stage (created at
+             runtime); #stage is the element that gets panned and zoomed. Drag
+             anywhere to pan, scroll to zoom. -->
+      </section>
+
+      <aside class="sidebar" id="sidebar" aria-label="Pipeline details">
+        <!-- T1.6 — read-only detail panel. app.js renders the empty placeholder
+             here on load, then replaces it with the selected node's details. -->
+      </aside>
+    </main>
+
+    <script src="app.js"></script>
+  </body>
+</html>
