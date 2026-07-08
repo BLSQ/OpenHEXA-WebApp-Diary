@@ -27,86 +27,68 @@ origin.
 ├── README.md
 ├── .gitignore
 │
-├── knowledge/                       # Planning & spec docs (workspace-independent)
-│   ├── PLAN.md                      #   Phased, atomic task plan for the orchestrator
-│   ├── JIRA_ITEMS.md                #   Reference/drafting sheet for Jira issues — Jira is managed manually (project SNT25)
-│   ├── PRODUCT_SPEC.md              #   Product specification
-│   ├── persona_questionnaire.md     #   UX persona / discovery questionnaire
-│   ├── orchestrator_wireframe.html  #   UX/visual target for the orchestrator
-│   ├── pipeline_map_preview.html    #   Standalone visual render of pipeline_map.json (for review)
-│   ├── pipeline_map_20260615.png    #   Map sketch (Whimsical, T0.3) — current
-│   └── pipeline_map_20260610.png    #   Map sketch — earlier revision
+├── app/                             # Generic orchestrator bundle — shared by ALL workspaces (single source of truth)
+│   ├── index.html                   #   Minimal shell
+│   ├── styles.css                   #   All styling
+│   ├── app.js                       #   All logic (renders map, merges cards, runs/polls pipelines)
+│   └── pipeline_map.json            #   Shared, hand-authored map (layout + dependency edges)
 │
-├── schema.generated.graphql         # OpenHEXA GraphQL schema — query reference for agents
-├── pipeline_cards_schema.json       # Schema + instructions for generating pipeline_cards.json files
-├── pipeline_map_schema.json         # Schema for the shared orchestrator map (pipeline_map.json)
-├── pipeline_map.json                # Shared, hand-authored orchestrator map (layout + dependency edges)
-├── pipeline_map_NOTES.md            # Authoring rationale, conventions & changelog for pipeline_map.json
-│
-├── snt_testing/                     # One folder per workspace (slug, hyphens → underscores)
-│   ├── workspace_config.json        #   Resolved IDs (pipeline UUIDs, deployed_apps, connection slugs)
-│   ├── pipeline_cards.json          #   Cached pipeline catalog (names, UUIDs, parameters)
-│   ├── dhis2_reporting_rate/        #   One subfolder per deployed webapp...
-│   │   └── index.html               #     ...mirroring every file as last deployed
-│   ├── population_transformation/
-│   │   └── index.html
-│   ├── population_transformation_split/   # multi-file bundle example
-│   │   ├── index.html
-│   │   ├── styles.css
-│   │   └── app.js
-│   ├── orchestrator/                # SNT Pipelines Orchestrator bundle (deployed; demos greying — 11 active, 7 greyed)
-│   │   ├── index.html
-│   │   ├── styles.css
-│   │   ├── app.js
-│   │   ├── pipeline_map.json
+├── workspaces/                      # Per-workspace data — ONLY the file that differs per workspace
+│   ├── snt-app-dev/
+│   │   └── pipeline_cards.json      #   Cached pipeline catalog (names, UUIDs, parameters)
+│   ├── snt-testing/
 │   │   └── pipeline_cards.json
-│   └── status_spike/                # status-proxy spike (T0.9), local only — not a tracked deployment
-│       └── index.html
+│   └── cmr-snt-process/
+│       └── pipeline_cards.json
 │
-├── snt_drc_workshop_demo/
-│   ├── workspace_config.json
-│   ├── pipeline_cards.json
-│   └── index.html                   #   (older flat single-file layout)
+├── schemas/                         # Machine-readable contracts / references
+│   ├── pipeline_map.schema.json     #   Schema for app/pipeline_map.json
+│   ├── pipeline_cards.schema.json   #   Schema + instructions for generating pipeline_cards.json
+│   └── schema.generated.graphql     #   OpenHEXA GraphQL schema — query reference for agents
 │
-└── snt_app_dev/                     # Dedicated orchestrator build/test workspace (all ~18 pipelines)
-    ├── workspace_config.json
-    ├── pipeline_cards.json
-    └── orchestrator/                # SNT Pipelines Orchestrator bundle (deployed — the primary build target)
-        ├── index.html
-        ├── styles.css
-        ├── app.js
-        ├── pipeline_map.json
-        └── pipeline_cards.json
+├── docs/                            # Consolidated knowledge (stable)
+│   ├── PRODUCT_SPEC.md              #   Product specification
+│   ├── PLAN.md                      #   Phased, atomic task plan for the orchestrator
+│   ├── JIRA_ITEMS.md                #   Reference/drafting sheet for Jira issues — managed manually (project SNT25)
+│   └── personas/                    #   UX persona / discovery questionnaires
+│
+├── design/                          # WIP / design explorations (not contracts)
+│   ├── wireframes/                  #   UX/visual targets for the orchestrator (map + cockpit variants)
+│   ├── grid_editor.html             #   Interactive map-layout editor
+│   ├── pipeline_map_preview.html    #   Standalone visual render of pipeline_map.json (for review)
+│   └── pipeline_map_20260625.png    #   Map sketch (Whimsical)
+│
+└── archive/                         # Retired spikes & pre-orchestrator single-file apps (reference only)
+    ├── snt-testing/                 #   dhis2_reporting_rate, population_transformation(_split), status_spike
+    └── snt-drc-workshop-demo/       #   Older flat single-file webapp
 ```
 
-**Global files** (root + `knowledge/`) apply to all workspaces. **Workspace folders** contain
-workspace-specific artifacts. Adding a new workspace means creating a new folder — nothing else
-changes.
+**Generic** artifacts live in `app/` (the shared bundle) plus `schemas/` / `docs/` / `design/`.
+**Workspace-specific** data is just `workspaces/<ws>/pipeline_cards.json` — one file per
+workspace. Adding a new workspace means adding one `pipeline_cards.json`; nothing else changes.
 
-> **Layout convention.** Each deployed webapp lives in its own snake_case **subfolder** under
-> the workspace, matching its key in `deployed_apps` (e.g. `snt_testing/dhis2_reporting_rate/`).
-> The older `snt_drc_workshop_demo/` still uses a flat `index.html`; new work follows the
-> subfolder convention.
+> **No stored webapp config.** Webapp identity and scopes (id, slug, URL, allowed operations) are
+> resolved **live** from the OpenHEXA API (`list_static_webapps` / `get_static_webapp`) at deploy
+> time — the repo no longer keeps a `workspace_config.json`.
 
 ---
 
 ## The data architecture (orchestrator)
 
-The orchestrator separates concerns across four files. The stable join key everywhere is the
-node `id` == the pipeline's Python function name (e.g. `snt_dhis2_extract`).
+The orchestrator separates concerns across three kinds of file. The stable join key everywhere is
+the node `id` == the pipeline's Python function name (e.g. `snt_dhis2_extract`).
 
 | File                                   | Scope                          | Holds                                                                      |
 | -------------------------------------- | ------------------------------ | -------------------------------------------------------------------------- |
-| `pipeline_map.json`                    | **workspace-independent** (root, shared) | all nodes, grid position, type, mutex group, directed `edges` (deps) |
-| `<ws>/pipeline_cards.json`             | per-workspace                  | which pipelines exist + `uuid` + `parameters` (drives _active vs greyed_)  |
-| `<ws>/workspace_config.json`           | per-workspace                  | IDs, `deployed_apps` (webapp ID, slug, URL, allowed scopes)                |
-| `index.html` + `app.js` + `styles.css` | shared app shell (multi-file)  | renders the map, merges with cards, runs/polls pipelines                   |
+| `app/pipeline_map.json`                | **workspace-independent** (one shared file) | all nodes, grid position, type, mutex group, directed `edges` (deps) |
+| `workspaces/<ws>/pipeline_cards.json`  | per-workspace                  | which pipelines exist + `uuid` + `parameters` (drives _active vs greyed_)  |
+| `app/index.html` + `app/app.js` + `app/styles.css` | shared app shell (multi-file) | renders the map, merges with cards, runs/polls pipelines        |
 
 The **map is identical across all workspaces** — every orchestrator shows the same full diagram.
 What differs per workspace is only which nodes are _active_: a node is available iff its `id`
 appears in that workspace's `pipeline_cards.json`. Pipelines not present render greyed-out and
-unclickable. The map is **hand-authored** (validated against `pipeline_map_schema.json`), not
-generated from the API.
+unclickable. The map is **hand-authored** (validated against `schemas/pipeline_map.schema.json`),
+not generated from the API.
 
 ### Generic vs workspace-specific (what to reuse)
 
@@ -122,14 +104,14 @@ its own `pipeline_cards.json`.
 | `pipeline_map.json` | **Generic**           | The shared SNT process map — same in every workspace.                    |
 | `pipeline_cards.json` | **⚠️ WS-specific**  | The only file that changes per workspace: which pipelines exist here + their `uuid` + `parameters`. |
 
-A 6th file, `<ws>/workspace_config.json`, is also workspace-specific but is **not deployed** —
-the browser never fetches it. It's deploy-time metadata (webapp `id`, slug, allowed scopes) used
-by the agent/build, not by the running app.
+Webapp identity and scopes (`id`, slug, URL, allowed operations) are **not** stored in the repo —
+they're resolved live from the OpenHEXA API (`list_static_webapps` / `get_static_webapp`) at
+deploy time, and are never fetched by the running app.
 
 The app **self-adapts at runtime**: OpenHEXA injects `window.OPENHEXA.workspaceSlug` at page
 load (so the same `app.js` queries _this_ workspace), and the generic map greys out any node
 whose `id` isn't in this workspace's `pipeline_cards.json`. → **New workspace = same 4 generic
-files + a new `pipeline_cards.json`** (proven in Phase 4 / tasks T4.1–T4.2).
+files (`app/`) + a new `workspaces/<ws>/pipeline_cards.json`** (proven in Phase 4 / tasks T4.1–T4.2).
 
 > **One caveat to the "fully generic" claim:** `app.js` hardcodes the SaaS front-end base
 > `https://app.openhexa.org` (for run / dataset links). That's the same for every SaaS
@@ -141,16 +123,16 @@ files + a new `pipeline_cards.json`** (proven in Phase 4 / tasks T4.1–T4.2).
 ## How it works
 
 ```
-pipeline_cards_schema.json        ← schema + instructions for building pipeline catalogs (global)
+schemas/pipeline_cards.schema.json    ← schema + instructions for building pipeline catalogs (global)
         ↓ (generated once per workspace)
-<workspace>/pipeline_cards.json   ← cached pipeline catalog: names, UUIDs, parameters (fetched at runtime)
+workspaces/<ws>/pipeline_cards.json   ← cached pipeline catalog: names, UUIDs, parameters (fetched at runtime)
         +
-pipeline_map.json                 ← shared, hand-authored map: layout + dependency edges (orchestrator)
-        +
-<workspace>/workspace_config.json ← deploy-time metadata: webapp ID, slug, allowed scopes
+app/pipeline_map.json                 ← shared, hand-authored map: layout + dependency edges
+app/index.html + app/styles.css + app/app.js   ← generic app shell (shared by all workspaces)
         ↓
-<workspace>/<app_key>/            ← bundle deployed to OpenHEXA, mirrored here after every deploy
-    index.html + styles.css + app.js + pipeline_map.json + pipeline_cards.json
+deploy set = app/*  +  workspaces/<ws>/pipeline_cards.json
+        ↓
+OpenHEXA static webapp   (webapp id/slug resolved live via list_static_webapps)
 ```
 
 ---
@@ -158,12 +140,12 @@ pipeline_map.json                 ← shared, hand-authored map: layout + depend
 ## Using with an AI agent (Claude Code)
 
 Open this directory in Claude Code. The agent reads `CLAUDE.md` for full instructions
-automatically. For orchestrator work it also reads `knowledge/PLAN.md` and `knowledge/JIRA_ITEMS.md`
+automatically. For orchestrator work it also reads `docs/PLAN.md` and `docs/JIRA_ITEMS.md`
 at session start. Then just describe what you want:
 
 - **Deploy to an existing workspace:** "Update the webapp in workspace X to add pipeline Y"
 - **Set up a new workspace:** "Create the webapp for workspace Z" — the agent looks up all UUIDs
-  via the OpenHEXA MCP tools and creates a new `<workspace>/` folder
+  via the OpenHEXA MCP tools and creates a new `workspaces/<ws>/pipeline_cards.json`
 - **Add a new pipeline card:** "Add a card for `snt_dhis2_incidence`" — the agent fetches the
   pipeline source from GitHub, extracts the `@parameter` decorators, updates the workspace's
   `pipeline_cards.json`, and redeploys
@@ -179,21 +161,21 @@ look up workspace/pipeline IDs and deploy webapps.
 2. Say: _"Create the webapp for workspace `<workspace name>`"_
 3. The agent will:
    - Find the workspace slug via `list_workspaces`
-   - Resolve pipeline UUIDs via `list_pipelines` and webapp IDs via `list_static_webapps`
-   - Create `<workspace>/workspace_config.json` and `<workspace>/pipeline_cards.json`
-   - Build and deploy the webapp into `<workspace>/<app_key>/`
-4. Commit the new workspace folder
+   - Resolve pipeline UUIDs via `list_pipelines` (webapp id/slug via `list_static_webapps` at deploy time)
+   - Create `workspaces/<ws>/pipeline_cards.json`
+   - Deploy the generic `app/` bundle + that `pipeline_cards.json` to the workspace's webapp
+4. Commit the new `workspaces/<ws>/pipeline_cards.json`
 
 ---
 
 ## Adding a new pipeline card
 
 1. Tell the agent which workspace to deploy to and which pipelines to include
-2. If a pipeline's parameters aren't already cached in `<workspace>/pipeline_cards.json`, the
+2. If a pipeline's parameters aren't already cached in `workspaces/<ws>/pipeline_cards.json`, the
    agent fetches the source from the
    [snt_development GitHub repo](https://github.com/BLSQ/snt_development) and extracts the
    `@parameter` decorators (see the type mapping and rules in `CLAUDE.md`)
-3. The agent rebuilds and redeploys the webapp bundle under `<workspace>/<app_key>/`
+3. The agent redeploys the bundle (`app/*` + `workspaces/<ws>/pipeline_cards.json`)
 
 > `pipeline_cards.json` is a **cache, not live truth.** Each file carries a `generated_at` date;
 > a pipeline's parameters on GitHub can drift after that. Before deploying, the agent states the
@@ -204,9 +186,10 @@ look up workspace/pipeline IDs and deploy webapps.
 ## Deploying the bundle (and a known friction)
 
 Deploys go through the OpenHEXA MCP tool (`update_static_webapp`), which the agent calls with
-the file contents passed **inline**. Partial deploys work — only the changed files need to be
-sent — and after every deploy the agent re-reads the live files and mirrors them under
-`<workspace>/<app_key>/`, so the local copy always matches what's live.
+the file contents passed **inline** (the webapp `id` is resolved live via `list_static_webapps`).
+Partial deploys work — only the changed files need to be sent — and after every deploy the agent
+re-reads the live files with `get_static_webapp` and diffs them against the repo (`app/` +
+`workspaces/<ws>/pipeline_cards.json`) to confirm what's live matches the source.
 
 **Known friction (large files).** The deploy tool only accepts file _contents_, not a file
 _path_, and the agent can only load a file into its working context up to a size limit. The
@@ -218,8 +201,9 @@ not a risk.
 **Manual fallback — drag-drop from the repo.** Because the bottleneck is only about getting the
 bytes _into the agent_, uploading a file yourself through the browser avoids it entirely. If the
 OpenHEXA UI lets you replace files on an existing webapp (**Web Apps → the webapp →
-edit/settings**), you can drag the changed file(s) straight from `<workspace>/<app_key>/` in this
-repo into the UI — the repo copy is always the up-to-date source, so this is safe. (The OpenHEXA
+edit/settings**), you can drag the changed file(s) straight from `app/` (generic) or
+`workspaces/<ws>/pipeline_cards.json` into the UI — the repo copy is always the up-to-date
+source, so this is safe. (The OpenHEXA
 **CLI** can deploy _pipelines_ from local files but **not** static webapps today, so there's no
 command-line shortcut yet — a request to add one has been raised with the OpenHEXA team.)
 
@@ -227,29 +211,33 @@ command-line shortcut yet — a request to add one has been raised with the Open
 
 ## Refreshing the OpenHEXA schema
 
-If `schema.generated.graphql` becomes stale, regenerate it with:
+If `schemas/schema.generated.graphql` becomes stale, regenerate it with:
 
 ```powershell
-Invoke-WebRequest -Uri "https://raw.githubusercontent.com/BLSQ/openhexa-app/main/frontend/schema.generated.graphql" -OutFile "schema.generated.graphql"
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/BLSQ/openhexa-app/main/frontend/schema.generated.graphql" -OutFile "schemas/schema.generated.graphql"
 ```
 
 ---
 
 ## Deployed webapps
 
-| Workspace             | Webapp                          | URL                                                       | Folder                                          |
-| --------------------- | ------------------------------- | --------------------------------------------------------- | ----------------------------------------------- |
-| SNT DRC Workshop Demo | A.2 DHIS2 Formatting            | https://a-2-dhis2-formatting.openhexa.io/                 | `snt_drc_workshop_demo/`                        |
-| SNT Testing           | DHIS2 Reporting Rate            | https://dhis2-reporting-rate.openhexa.io/                 | `snt_testing/dhis2_reporting_rate/`             |
-| SNT Testing           | Population Transformation       | https://run-population-transformation-pipeline.openhexa.io/ | `snt_testing/population_transformation/`        |
-| SNT Testing           | Population Transformation (split) | https://population-transformation-split.openhexa.io/    | `snt_testing/population_transformation_split/`  |
-| SNT App Dev           | SNT Pipelines Orchestrator      | https://snt-pipelines-orchestrator.openhexa.io/          | `snt_app_dev/orchestrator/`                     |
-| SNT Testing           | SNT Pipelines Orchestrator      | https://snt-testing-snt-pipelines-orchestrator.openhexa.io/ | `snt_testing/orchestrator/`                  |
+The active product is the **SNT Pipelines Orchestrator**, deployed as the generic `app/` bundle
++ each workspace's `pipeline_cards.json`:
 
-URLs and IDs come from each workspace's `workspace_config.json` — that file, not this table, is
-the source of truth.
+| Workspace       | Slug              | URL                                                          |
+| --------------- | ----------------- | ----------------------------------------------------------- |
+| SNT App Dev     | `snt-app-dev`     | https://snt-pipelines-orchestrator.openhexa.io/             |
+| SNT Testing     | `snt-testing`     | https://snt-testing-snt-pipelines-orchestrator.openhexa.io/ |
+| CMR SNT Process | `cmr-snt-process` | _resolve live via `list_static_webapps`_                    |
 
-> The **SNT Pipelines Orchestrator** is built in the dedicated **`snt_app_dev`** workspace (all
-> ~18 pipelines installed — the primary build target) and also deployed to **`snt_testing`** (11
-> of 18 installed, so it demos the greyed-out state). Both are live read-only status boards
-> (Phase 1); running pipelines from the board arrives in Phase 2.
+URLs and IDs are resolved **live** from the OpenHEXA API (`list_static_webapps`) — that, not this
+table, is the source of truth.
+
+> **Legacy single-pipeline webapps** (A.2 DHIS2 Formatting in the DRC workshop demo; DHIS2
+> Reporting Rate, Population Transformation, and the status spike in SNT Testing) were the
+> stepping stones toward the orchestrator. Their local copies now live under `archive/` and are
+> no longer maintained.
+
+> The **SNT Pipelines Orchestrator** is built in the dedicated **`snt-app-dev`** workspace (all
+> ~18 pipelines installed — the primary build target) and also deployed to **`snt-testing`** (a
+> subset installed, so it demos the greyed-out state) and **`cmr-snt-process`**.
