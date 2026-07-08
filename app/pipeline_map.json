@@ -1,6 +1,6 @@
 {
   "version": "2026-06-25",
-  "_notes": "Authoring notes, conventions, group-aware lock/unlock semantics, and change log live in pipeline_map_NOTES.md (repo root, next to this file and pipeline_map_schema.json).",
+  "_notes": "Authoring conventions, per-member-edge rule, and group-aware unlock semantics: see schemas/pipeline_map.schema.json (_generation_instructions) and CLAUDE.md (Node states).",
   "grid": { "cols": 11 },
   "nodes": [
     {
