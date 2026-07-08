@@ -30,7 +30,7 @@ This includes:
 - Looking up URLs / paths / IDs in the OpenHEXA UI.
 - Checking the browser DevTools **Console** / Network tab when a deployed webapp misbehaves.
 - Reading a value off a dashboard, or visually confirming something in a running app.
-- **Uploading webapp files** — For any webapp file changes (single files or full bundles), offer the user the option to drag-and-drop changed files directly into the OpenHEXA UI from `app/` (generic files) or `workspaces/<ws>/pipeline_cards.json` (the workspace-specific file) instead of having the agent assemble and deploy via MCP. This avoids reading large files into context and is often faster. Mention it as: *"You can also drag the changed file(s) from `app/` (or `workspaces/<ws>/pipeline_cards.json`) straight into the OpenHEXA webapp settings — no size limit and no agent token cost. Want to do that instead, or shall I deploy via the API?"*
+- **Uploading webapp files (wholesale rewrites / new bundles)** — For a full bundle upload or a wholesale rewrite of a large file, offer the user the option to drag-and-drop changed files directly into the OpenHEXA UI from `app/` (generic files) or `workspaces/<ws>/pipeline_cards.json` (the workspace-specific file) instead of having the agent assemble and deploy via MCP. This avoids reading large files into context and is often faster. Mention it as: *"You can also drag the changed file(s) from `app/` (or `workspaces/<ws>/pipeline_cards.json`) straight into the OpenHEXA webapp settings — no size limit and no agent token cost. Want to do that instead, or shall I deploy via the API?"* Small, targeted edits to an existing file don't need this offer — `mcp__claude_ai_OpenHEXA__edit_static_webapp_file` (see _MCP deployment_) handles those directly without hitting the Read cap.
 
 Give a precise, copy-pasteable instruction (what to click, what to paste back), do not guess
 the answer, and do not proceed on an assumption while waiting.
@@ -183,10 +183,12 @@ prefixed element handling) still apply — they just live in `app.js` rather tha
 ### Build / deploy workflow
 
 - Resolve the target webapp's `id`/`slug` **live** via `list_static_webapps` (there is no
-  `workspace_config.json` any more). Deploy via `mcp__claude_ai_OpenHEXA__update_static_webapp`
-  with that `id` and `files_json` as the multi-file array: one `{path, content}` object per file
-  in the bundle above. The files to send are `app/*` (generic) + that workspace's
-  `workspaces/<ws>/pipeline_cards.json`.
+  `workspace_config.json` any more). For a full bundle deploy, use
+  `mcp__claude_ai_OpenHEXA__update_static_webapp` with that `id` and `files_json` as the
+  multi-file array: one `{path, content}` object per file in the bundle above. The files to
+  send are `app/*` (generic) + that workspace's `workspaces/<ws>/pipeline_cards.json`. For a
+  small, targeted change to one already-deployed file, use
+  `mcp__claude_ai_OpenHEXA__edit_static_webapp_file` instead — see _MCP deployment_ below.
 - `allowed_operations`: at minimum `PIPELINES_READ, PIPELINES_RUN, FILES_READ`. Add
   `USER_READ` if the app queries workspace connections at runtime (to populate
   `DHIS2Connection` dropdowns).
@@ -197,7 +199,8 @@ prefixed element handling) still apply — they just live in `app.js` rather tha
   `app/`). **Partial deploys work** — `files_json` may carry only the files that changed (the
   others are left intact); you do **not** have to resend the whole bundle every time (see _MCP
   deployment_ below for the confirmation + caveats). You can read the live files back with
-  `get_static_webapp` to verify the deploy or to diff against the repo.
+  `get_static_webapp_file` (single file) or `get_static_webapp` (full bundle) to verify the
+  deploy or to diff against the repo.
 
 ---
 
@@ -415,31 +418,69 @@ When a single webapp hosts cards for multiple pipelines:
 
 ### MCP deployment
 
-Use `mcp__claude_ai_OpenHEXA__update_static_webapp` with `files_json` as a JSON array of `{path, content}` objects to deploy. On `update_static_webapp` the `name`/`description` fields are silently ignored by the server (rename webapps from the OpenHEXA UI instead); `create_static_webapp` **does** honor `name`.
+Two tools can push changes to a webapp; pick based on the size of the change:
 
-**Partial / incremental deploys work (confirmed live 2026-06-19).** Despite the tool's own description still saying "replace all files," `files_json` may contain **only the files that changed** — the omitted files are left untouched, _not_ deleted. Verified by deploying `app.js` alone to the orchestrator and reading back with `get_static_webapp`: all other files (CSS, HTML, both JSON) survived intact. This is the **preferred** way to ship a small change: send just that one file, no need to rebuild/re-escape the whole ~88 KB bundle. Caveats: (1) it's confirmed on the SaaS as of 2026-06-19 — if a future deploy ever shows files vanishing, fall back to sending the full set; (2) **always re-verify with `get_static_webapp` after a partial deploy** (confirm the expected file count + that your change landed) until the behavior is battle-tested; (3) keep the full bundle reproducible from the repo (`app/` + `workspaces/<ws>/pipeline_cards.json`) so a full re-deploy is always possible. Assembling a single file's `content` inline on Windows: `([string](Get-Content -Raw -Encoding UTF8 app.js) | ConvertTo-Json -Depth 2)` → write to a temp file → Read it → paste as the `content` value (avoids hand-escaping quotes/regex/newlines).
+- **`mcp__claude_ai_OpenHEXA__edit_static_webapp_file`** (added 2026-07-07) — **preferred for
+  small, targeted edits** to an existing text file (a few lines in `app.js`, a CSS tweak, one
+  card's parameters). Takes the webapp `id` (from `list_static_webapps`), a `path`, and an
+  `old_string`/`new_string` pair — the same find/replace contract as the Edit tool. The backend
+  reads the current file, applies the replacement, and commits; the agent never has to load the
+  full file into context. `old_string` must match exactly (including whitespace) and, unless
+  `replace_all: true`, must be unique in the file — include enough surrounding context. Text
+  files only (not images/binaries). Use `update_static_webapp` instead to add new files or
+  rewrite one wholesale.
+- **`mcp__claude_ai_OpenHEXA__update_static_webapp`** — for **new files**, a **wholesale
+  rewrite** of a file, or the first deploy of a bundle. Takes `files_json` as a JSON array of
+  `{path, content}` objects. The `name`/`description` fields are silently ignored by this tool
+  (rename webapps from the OpenHEXA UI instead); `create_static_webapp` **does** honor `name`.
 
-To **read back** the currently-deployed files, use `mcp__claude_ai_OpenHEXA__get_static_webapp(workspace_slug, webapp_slug)` — it returns each file's `content` + `encoding` (`TEXT`/`BASE64`). Use this to verify a deploy or diff the live app against the repo (`app/` + `workspaces/<ws>/pipeline_cards.json`) — the live app is no longer a black box.
+**Partial / incremental deploys work (confirmed live 2026-06-19).** Despite `update_static_webapp`'s own description still saying "replace all files," `files_json` may contain **only the files that changed** — the omitted files are left untouched, _not_ deleted. Verified by deploying `app.js` alone to the orchestrator and reading back with `get_static_webapp`: all other files (CSS, HTML, both JSON) survived intact. Caveats: (1) confirmed on the SaaS as of 2026-06-19 — if a future deploy ever shows files vanishing, fall back to sending the full set; (2) **always re-verify after a partial deploy** (see below); (3) keep the full bundle reproducible from the repo (`app/` + `workspaces/<ws>/pipeline_cards.json`) so a full re-deploy is always possible.
 
-**Large-file deploy friction (Read cap).** `files_json` carries file _contents inline_ — the
-tool can't read from a path on disk. To author the call the agent must pull the bytes into
-context with Read, which caps at ~25k tokens. The orchestrator's `app.js`, once JSON-escaped
-(`ConvertTo-Json`), is ~59 KB (~29k tokens), so a single Read **truncates** it. 
+To **read back** the currently-deployed files:
 
-**PREFERRED: Manual UI upload.** The bottleneck is only getting bytes _into the agent_. For any
-file changes, **offer the user the option to drag the changed file(s) from `app/` (generic) or
-`workspaces/<ws>/pipeline_cards.json` (the canonical local copies) straight into the OpenHEXA
-UI** — no agent Read, no token cost, no size limit. This is the fastest and cheapest path and should be offered as the default unless the user prefers automation.
+- **`mcp__claude_ai_OpenHEXA__get_static_webapp_file(workspace_slug, webapp_slug, path)`**
+  (added 2026-07-07) — reads **one** file; supports `start_line`/`end_line` for large files.
+  **Preferred for verifying a single-file edit** (e.g. confirm an `edit_static_webapp_file`
+  call landed) — cheap, no Read-cap risk.
+- **`mcp__claude_ai_OpenHEXA__get_static_webapp(workspace_slug, webapp_slug)`** — reads
+  **every** file plus metadata (`allowedOperations`, `permissions`, each file's `content` +
+  `encoding`: `TEXT`/`BASE64`). Use for a **full drift audit** (comparing the whole live bundle
+  against the repo) or when you need the file list first. Use the **slug** (from
+  `list_static_webapps`), not the UUID, for both tools.
 
-**If API deploy is necessary** (confirmed 2026-06-22): write the escaped string to a temp file,
-then read it back in slices with the Bash tool (`cut -c1-20000 file`, `-c20001-40000 file`, …)
-and concatenate the slices **exactly** into the `content` value — ideally inside a **subagent**
-so the large payload stays out of the main context. Smaller files (`styles.css`, the JSON data
-files) still read in one go. **Always verify after a chunked deploy**: re-read live via
-`get_static_webapp` and diff against the local copy (e.g. a quick `node -e` length/equality
-check) — a single dropped/altered char between slices would break the file. The OpenHEXA
-**CLI deploys pipelines only, not static webapps**, so there is no command-line deploy path
-today (a feature request to the OH devs is in flight).
+⚠️ **`start_line`/`end_line` on `get_static_webapp_file` are currently broken** (confirmed
+2026-07-08): the MCP tool declares them as `string` params, but the underlying `readWebappFile`
+GraphQL query requires `Int` — confirmed by re-checking `schemas/schema.generated.graphql`
+after a refresh (`readWebappFile(endLine: Int, ..., startLine: Int, ...)`). GraphQL variables
+don't coerce a quoted `"1"` to `1`, so passing either param throws `Variable '$startLine' got
+invalid value '1'; Int cannot represent non-integer value: '1'`. **Omit both for now** and read
+the whole file — this is a bug in the tool wrapper, not something fixable from this repo.
+Reported upstream 2026-07-08.
+
+**Large-file deploy friction (Read cap) — now mostly avoided.** `update_static_webapp`'s
+`files_json` carries file _contents inline_ — the tool can't read from a path on disk, so
+authoring the call means pulling the bytes into context with Read, which caps at ~25k tokens.
+The orchestrator's `app.js`, once JSON-escaped (`ConvertTo-Json`), is ~59 KB (~29k tokens), so a
+single Read **truncates** it. `edit_static_webapp_file` sidesteps this entirely for targeted
+edits — no full-file Read, no JSON-escaping, no chunking. Everything below is now a **fallback**,
+needed only when a file must be wholesale-rewritten (not just patched) and is too large for a
+single Read.
+
+**Manual UI upload (fallback for wholesale rewrites).** If a wholesale rewrite is needed and the
+escape/chunk dance below feels like overkill, offer the user the option to drag the changed
+file(s) from `app/` (generic) or `workspaces/<ws>/pipeline_cards.json` (the canonical local
+copies) straight into the OpenHEXA UI — no agent Read, no token cost, no size limit.
+
+**If a wholesale rewrite must go through the API** (confirmed 2026-06-22): write the escaped
+string to a temp file, then read it back in slices with the Bash tool (`cut -c1-20000 file`,
+`-c20001-40000 file`, …) and concatenate the slices **exactly** into the `content` value —
+ideally inside a **subagent** so the large payload stays out of the main context. Smaller files
+(`styles.css`, the JSON data files) still read in one go. **Always verify after a chunked
+deploy**: re-read live via `get_static_webapp_file` (or `get_static_webapp` for a full check)
+and diff against the local copy (e.g. a quick `node -e` length/equality check) — a single
+dropped/altered char between slices would break the file. The OpenHEXA **CLI deploys pipelines
+only, not static webapps**, so there is no command-line deploy path today (a feature request to
+the OH devs is in flight).
 
 ### Assembling `files_json` on Windows (PowerShell 5.1)
 
@@ -571,12 +612,24 @@ Webapp identity and scopes (`id`, `slug`, `url`, `allowedOperations`) are **not*
 repo — resolve them live via `list_static_webapps` / `get_static_webapp` whenever you deploy or
 inspect an app.
 
-**The agent CAN now read the live webapp's files** via `mcp__claude_ai_OpenHEXA__get_static_webapp(workspace_slug, webapp_slug)` (added in the 2026-06 OH release). It returns metadata, `allowedOperations`, a `permissions` block, and every file's full `content` with an `encoding` field (`TEXT` for UTF-8, `BASE64` for binary). Use the **slug** (from `list_static_webapps`), not the UUID. This means:
+**The agent CAN now read and edit the live webapp's files directly.**
+`mcp__claude_ai_OpenHEXA__get_static_webapp(workspace_slug, webapp_slug)` (added in the 2026-06
+OH release) returns metadata, `allowedOperations`, a `permissions` block, and every file's full
+`content` with an `encoding` field (`TEXT` for UTF-8, `BASE64` for binary) — use for a full
+drift audit. `mcp__claude_ai_OpenHEXA__get_static_webapp_file(workspace_slug, webapp_slug,
+path)` (added 2026-07-07) reads a single file (with optional `start_line`/`end_line`) — use for
+a cheap single-file check. Use the **slug** (from `list_static_webapps`), not the UUID, for
+both. This means:
 
 - **The live app is an inspectable source of truth, not a black box.** Before editing an existing webapp, pull the deployed files and diff them against the repo (`app/` + `workspaces/<ws>/pipeline_cards.json`) to catch drift (e.g. edits made directly in the OpenHEXA UI).
 - To build a workspace's deploy set, combine `app/*` with that workspace's `workspaces/<ws>/pipeline_cards.json` — there is no per-app mirror folder to assemble.
-- After a deploy, **verify** by reading the files back with `get_static_webapp` and diffing against the repo.
-- ✅ `update_static_webapp` supports **partial/incremental deploys** (confirmed live 2026-06-19): send only the changed files in `files_json`; omitted files are left intact, not deleted. The tool's description still says "replace all files," but that's stale. Prefer partial deploys for small edits, and re-verify with `get_static_webapp` afterward (see _MCP deployment_ for details + caveats).
+- After a deploy, **verify** by reading the changed file(s) back (`get_static_webapp_file` for one file, `get_static_webapp` for the whole bundle) and diffing against the repo.
+- ✅ For small, targeted edits prefer `mcp__claude_ai_OpenHEXA__edit_static_webapp_file`
+  (find/replace on one file, added 2026-07-07) over `update_static_webapp` — it never needs the
+  file's full content in context. Reserve `update_static_webapp` (which does support
+  **partial/incremental deploys**, confirmed live 2026-06-19 — send only the changed files in
+  `files_json`; omitted files are left intact) for new files or wholesale rewrites. See _MCP
+  deployment_ for details + caveats.
 
 ### How to build or update the webapp for a workspace
 
@@ -592,7 +645,10 @@ When building or updating the orchestrator for a workspace:
 1. Use `schemas/pipeline_cards.schema.json` and `workspaces/<ws>/pipeline_cards.json` to determine which pipelines exist and what UI to build.
 2. Edit the generic app under `app/` (shared by all workspaces); edit only `workspaces/<ws>/pipeline_cards.json` for per-workspace changes.
 3. Follow the runtime patterns above (prefixed IDs, shared functions, `allowed_operations`, etc.).
-4. Resolve the webapp `id` via `list_static_webapps`, then deploy via `mcp__claude_ai_OpenHEXA__update_static_webapp` with `app/*` + `workspaces/<ws>/pipeline_cards.json`.
+4. Resolve the webapp `id` via `list_static_webapps`, then deploy: for a new workspace or a
+   full-bundle refresh use `mcp__claude_ai_OpenHEXA__update_static_webapp` with `app/*` +
+   `workspaces/<ws>/pipeline_cards.json`; for a small edit to one already-deployed file use
+   `mcp__claude_ai_OpenHEXA__edit_static_webapp_file` instead (see _MCP deployment_).
 5. Keep the repo in sync (save any regenerated cards back to `workspaces/<ws>/pipeline_cards.json`).
 
 > For the **SNT Pipelines Orchestrator** specifically, follow the multi-file architecture in
