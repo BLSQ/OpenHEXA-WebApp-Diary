@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>SNT Pipelines Orchestrator — Cockpit</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <!-- Cockpit UI variant: a focused, one-step-at-a-time guided walkthrough.
+         A slim progress rail on the left shows the whole journey + "you are
+         here"; the central panel carries everything for the focused step
+         (dependencies, parameters, run, outputs). Back / Next walk the
+         recommended order; mutually-exclusive alternative groups (A.3 outliers,
+         A.4 reporting rate) appear as a single "choose one" step.
+
+         The shell is empty on load — app.js fetches pipeline_map.json +
+         pipeline_cards.json, merges them, then renders the rail and cockpit and
+         wires the live OpenHEXA calls (status, run, poll, outputs). -->
+    <header class="appbar">
+      <div class="logo" aria-hidden="true">&#8779;</div>
+      <h1>SNT Pipelines Orchestrator</h1>
+      <div class="ws">Workspace: <b id="workspaceLabel">—</b></div>
+      <div class="nav">
+        <span class="stepcount" id="stepcount"></span>
+        <button class="nbtn" id="backBtn" type="button">&#9666; Back</button>
+        <button class="nbtn primary" id="nextBtn" type="button">Next &#9656;</button>
+      </div>
+    </header>
+
+    <div class="shell">
+      <nav class="rail" id="rail" aria-label="Pipeline walkthrough steps"></nav>
+      <div class="cockpit-wrap">
+        <div class="cockpit" id="cockpit"></div>
+      </div>
+    </div>
+
+    <script src="app.js"></script>
+  </body>
+</html>

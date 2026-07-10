@@ -1,0 +1,242 @@
+{
+  "version": "2026-07-10",
+  "_notes": "Cockpit UI variant map. Same nodes/edges/ids/codes/labels as the flowchart variant (the canonical source of truth for pipeline identity), but `row` here is the WALKTHROUGH STAGE index (0=Extract, 1=Format, 2=Clean & enrich, 3=Derive, 4=Outputs) rather than a 2D grid row — the cockpit renders a linear guided walkthrough, not a 2D map. Per CLAUDE.md, each variant owns its own pipeline_map.json and may drift independently. Authoring conventions, per-member-edge rule, and group-aware unlock semantics: see schemas/pipeline_map.schema.json and CLAUDE.md (Node states).",
+  "grid": { "cols": 11 },
+  "nodes": [
+    {
+      "id": "snt_dhis2_extract",
+      "code": "A.1",
+      "label": "DHIS2 Extract",
+      "description": "Extracts DHIS2 pyramid, routine analytics, population, shapes, and reporting rates for a period.",
+      "type": "mandatory",
+      "row": 0,
+      "col": 5,
+      "track": "A"
+    },
+    {
+      "id": "snt_dhis2_formatting",
+      "code": "A.2",
+      "label": "DHIS2 Formatting",
+      "description": "Processes and formats the DHIS2 extracts (pyramid, shapes, routine data) for the SNT workflow.",
+      "type": "mandatory",
+      "row": 1,
+      "col": 5,
+      "track": "A"
+    },
+    {
+      "id": "snt_dhis2_outliers_imputation_magic_glasses",
+      "code": "A.3",
+      "label": "Outliers: Magic Glasses",
+      "description": "Outlier detection and imputation using the Magic Glasses (MAD-based) method.",
+      "type": "alternative",
+      "group": "a3_outliers",
+      "row": 2,
+      "col": 0,
+      "track": "A"
+    },
+    {
+      "id": "snt_dhis2_outliers_imputation_mean",
+      "code": "A.3",
+      "label": "Outliers: Mean",
+      "description": "Outlier detection and imputation using the mean +/- k x SD method.",
+      "type": "alternative",
+      "group": "a3_outliers",
+      "row": 2,
+      "col": 1,
+      "track": "A"
+    },
+    {
+      "id": "snt_dhis2_outliers_imputation_median",
+      "code": "A.3",
+      "label": "Outliers: Median",
+      "description": "Outlier detection and imputation using the median +/- k x MAD method.",
+      "type": "alternative",
+      "group": "a3_outliers",
+      "row": 2,
+      "col": 2,
+      "track": "A"
+    },
+    {
+      "id": "snt_dhis2_outliers_imputation_iqr",
+      "code": "A.3",
+      "label": "Outliers: IQR",
+      "description": "Outlier detection and imputation using the IQR (inter-quartile range) method.",
+      "type": "alternative",
+      "group": "a3_outliers",
+      "row": 2,
+      "col": 3,
+      "track": "A"
+    },
+    {
+      "id": "snt_dhis2_outliers_imputation_path",
+      "code": "A.3",
+      "label": "Outliers: PATH",
+      "description": "Outlier detection and imputation using the PATH method (mean +/- 10 x SD).",
+      "type": "alternative",
+      "group": "a3_outliers",
+      "row": 2,
+      "col": 4,
+      "track": "A"
+    },
+    {
+      "id": "snt_dhis2_reporting_rate_dataelement",
+      "code": "A.4",
+      "label": "Reporting Rate: Data element",
+      "description": "Reporting rate computed from routine data elements.",
+      "type": "alternative",
+      "group": "a4_reporting_rate",
+      "row": 3,
+      "col": 1.5,
+      "track": "A"
+    },
+    {
+      "id": "snt_dhis2_reporting_rate_dataset",
+      "code": "A.4",
+      "label": "Reporting Rate: Dataset",
+      "description": "Reporting rate from DHIS2 dataset-level rate indicators.",
+      "type": "alternative",
+      "group": "a4_reporting_rate",
+      "row": 3,
+      "col": 2.5,
+      "track": "A"
+    },
+    {
+      "id": "snt_dhis2_population_transformation",
+      "code": "A.5",
+      "label": "Population Transformation",
+      "description": "Scales, projects, and disaggregates DHIS2 population by demographic group.",
+      "type": "facultative",
+      "row": 3,
+      "col": 6,
+      "track": "A"
+    },
+    {
+      "id": "snt_dhis2_incidence",
+      "code": "A.6",
+      "label": "DHIS2 Incidence",
+      "description": "Computes malaria case metrics and yearly incidence from routine HMIS data.",
+      "type": "facultative",
+      "row": 4,
+      "col": 5,
+      "track": "A"
+    },
+    {
+      "id": "snt_seasonality_cases",
+      "code": "A.7",
+      "label": "Seasonality - Cases",
+      "description": "Classifies case seasonality at ADM2 from routine confirmed-malaria data.",
+      "type": "facultative",
+      "row": 4,
+      "col": 6,
+      "track": "A"
+    },
+    {
+      "id": "snt_worldpop_extract",
+      "code": "B.1",
+      "label": "WorldPop Extract",
+      "description": "Extracts WorldPop population raster data for the country.",
+      "type": "facultative",
+      "row": 2,
+      "col": 7,
+      "track": "B"
+    },
+    {
+      "id": "snt_map_extracts",
+      "code": "B.2",
+      "label": "MAP Extracts",
+      "description": "Extracts Malaria Atlas Project rasters and computes zonal statistics.",
+      "type": "facultative",
+      "row": 4,
+      "col": 7,
+      "track": "B"
+    },
+    {
+      "id": "snt_healthcare_access",
+      "code": "B.3",
+      "label": "Access to Health Care",
+      "description": "Computes access-to-care metrics from facilities, population, and catchments.",
+      "type": "facultative",
+      "row": 4,
+      "col": 8,
+      "track": "B"
+    },
+    {
+      "id": "snt_dhs_indicators",
+      "code": "C.1",
+      "label": "DHS Indicators",
+      "description": "Computes DHS survey-based indicators for the SNT process.",
+      "type": "facultative",
+      "row": 2,
+      "col": 9,
+      "track": "C"
+    },
+    {
+      "id": "snt_era5_climate_data",
+      "code": "D.1",
+      "label": "ERA5 Climate Data",
+      "description": "Extracts ERA5 climate data from the Copernicus Climate Data Store.",
+      "type": "facultative",
+      "row": 2,
+      "col": 10,
+      "track": "D"
+    },
+    {
+      "id": "snt_seasonality_rainfall",
+      "code": "D.2",
+      "label": "ERA5 Seasonality - Rainfall",
+      "description": "Computes rainfall seasonality metrics from ERA5 climate data.",
+      "type": "facultative",
+      "row": 4,
+      "col": 10,
+      "track": "D"
+    }
+  ],
+  "edges": [
+    { "from": "snt_dhis2_extract", "to": "snt_dhis2_formatting", "type": "solid" },
+
+    { "from": "snt_dhis2_formatting", "to": "snt_dhis2_outliers_imputation_magic_glasses", "type": "solid" },
+    { "from": "snt_dhis2_formatting", "to": "snt_dhis2_outliers_imputation_mean", "type": "solid" },
+    { "from": "snt_dhis2_formatting", "to": "snt_dhis2_outliers_imputation_median", "type": "solid" },
+    { "from": "snt_dhis2_formatting", "to": "snt_dhis2_outliers_imputation_iqr", "type": "solid" },
+    { "from": "snt_dhis2_formatting", "to": "snt_dhis2_outliers_imputation_path", "type": "solid" },
+
+    { "from": "snt_dhis2_formatting", "to": "snt_dhis2_reporting_rate_dataelement", "type": "solid" },
+    { "from": "snt_dhis2_formatting", "to": "snt_dhis2_reporting_rate_dataset", "type": "solid" },
+
+    { "from": "snt_dhis2_outliers_imputation_magic_glasses", "to": "snt_dhis2_reporting_rate_dataelement", "type": "optional" },
+    { "from": "snt_dhis2_outliers_imputation_mean", "to": "snt_dhis2_reporting_rate_dataelement", "type": "optional" },
+    { "from": "snt_dhis2_outliers_imputation_median", "to": "snt_dhis2_reporting_rate_dataelement", "type": "optional" },
+    { "from": "snt_dhis2_outliers_imputation_iqr", "to": "snt_dhis2_reporting_rate_dataelement", "type": "optional" },
+    { "from": "snt_dhis2_outliers_imputation_path", "to": "snt_dhis2_reporting_rate_dataelement", "type": "optional" },
+
+    { "from": "snt_dhis2_outliers_imputation_magic_glasses", "to": "snt_dhis2_reporting_rate_dataset", "type": "optional" },
+    { "from": "snt_dhis2_outliers_imputation_mean", "to": "snt_dhis2_reporting_rate_dataset", "type": "optional" },
+    { "from": "snt_dhis2_outliers_imputation_median", "to": "snt_dhis2_reporting_rate_dataset", "type": "optional" },
+    { "from": "snt_dhis2_outliers_imputation_iqr", "to": "snt_dhis2_reporting_rate_dataset", "type": "optional" },
+    { "from": "snt_dhis2_outliers_imputation_path", "to": "snt_dhis2_reporting_rate_dataset", "type": "optional" },
+
+    { "from": "snt_dhis2_formatting", "to": "snt_dhis2_population_transformation", "type": "solid" },
+    { "from": "snt_dhis2_formatting", "to": "snt_dhis2_incidence", "type": "solid" },
+    { "from": "snt_dhis2_formatting", "to": "snt_seasonality_cases", "type": "solid" },
+    { "from": "snt_dhis2_formatting", "to": "snt_worldpop_extract", "type": "solid" },
+    { "from": "snt_dhis2_formatting", "to": "snt_map_extracts", "type": "solid" },
+    { "from": "snt_dhis2_formatting", "to": "snt_dhs_indicators", "type": "solid" },
+    { "from": "snt_dhis2_formatting", "to": "snt_era5_climate_data", "type": "solid" },
+
+    { "from": "snt_era5_climate_data", "to": "snt_seasonality_rainfall", "type": "solid" },
+
+    { "from": "snt_dhis2_outliers_imputation_magic_glasses", "to": "snt_dhis2_incidence", "type": "optional" },
+    { "from": "snt_dhis2_outliers_imputation_mean", "to": "snt_dhis2_incidence", "type": "optional" },
+    { "from": "snt_dhis2_outliers_imputation_median", "to": "snt_dhis2_incidence", "type": "optional" },
+    { "from": "snt_dhis2_outliers_imputation_iqr", "to": "snt_dhis2_incidence", "type": "optional" },
+    { "from": "snt_dhis2_outliers_imputation_path", "to": "snt_dhis2_incidence", "type": "optional" },
+
+    { "from": "snt_dhis2_reporting_rate_dataelement", "to": "snt_dhis2_incidence", "type": "optional" },
+    { "from": "snt_dhis2_reporting_rate_dataset", "to": "snt_dhis2_incidence", "type": "optional" },
+
+    { "from": "snt_dhis2_population_transformation", "to": "snt_dhis2_incidence", "type": "optional" },
+    { "from": "snt_dhs_indicators", "to": "snt_dhis2_incidence", "type": "optional" },
+
+    { "from": "snt_dhis2_formatting", "to": "snt_healthcare_access", "type": "solid" }
+  ]
+}
