@@ -848,6 +848,10 @@ function renderRail() {
     var locked = avail ? lockedReason(rep.id) : null;
     var showLocked = locked && st === "none";
     var glyphState = !avail ? "missing" : showLocked ? "locked" : st;
+    // In the rail the circle itself conveys the state, so "never run" and "not
+    // installed" show an empty circle (no glyph); other states keep their glyph.
+    var railGlyph =
+      glyphState === "none" || glyphState === "missing" ? "" : G[glyphState];
     var cls =
       (i === APP.cur ? "here " : "") +
       (!avail ? "missing " : showLocked ? "locked " : "");
@@ -864,7 +868,7 @@ function renderRail() {
       '<span class="sg ' +
       glyphState +
       '">' +
-      G[glyphState] +
+      railGlyph +
       "</span>" +
       '<div style="min-width:0"><div class="rlabel"><span class="rcode">' +
       escapeHtml(s.code) +
@@ -895,18 +899,29 @@ function statusPillHtml(node) {
     var dur = fmtDuration(run.duration);
     if (dur) meta += " · " + dur;
   }
-  return (
-    '<span class="statuspill ' +
-    state +
-    '"><span class="sg ' +
+  var inner =
+    '<span class="sg ' +
     state +
     '">' +
     G[state] +
     "</span>" +
     (showLocked ? "Locked" : SL[state]) +
-    escapeHtml(meta) +
-    "</span>"
-  );
+    escapeHtml(meta);
+  // When there's a run to link to, the whole pill becomes a link to that run's
+  // OpenHEXA page (with an outlink glyph); otherwise it's a plain badge.
+  var url = run ? runPageUrl(node, run) : null;
+  if (url) {
+    return (
+      '<a class="statuspill ' +
+      state +
+      ' statuspill-link" href="' +
+      escapeHtml(url) +
+      '" target="_blank" rel="noopener noreferrer" title="Open this run in OpenHEXA">' +
+      inner +
+      ' <span class="arr">↗</span></a>'
+    );
+  }
+  return '<span class="statuspill ' + state + '">' + inner + "</span>";
 }
 
 // Dependency column (Requires / Uses if available / Unlocks next).
@@ -1062,37 +1077,6 @@ function runRowHtml(node) {
   );
 }
 
-// The "More" links (README, latest run page).
-function moreLinksHtml(node) {
-  var slug = workspaceSlug();
-  var entry = APP.statusByUuid && node.uuid ? APP.statusByUuid[node.uuid] : null;
-  var run = entry ? entry.run : null;
-  var links = extLinkHtml(
-    githubFolderUrl(node.id),
-    "▤",
-    "README on GitHub",
-    "snt_development / " + node.id,
-  );
-  if (run && slug && entry && entry.code) {
-    var runUrl =
-      appBaseUrl() +
-      "/workspaces/" +
-      slug +
-      "/pipelines/" +
-      entry.code +
-      "/runs/" +
-      run.id +
-      "/";
-    links += extLinkHtml(
-      runUrl,
-      "▶",
-      "Open latest run in OpenHEXA",
-      "logs, messages, full detail",
-    );
-  }
-  return links;
-}
-
 function extLinkHtml(href, icon, title, sub, arrow) {
   return (
     '<a class="extlink" href="' +
@@ -1232,6 +1216,14 @@ function renderCockpit() {
     groupExclusionNoticeHtml(node) +
     "</div>" +
     (desc ? '<p class="desc">' + escapeHtml(desc) + "</p>" : "") +
+    '<div class="sb-links">' +
+    extLinkHtml(
+      githubFolderUrl(node.id),
+      "▤",
+      "README on GitHub",
+      "snt_development / " + node.id,
+    ) +
+    "</div>" +
     '<div class="sec"><h4>Dependencies</h4><div class="deps">' +
     depColHtml("Requires (hard)", hp, false) +
     depColHtml("Uses if available (soft)", sp, true) +
@@ -1249,9 +1241,6 @@ function renderCockpit() {
     '<pre id="sb-config" class="sb-config" hidden></pre>' +
     "</div>" +
     '<div class="sec"><h4>Latest outputs</h4><div id="sb-outputs" class="outputs"></div></div>' +
-    '<div class="sec"><h4>More</h4><div class="outputs">' +
-    moreLinksHtml(node) +
-    "</div></div>" +
     "</div>" +
     footHtml(step);
 

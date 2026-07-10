@@ -52,16 +52,6 @@ body {
   background: var(--paper);
   border-bottom: 1px solid var(--line);
 }
-.appbar .logo {
-  width: 30px;
-  height: 30px;
-  border: 2px solid var(--ink);
-  border-radius: 6px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 700;
-}
 .appbar h1 {
   font-size: 15px;
   margin: 0;
@@ -214,6 +204,15 @@ body {
   font-weight: 700;
   white-space: nowrap;
 }
+/* Center the status glyph inside its box in every context (the rail already
+   does this on .ritem .sg; this covers the smaller dep-chip / pill / alt glyphs,
+   which otherwise fall to the top-left of their box). */
+.sg {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 /* status glyph colors */
 .sg.ok {
   background: var(--ok);
@@ -342,6 +341,27 @@ body {
 .statuspill.locked {
   background: #eceef1;
   color: var(--faint);
+}
+/* Clickable pill (links to the run's OpenHEXA page). */
+.statuspill-link {
+  text-decoration: none;
+  cursor: pointer;
+  transition: filter 0.12s ease;
+}
+.statuspill-link:hover {
+  filter: brightness(0.96);
+  text-decoration: none;
+}
+.statuspill-link .arr {
+  font-size: 11px;
+  opacity: 0.75;
+}
+
+/* README / link row directly under the pipeline description. */
+.sb-links {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .ck-body {
