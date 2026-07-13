@@ -1298,6 +1298,27 @@ function renderMissingSidebar(node) {
 }
 
 // Build + inject the detail panel for a node, then kick off the outputs fetch.
+/* T2.6 — Run-row markup, gated on upstream locking. A node with unmet hard
+ * prerequisites (and no run of its own yet) shows a disabled "🔒 Locked" button
+ * plus a "Run X first" hint instead of the Run/Preview pair. Once the node has
+ * any run of its own, re-runs are always offered (matching the cockpit variant).
+ * `run` is this node's latest run (or null). */
+function runRowHtml(node, run) {
+  var locked = !run ? lockedReason(node.id) : null;
+  if (locked) {
+    return (
+      '<button type="button" id="sb-run" class="btn-primary is-busy" disabled>🔒 Locked</button>' +
+      '<span class="sb-lockhint">Run <b>' +
+      escapeHtml(locked.join(", ")) +
+      "</b> first.</span>"
+    );
+  }
+  return (
+    '<button type="button" id="sb-run" class="btn-primary">▶ Run pipeline</button>' +
+    '<button type="button" id="sb-preview" class="btn-secondary">Preview config</button>'
+  );
+}
+
 function renderSidebar(node) {
   var sb = document.getElementById("sidebar");
   if (!sb) return;
@@ -1371,8 +1392,7 @@ function renderSidebar(node) {
     '<h3 class="sb-sectitle">Parameters</h3>' +
     paramsFormHtml(node) +
     '<div class="sb-runrow">' +
-    '<button type="button" id="sb-run" class="btn-primary">▶ Run pipeline</button>' +
-    '<button type="button" id="sb-preview" class="btn-secondary">Preview config</button>' +
+    runRowHtml(node, run) +
     "</div>" +
     '<div id="sb-runstatus" class="sb-runstatus" hidden></div>' +
     '<pre id="sb-config" class="sb-config" hidden></pre>' +
@@ -1751,6 +1771,24 @@ function setRunBtnBusy(nodeId, busy) {
 async function runNode(node) {
   if (APP.activeRun[node.id]) return; // a run for this node is already in flight
 
+  // T2.6 — guard the run path itself, not just the disabled button: a node with
+  // no run of its own yet stays locked until every hard prerequisite succeeds.
+  var lockEntry =
+    APP.statusByUuid && node.uuid ? APP.statusByUuid[node.uuid] : null;
+  if (!(lockEntry && lockEntry.run)) {
+    var lockedNow = lockedReason(node.id);
+    if (lockedNow) {
+      setRunStatusLine(
+        node.id,
+        '<span class="rs-glyph">🔒</span> Locked — run ' +
+          escapeHtml(lockedNow.join(", ")) +
+          " first.",
+        "rs-err",
+      );
+      return;
+    }
+  }
+
   var configBox = document.getElementById("sb-config");
   var built = buildConfig(node);
   if (built.errors.length) {
@@ -2041,6 +2079,9 @@ function refreshGroupStates() {
   });
 
   updateAltNoteSlot();
+  // T2.6 — a completed prerequisite can unlock downstream nodes; recompute the
+  // lock overlay on the same cadence (boot + every poll tick).
+  refreshLockStates();
 }
 
 // Replace the open sidebar's group-notice line in place (no full re-render, so it
@@ -2091,6 +2132,99 @@ function groupExclusionNoticeHtml(node) {
     );
   }
   return ""; // no member has succeeded yet → no choice made
+}
+
+/* ------------------------------------------------------------------ *
+ * T2.6 — Upstream locking
+ *
+ * A node is *locked* until every hard (`solid`) prerequisite has a successful
+ * latest run (read from the cross-session status board — a prerequisite that
+ * succeeded earlier stays satisfied). Soft (`optional`) edges draw an arrow but
+ * never gate. Gating is group-aware: solid sources are bucketed by their
+ * alternative `group` (a non-grouped source is its own size-1 bucket) and one
+ * successful source per bucket satisfies that bucket — so a solid edge leaving
+ * an alternative group would unlock once any one member succeeds (dormant today:
+ * the map has no such edge, but the rule is honored). When live status is
+ * unavailable (opened outside OpenHEXA / status query blocked) nothing gates, so
+ * the map stays explorable. Ported from the cockpit variant.
+ * ------------------------------------------------------------------ */
+
+// Hard (gating) prerequisites of a node: the `from` of every non-optional edge
+// pointing at it. Reads the raw edge list off the loaded map.
+function hardParents(id) {
+  var edges = (APP.map && APP.map.edges) || [];
+  return edges
+    .filter(function (e) {
+      return e.type !== "optional" && e.to === id;
+    })
+    .map(function (e) {
+      return e.from;
+    });
+}
+
+// A prerequisite counts as satisfied iff it's available here and its latest run
+// succeeded (mirrors the cockpit's "ok" state).
+function isSuccess(id) {
+  var n = APP.nodeById[id];
+  if (!n || !n.available) return false;
+  var entry = APP.statusByUuid ? APP.statusByUuid[n.uuid] : null;
+  var run = entry ? entry.run : null;
+  return !!(run && run.status === "success");
+}
+
+// Human label for an alternative group (used in the "run X first" hint).
+function groupTitle(g) {
+  if (g === "a3_outliers") return "Outliers Imputation";
+  if (g === "a4_reporting_rate") return "Reporting Rate";
+  return g;
+}
+
+// Why a node is locked: bucket its hard parents by alternative `group` and
+// require one successful source per bucket. Returns an array of the missing
+// buckets' labels (for the hint), or null when nothing gates it. No status
+// snapshot → don't lock (returns null).
+function lockedReason(id) {
+  if (!APP.statusByUuid) return null; // status unknown -> don't lock
+  var buckets = {};
+  hardParents(id).forEach(function (pid) {
+    var pn = APP.nodeById[pid];
+    var key = pn && pn.group ? "grp:" + pn.group : "id:" + pid;
+    (buckets[key] = buckets[key] || []).push(pid);
+  });
+  var missing = [];
+  Object.keys(buckets).forEach(function (key) {
+    var srcs = buckets[key];
+    var satisfied = srcs.some(function (pid) {
+      return isSuccess(pid);
+    });
+    if (!satisfied) {
+      var rep = APP.nodeById[srcs[0]];
+      if (!rep) return;
+      if (key.indexOf("grp:") === 0)
+        missing.push(rep.code + " " + groupTitle(rep.group));
+      else missing.push(rep.code + " " + rep.label);
+    }
+  });
+  return missing.length ? missing : null;
+}
+
+// Toggle the `.locked` class on each card. A node shows as locked only while it
+// has no run of its own yet (once run, re-runs are always allowed) and at least
+// one hard prerequisite is still missing. Cheap + no network — called after
+// every status refresh (boot + each poll tick, via refreshGroupStates), so the
+// map unlocks live as prerequisites complete.
+function refreshLockStates() {
+  APP.nodes.forEach(function (n) {
+    var el = APP.nodeEls[n.id];
+    if (!el) return;
+    var locked = false;
+    if (n.available) {
+      var entry = APP.statusByUuid ? APP.statusByUuid[n.uuid] : null;
+      var run = entry ? entry.run : null;
+      if (!run) locked = !!lockedReason(n.id);
+    }
+    el.classList.toggle("locked", locked);
+  });
 }
 
 /* ------------------------------------------------------------------ *

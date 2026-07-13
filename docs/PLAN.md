@@ -230,8 +230,13 @@ that node's status and outputs.
   _Done when:_ the message appears for a deliberately-missing pipeline.
 
 - **T2.6 — Upstream locking** · 🤖 · Dep: T2.3
-  A node unlocks only once every upstream `solid` edge has a completed/successful run in the
-  current session. Soft (`optional`) edges draw an arrow but do not gate.
+  A node unlocks only once every upstream `solid` edge has a successful **latest run** (from the
+  cross-session status board, not just the current session — a prerequisite that succeeded
+  earlier stays satisfied). Soft (`optional`) edges draw an arrow but do not gate. Gating is
+  group-aware (bucket solid sources by their alternative `group`; one completed source per bucket
+  suffices) and is skipped entirely when status is unavailable (app opened outside OpenHEXA), so
+  the map stays explorable. Already implemented in the `cockpit` variant; this task ports the
+  same approach to `flowchart`.
   _Done when:_ downstream nodes stay locked until prerequisites succeed.
 
 ---

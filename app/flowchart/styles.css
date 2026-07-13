@@ -450,6 +450,28 @@ svg.edges {
   border: 1px solid #2e7d32;
 }
 
+/* --- Upstream locking (T2.6) --- *
+ * A node whose hard prerequisites haven't all succeeded is dimmed and marked
+ * with a lock, but stays clickable so the user can open it and read what to run
+ * first. The lock marker sits top-*left*, clear of the top-right type/group
+ * markers. Only available cards ever get .locked (refreshLockStates skips greyed
+ * nodes), so there's no clash with the greyed ::before install hint. */
+.node.locked {
+  opacity: 0.72;
+}
+.node.locked::before {
+  content: "🔒";
+  position: absolute;
+  top: -9px;
+  left: 8px;
+  font-size: 10px;
+  line-height: 1;
+  padding: 2px 5px;
+  border-radius: 6px;
+  background: #eceff1;
+  border: 1px solid #cfd8dc;
+}
+
 /* Type label, top-right corner: filled for mandatory/output (the only types
  * app.js labels); alternative/facultative cards are left unlabelled. */
 .type-badge {
@@ -714,6 +736,17 @@ svg.edges {
   background: #e8f0fe;
   color: #1a4480;
   border: 1px solid #aecbfa;
+}
+
+/* T2.6 — the "run X first" hint shown beside the disabled Run button when a node
+ * is locked by unmet prerequisites. */
+.sb-lockhint {
+  font-size: 0.78rem;
+  color: #607d8b;
+  line-height: 1.35;
+}
+.sb-lockhint b {
+  color: #455a64;
 }
 
 /* T2.5 — missing-pipeline panel: an amber "not installed" type badge in the
