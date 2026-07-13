@@ -237,10 +237,15 @@
     transform-origin: 0 0;
   }
 
-  svg.edges { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+  svg.edges { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; z-index: 2; }
   .edge-solid { stroke: var(--edge-solid); stroke-width: 2; fill: none; opacity: 0.5; transition: opacity 0.16s, stroke-width 0.16s; }
   .edge-opt { stroke: var(--edge-opt); stroke-width: 1.6; stroke-dasharray: 5 5; fill: none; opacity: 0.22; transition: opacity 0.16s, stroke-width 0.16s; }
-  /* declutter: when a node is focused, dim every edge except the ones touching it */
+  /* resting view: one aggregate arrow per group; individual member lines hidden */
+  .edge-member { display: none; }
+  /* declutter: when a node is focused, dim every edge except the ones touching it,
+     and swap the aggregate group arrows for the individual member lines */
+  .edges.focus .edge-agg { display: none; }
+  .edges.focus .edge-member { display: inline; }
   .edges.focus path { opacity: 0.07; }
   .edges.focus path.hi { opacity: 1; stroke-width: 2.6; }
   .edges.focus path.edge-opt.hi { opacity: 0.95; stroke-width: 2; }
@@ -868,7 +873,8 @@
   });
 
   // ---- group containers (drawn behind nodes) ----
-  function drawGroup(ids, label, trackVar) {
+  var groupBoxes = {};
+  function drawGroup(key, ids, label, trackVar) {
     var pad = 16, top = 26;
     var minX = 1e9, minY = 1e9, maxX = -1e9, maxY = -1e9;
     ids.forEach(function (id) {
@@ -887,9 +893,10 @@
     box.style.background = "color-mix(in srgb, " + trackVar + " 6%, transparent)";
     box.innerHTML = '<span class="glabel" style="color:color-mix(in srgb,' + trackVar + ' 78%, var(--ink))">' + label + "</span>";
     stage.insertBefore(box, svg);
+    groupBoxes[key] = box;
   }
-  drawGroup(["a3mg","a3mean","a3med","a3iqr","a3path"], "A.3 · Outliers — choose one", "var(--tA)");
-  drawGroup(["a4de","a4ds"], "A.4 · Reporting rate — choose one", "var(--tA)");
+  drawGroup("g3", ["a3mg","a3mean","a3med","a3iqr","a3path"], "A.3 · Outliers — choose one", "var(--tA)");
+  drawGroup("g4", ["a4de","a4ds"], "A.4 · Reporting rate — choose one", "var(--tA)");
 
   // ---- edges ----
   function rectOf(id) {
@@ -906,8 +913,8 @@
     var s = Math.min(sx, sy);
     return { x: cx + dx * s, y: cy + dy * s };
   }
-  EDGES.forEach(function (e) {
-    var rs = rectOf(e[0]), rt = rectOf(e[1]);
+  // draw a curved edge between two rects; returns the <path>
+  function drawEdge(rs, rt, opt, cls) {
     var csx = rs.l + rs.w / 2, csy = rs.t + rs.h / 2;
     var ctx = rt.l + rt.w / 2, cty = rt.t + rt.h / 2;
     var a = anchor(rs, ctx, cty), b = anchor(rt, csx, csy);
@@ -917,12 +924,31 @@
     else { var mx = (a.x + b.x) / 2; c1 = mx + "," + a.y; c2 = mx + "," + b.y; }
     var path = document.createElementNS("http://www.w3.org/2000/svg", "path");
     path.setAttribute("d", "M" + a.x + "," + a.y + " C" + c1 + " " + c2 + " " + b.x + "," + b.y);
-    var opt = e[2] === "optional";
-    path.setAttribute("class", opt ? "edge-opt" : "edge-solid");
+    path.setAttribute("class", (opt ? "edge-opt" : "edge-solid") + (cls ? " " + cls : ""));
     path.setAttribute("marker-end", opt ? "url(#arrow-opt)" : "url(#arrow)");
+    svg.appendChild(path);
+    return path;
+  }
+
+  function rectOfEl(el) { return { l: el.offsetLeft, t: el.offsetTop, w: el.offsetWidth, h: el.offsetHeight }; }
+
+  EDGES.forEach(function (e) {
+    var opt = e[2] === "optional";
+    // a solid edge from the A.2 hub into a group member is collapsed at rest
+    // into a single aggregate arrow to the group box; the individual line only
+    // shows when the map is focused (hover / selection).
+    var toGroup = e[0] === "a2" && byId[e[1]].group;
+    var path = drawEdge(rectOf(e[0]), rectOf(e[1]), opt, toGroup ? "edge-member" : null);
     path.dataset.from = e[0];
     path.dataset.to = e[1];
-    svg.appendChild(path);
+    if (toGroup) path.dataset.group = byId[e[1]].group;
+  });
+
+  // aggregate arrows: A.2 → each group box, shown only in the resting view
+  Object.keys(groupBoxes).forEach(function (g) {
+    var path = drawEdge(rectOf("a2"), rectOfEl(groupBoxes[g]), false, "edge-agg");
+    path.dataset.from = "a2";
+    path.dataset.group = g;
   });
 
   // ---- edge decluttering: focus a node's incident edges, dim the rest ----
