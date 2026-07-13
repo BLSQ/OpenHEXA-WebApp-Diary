@@ -95,11 +95,10 @@ drift independently. Per-workspace data mirrors this: `workspaces/<ws>/<variant>
 
 - **`flowchart`** — the current production UI: an interactive 2D node/edge map with a
   config/run sidebar. Deployed today to `snt-app-dev`, `snt-testing`, `cmr-snt-process`.
-- **`cockpit`** — an in-progress alternative UI (a focused, one-step-at-a-time layout). Target
-  UX is `design/wireframes/orchestrator_wireframe_cockpit.html`. As of 2026-07-09 only empty
-  placeholder folders exist (`app/cockpit/`, `workspaces/<ws>/cockpit/`) — building it out (wiring
-  the wireframe to real `pipeline_map.json`/`pipeline_cards.json` data and live OpenHEXA calls) is
-  a separate, not-yet-started task.
+- **`cockpit`** — an alternative UI (a focused, one-step-at-a-time guided walkthrough). Target
+  UX is `design/wireframes/orchestrator_wireframe_cockpit.html`. Deployed (manually, via the
+  OpenHEXA UI) to `snt-app-dev` and `snt-testing` as of 2026-07-13, as the
+  `SNT Pipelines Orchestrator — Cockpit` webapp.
 
 Deploying a given (workspace, variant) pair is still **5 files** — 4 generic (`app/<variant>/*`)
 + 1 workspace-specific (`workspaces/<ws>/<variant>/pipeline_cards.json`) — just nested one level

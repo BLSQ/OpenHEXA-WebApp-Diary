@@ -33,13 +33,13 @@ origin.
 │   │   ├── styles.css               #     All styling
 │   │   ├── app.js                   #     All logic (renders map, merges cards, runs/polls pipelines)
 │   │   └── pipeline_map.json        #     Hand-authored map (layout + dependency edges), this variant only
-│   └── cockpit/                     #   Alternative UI (in progress, same data/functionality) — empty for now
+│   └── cockpit/                     #   Alternative UI — same data/functionality
 │
 ├── workspaces/                      # Per-workspace, per-variant data — ONLY the file that differs
 │   ├── snt-app-dev/
 │   │   ├── flowchart/
 │   │   │   └── pipeline_cards.json  #   Cached pipeline catalog (names, UUIDs, parameters)
-│   │   └── cockpit/                 #   Empty for now (populated once cockpit is deployed here)
+│   │   └── cockpit/                 #   pipeline_cards.json (built and deployed)
 │   ├── snt-testing/
 │   │   └── flowchart/
 │   │       └── pipeline_cards.json
@@ -88,10 +88,10 @@ data, different layout/UX. Each variant is a fully self-contained bundle under `
 (including its own `pipeline_map.json` — variants do not share files, by design, so each UI can
 evolve independently).
 
-| Variant     | Status                                              | What it is                                                                                              |
-| ----------- | ---------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
-| `flowchart` | **Production** (this repo's current deployed app)    | Interactive 2D node/edge map + config/run sidebar                                                          |
-| `cockpit`   | **In progress** — scaffolding only, empty folder     | Focused, one-step-at-a-time layout. Target UX: `design/wireframes/orchestrator_wireframe_cockpit.html` |
+| Variant     | Status                                            | What it is                                                                                                         |
+| ----------- | ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `flowchart` | **Production** (this repo's current deployed app) | Interactive 2D node/edge map + config/run sidebar                                                                  |
+| `cockpit`   | **Production**                                    | Focused, one-step-at-a-time guided walkthrough. Target UX: `design/wireframes/orchestrator_wireframe_cockpit.html` |
 
 Deploying a given workspace + variant combination is still 5 files — 4 generic
 (`app/<variant>/*`) + 1 workspace-specific (`workspaces/<ws>/<variant>/pipeline_cards.json`).
@@ -105,11 +105,11 @@ Since webapp identity isn't stored in the repo, live webapps are told apart by *
 The orchestrator separates concerns across three kinds of file. The stable join key everywhere is
 the node `id` == the pipeline's Python function name (e.g. `snt_dhis2_extract`).
 
-| File                                   | Scope                          | Holds                                                                      |
-| -------------------------------------- | ------------------------------ | -------------------------------------------------------------------------- |
-| `app/<variant>/pipeline_map.json`      | **per-variant, workspace-independent** | all nodes, grid position, type, mutex group, directed `edges` (deps) |
-| `workspaces/<ws>/<variant>/pipeline_cards.json` | per-workspace, per-variant | which pipelines exist + `uuid` + `parameters` (drives _active vs greyed_)  |
-| `app/<variant>/index.html` + `app/<variant>/app.js` + `app/<variant>/styles.css` | per-variant app shell (multi-file) | renders the UI, merges with cards, runs/polls pipelines |
+| File                                                                             | Scope                                  | Holds                                                                     |
+| -------------------------------------------------------------------------------- | -------------------------------------- | ------------------------------------------------------------------------- |
+| `app/<variant>/pipeline_map.json`                                                | **per-variant, workspace-independent** | all nodes, grid position, type, mutex group, directed `edges` (deps)      |
+| `workspaces/<ws>/<variant>/pipeline_cards.json`                                  | per-workspace, per-variant             | which pipelines exist + `uuid` + `parameters` (drives _active vs greyed_) |
+| `app/<variant>/index.html` + `app/<variant>/app.js` + `app/<variant>/styles.css` | per-variant app shell (multi-file)     | renders the UI, merges with cards, runs/polls pipelines                   |
 
 The **map is identical across all workspaces for a given variant** — every orchestrator shows
 the same full diagram. What differs per workspace is only which nodes are _active_: a node is
@@ -123,13 +123,13 @@ For a given variant, the deployed bundle is **5 files: 4 generic + 1 workspace-s
 is what makes the orchestrator portable — a new workspace reuses that variant's 4 generic files
 unchanged and only swaps in its own `pipeline_cards.json`.
 
-| File                | Generic / WS-specific | Notes                                                                    |
-| ------------------- | --------------------- | ------------------------------------------------------------------------ |
-| `index.html`        | **Generic** (per variant) | Empty page shell — identical across workspaces for this variant.    |
-| `styles.css`        | **Generic** (per variant) | All styling — no workspace details.                                   |
-| `app.js`            | **Generic** (per variant) | All logic — **zero** hardcoded workspace specifics (see caveat below). |
-| `pipeline_map.json` | **Generic** (per variant) | The SNT process map for this variant — same in every workspace, but NOT shared with other variants. |
-| `pipeline_cards.json` | **⚠️ WS-specific**  | The only file that changes per workspace (and is tracked separately per variant): which pipelines exist here + their `uuid` + `parameters`. |
+| File                  | Generic / WS-specific     | Notes                                                                                                                                       |
+| --------------------- | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `index.html`          | **Generic** (per variant) | Empty page shell — identical across workspaces for this variant.                                                                            |
+| `styles.css`          | **Generic** (per variant) | All styling — no workspace details.                                                                                                         |
+| `app.js`              | **Generic** (per variant) | All logic — **zero** hardcoded workspace specifics (see caveat below).                                                                      |
+| `pipeline_map.json`   | **Generic** (per variant) | The SNT process map for this variant — same in every workspace, but NOT shared with other variants.                                         |
+| `pipeline_cards.json` | **⚠️ WS-specific**        | The only file that changes per workspace (and is tracked separately per variant): which pipelines exist here + their `uuid` + `parameters`. |
 
 Webapp identity and scopes (`id`, slug, URL, allowed operations) are **not** stored in the repo —
 they're resolved live from the OpenHEXA API (`list_static_webapps` / `get_static_webapp`) at
@@ -253,17 +253,16 @@ Invoke-WebRequest -Uri "https://raw.githubusercontent.com/BLSQ/openhexa-app/main
 ## Deployed webapps
 
 The active product is the **SNT Pipelines Orchestrator**, deployed per variant as that variant's
-generic `app/<variant>/` bundle + each workspace's `pipeline_cards.json`. All entries below are
-the `flowchart` variant (the only one deployed anywhere so far):
+generic `app/<variant>/` bundle + each workspace's `pipeline_cards.json`:
 
-| Workspace       | Slug              | Variant     | URL                                                          |
-| --------------- | ----------------- | ----------- | ----------------------------------------------------------- |
-| SNT App Dev     | `snt-app-dev`     | `flowchart` | https://snt-pipelines-orchestrator.openhexa.io/             |
-| SNT Testing     | `snt-testing`     | `flowchart` | https://snt-testing-snt-pipelines-orchestrator.openhexa.io/ |
-| CMR SNT Process | `cmr-snt-process` | `flowchart` | _resolve live via `list_static_webapps`_                    |
+| Workspace       | Slug              | Variant                | URL                                                         |
+| --------------- | ----------------- | ---------------------- | ----------------------------------------------------------- |
+| SNT App Dev     | `snt-app-dev`     | `flowchart`, `cockpit` | https://snt-pipelines-orchestrator.openhexa.io/             |
+| SNT Testing     | `snt-testing`     | `flowchart`, `cockpit` | https://snt-testing-snt-pipelines-orchestrator.openhexa.io/ |
+| CMR SNT Process | `cmr-snt-process` | `flowchart`            | _resolve live via `list_static_webapps`_                    |
 
-`cockpit` is not yet deployed anywhere — `app/cockpit/` currently holds only an empty
-placeholder folder, waiting for that variant to be built out.
+`cockpit` is deployed (manually, via the OpenHEXA UI) to `snt-app-dev` and `snt-testing` as the
+`SNT Pipelines Orchestrator — Cockpit` webapp, not yet to `cmr-snt-process`.
 
 URLs and IDs are resolved **live** from the OpenHEXA API (`list_static_webapps`) — that, not this
 table, is the source of truth.
@@ -273,7 +272,7 @@ table, is the source of truth.
 > stepping stones toward the orchestrator. Their local copies now live under `archive/` and are
 > no longer maintained.
 
-> The **SNT Pipelines Orchestrator** (`flowchart` variant) is built in the dedicated
-> **`snt-app-dev`** workspace (all ~18 pipelines installed — the primary build target) and also
-> deployed to **`snt-testing`** (a subset installed, so it demos the greyed-out state) and
-> **`cmr-snt-process`**.
+> The **SNT Pipelines Orchestrator** is built in the dedicated **`snt-app-dev`** workspace (all
+> ~18 pipelines installed — the primary build target) and also deployed to **`snt-testing`** (a
+> subset installed, so it demos the greyed-out state). The `flowchart` variant additionally
+> reaches **`cmr-snt-process`**; `cockpit` is live in `snt-app-dev` and `snt-testing` only.
