@@ -1,0 +1,998 @@
+<title>SNT Pipelines Orchestrator — Frosted concept</title>
+
+<style>
+  :root {
+    --font-ui: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --font-mono: ui-monospace, "SF Mono", "Cascadia Code", "Cascadia Mono", Consolas, monospace;
+
+    /* neutrals — biased slightly toward the indigo accent */
+    --ground: #edf0f8;
+    --ink: #1a1f36;
+    --ink-soft: #4c5578;
+    --ink-faint: #8990b0;
+    --accent: #6d5cf0;
+    --accent-ink: #ffffff;
+
+    /* glass */
+    --glass-bg: rgba(255, 255, 255, 0.58);
+    --glass-bg-strong: rgba(255, 255, 255, 0.74);
+    --glass-brd: rgba(255, 255, 255, 0.85);
+    --glass-hair: rgba(120, 130, 175, 0.28);
+    --glass-shadow: 0 10px 30px -12px rgba(30, 40, 90, 0.35), 0 2px 8px -4px rgba(30, 40, 90, 0.2);
+
+    /* track hues */
+    --tA: #3b82f6;
+    --tB: #10b981;
+    --tC: #f59e0b;
+    --tD: #8b5cf6;
+
+    /* status */
+    --ok: #10b981;
+    --run: #3b82f6;
+    --fail: #f43f5e;
+    --queue: #f59e0b;
+    --idle: #94a3b8;
+
+    /* edges */
+    --edge-solid: rgba(109, 92, 240, 0.55);
+    --edge-opt: rgba(120, 130, 175, 0.5);
+
+    /* dot grid */
+    --dot: rgba(90, 100, 150, 0.14);
+
+    --mesh:
+      radial-gradient(58% 52% at 12% 6%, rgba(109, 92, 240, 0.30), transparent 60%),
+      radial-gradient(52% 48% at 90% 4%, rgba(236, 72, 153, 0.20), transparent 60%),
+      radial-gradient(60% 58% at 84% 94%, rgba(16, 185, 129, 0.18), transparent 62%),
+      radial-gradient(55% 55% at 6% 92%, rgba(56, 189, 248, 0.24), transparent 60%);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ground: #090d1b;
+      --ink: #eef1fb;
+      --ink-soft: #b3bbdc;
+      --ink-faint: #7b83a8;
+      --accent: #8b7cff;
+      --glass-bg: rgba(28, 35, 62, 0.52);
+      --glass-bg-strong: rgba(30, 38, 68, 0.72);
+      --glass-brd: rgba(170, 185, 255, 0.16);
+      --glass-hair: rgba(150, 165, 220, 0.16);
+      --glass-shadow: 0 14px 40px -14px rgba(0, 0, 0, 0.65), 0 2px 10px -4px rgba(0, 0, 0, 0.5);
+      --edge-solid: rgba(139, 124, 255, 0.6);
+      --edge-opt: rgba(160, 172, 220, 0.42);
+      --dot: rgba(150, 165, 220, 0.12);
+      --mesh:
+        radial-gradient(58% 52% at 12% 6%, rgba(109, 92, 240, 0.42), transparent 60%),
+        radial-gradient(52% 48% at 90% 4%, rgba(217, 70, 160, 0.26), transparent 60%),
+        radial-gradient(60% 58% at 84% 94%, rgba(16, 185, 129, 0.22), transparent 62%),
+        radial-gradient(55% 55% at 6% 92%, rgba(56, 189, 248, 0.26), transparent 60%);
+    }
+  }
+
+  /* explicit toggle wins over the media query in both directions */
+  :root[data-theme="light"] {
+    --ground: #edf0f8;
+    --ink: #1a1f36;
+    --ink-soft: #4c5578;
+    --ink-faint: #8990b0;
+    --accent: #6d5cf0;
+    --glass-bg: rgba(255, 255, 255, 0.58);
+    --glass-bg-strong: rgba(255, 255, 255, 0.74);
+    --glass-brd: rgba(255, 255, 255, 0.85);
+    --glass-hair: rgba(120, 130, 175, 0.28);
+    --glass-shadow: 0 10px 30px -12px rgba(30, 40, 90, 0.35), 0 2px 8px -4px rgba(30, 40, 90, 0.2);
+    --edge-solid: rgba(109, 92, 240, 0.55);
+    --edge-opt: rgba(120, 130, 175, 0.5);
+    --dot: rgba(90, 100, 150, 0.14);
+    --mesh:
+      radial-gradient(58% 52% at 12% 6%, rgba(109, 92, 240, 0.30), transparent 60%),
+      radial-gradient(52% 48% at 90% 4%, rgba(236, 72, 153, 0.20), transparent 60%),
+      radial-gradient(60% 58% at 84% 94%, rgba(16, 185, 129, 0.18), transparent 62%),
+      radial-gradient(55% 55% at 6% 92%, rgba(56, 189, 248, 0.24), transparent 60%);
+  }
+  :root[data-theme="dark"] {
+    --ground: #090d1b;
+    --ink: #eef1fb;
+    --ink-soft: #b3bbdc;
+    --ink-faint: #7b83a8;
+    --accent: #8b7cff;
+    --glass-bg: rgba(28, 35, 62, 0.52);
+    --glass-bg-strong: rgba(30, 38, 68, 0.72);
+    --glass-brd: rgba(170, 185, 255, 0.16);
+    --glass-hair: rgba(150, 165, 220, 0.16);
+    --glass-shadow: 0 14px 40px -14px rgba(0, 0, 0, 0.65), 0 2px 10px -4px rgba(0, 0, 0, 0.5);
+    --edge-solid: rgba(139, 124, 255, 0.6);
+    --edge-opt: rgba(160, 172, 220, 0.42);
+    --dot: rgba(150, 165, 220, 0.12);
+    --mesh:
+      radial-gradient(58% 52% at 12% 6%, rgba(109, 92, 240, 0.42), transparent 60%),
+      radial-gradient(52% 48% at 90% 4%, rgba(217, 70, 160, 0.26), transparent 60%),
+      radial-gradient(60% 58% at 84% 94%, rgba(16, 185, 129, 0.22), transparent 62%),
+      radial-gradient(55% 55% at 6% 92%, rgba(56, 189, 248, 0.26), transparent 60%);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    font-family: var(--font-ui);
+    color: var(--ink);
+    background: var(--ground);
+    overflow: hidden;
+  }
+  .app-bg {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    background: var(--mesh), var(--ground);
+  }
+
+  .app {
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ---------- top bar ---------- */
+  .topbar {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    padding: 0.7rem 1.2rem;
+    background: var(--glass-bg-strong);
+    -webkit-backdrop-filter: blur(18px) saturate(1.4);
+    backdrop-filter: blur(18px) saturate(1.4);
+    border-bottom: 1px solid var(--glass-hair);
+    z-index: 40;
+    flex-shrink: 0;
+  }
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    min-width: 0;
+  }
+  .logo {
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    display: grid;
+    place-items: center;
+    color: #fff;
+    font-weight: 800;
+    font-size: 0.72rem;
+    letter-spacing: 0.02em;
+    background: linear-gradient(135deg, #7c6cf5, #d946a8 90%);
+    box-shadow: 0 4px 14px -4px rgba(124, 108, 245, 0.7);
+    flex-shrink: 0;
+  }
+  .titles { display: flex; flex-direction: column; line-height: 1.1; min-width: 0; }
+  .titles h1 {
+    margin: 0;
+    font-size: 0.98rem;
+    font-weight: 680;
+    letter-spacing: -0.01em;
+  }
+  .titles .sub {
+    font-size: 0.68rem;
+    color: var(--ink-faint);
+    font-weight: 500;
+  }
+  .concept-tag {
+    font-size: 0.6rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 3px 8px;
+    border-radius: 999px;
+    color: var(--accent);
+    border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+    background: color-mix(in srgb, var(--accent) 12%, transparent);
+  }
+  .topbar .spacer { flex: 1; }
+  .ws-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    color: var(--ink-soft);
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-hair);
+    padding: 0.32rem 0.7rem;
+    border-radius: 999px;
+  }
+  .ws-pill .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ok) 25%, transparent); }
+  .icon-btn {
+    width: 36px; height: 36px;
+    display: grid; place-items: center;
+    border-radius: 10px;
+    border: 1px solid var(--glass-hair);
+    background: var(--glass-bg);
+    color: var(--ink-soft);
+    cursor: pointer;
+    font-size: 1rem;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+  }
+  .icon-btn:hover { color: var(--ink); border-color: color-mix(in srgb, var(--accent) 50%, transparent); }
+
+  /* ---------- layout ---------- */
+  .layout { flex: 1; position: relative; min-height: 0; }
+
+  .canvas {
+    position: absolute;
+    inset: 0;
+    overflow: auto;
+    cursor: grab;
+    background-image: radial-gradient(circle, var(--dot) 1px, transparent 1.4px);
+    background-size: 26px 26px;
+  }
+  .canvas.grabbing { cursor: grabbing; }
+
+  #stage {
+    position: relative;
+    width: 1290px;
+    height: 700px;
+    margin: 46px 380px 60px 40px;
+    transform-origin: 0 0;
+  }
+
+  svg.edges { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+  .edge-solid { stroke: var(--edge-solid); stroke-width: 2; fill: none; opacity: 0.5; transition: opacity 0.16s, stroke-width 0.16s; }
+  .edge-opt { stroke: var(--edge-opt); stroke-width: 1.6; stroke-dasharray: 5 5; fill: none; opacity: 0.22; transition: opacity 0.16s, stroke-width 0.16s; }
+  /* declutter: when a node is focused, dim every edge except the ones touching it */
+  .edges.focus path { opacity: 0.07; }
+  .edges.focus path.hi { opacity: 1; stroke-width: 2.6; }
+  .edges.focus path.edge-opt.hi { opacity: 0.95; stroke-width: 2; }
+  .mk-solid { fill: var(--edge-solid); }
+  .mk-opt { fill: var(--edge-opt); }
+
+  /* ---------- group containers ---------- */
+  .groupbox {
+    position: absolute;
+    border-radius: 16px;
+    border: 1.5px dashed color-mix(in srgb, var(--tA) 45%, transparent);
+    background: color-mix(in srgb, var(--tA) 7%, transparent);
+    z-index: 1;
+  }
+  .groupbox .glabel {
+    position: absolute;
+    top: -11px;
+    left: 14px;
+    font-size: 0.62rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: color-mix(in srgb, var(--tA) 75%, var(--ink));
+    background: var(--glass-bg-strong);
+    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
+    padding: 2px 9px;
+    border-radius: 999px;
+    border: 1px solid var(--glass-hair);
+  }
+
+  /* ---------- nodes ---------- */
+  .node {
+    position: absolute;
+    width: 152px;
+    border-radius: 14px;
+    padding: 9px 11px 10px;
+    background: var(--glass-bg);
+    -webkit-backdrop-filter: blur(16px) saturate(1.35);
+    backdrop-filter: blur(16px) saturate(1.35);
+    border: 1px solid var(--glass-brd);
+    box-shadow: var(--glass-shadow);
+    z-index: 3;
+    cursor: pointer;
+    user-select: none;
+    --track: var(--tA);
+    transition: transform 0.16s ease, box-shadow 0.16s ease, opacity 0.16s ease;
+  }
+  .node::before {
+    content: "";
+    position: absolute;
+    left: 0; top: 12px; bottom: 12px;
+    width: 3px;
+    border-radius: 3px;
+    background: var(--track);
+  }
+  .node.track-A { --track: var(--tA); }
+  .node.track-B { --track: var(--tB); }
+  .node.track-C { --track: var(--tC); }
+  .node.track-D { --track: var(--tD); }
+
+  .node:hover { transform: translateY(-2px); box-shadow: 0 16px 34px -14px rgba(30, 40, 90, 0.4), 0 3px 10px -4px rgba(30, 40, 90, 0.25); }
+  .node.selected {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 40%, transparent), var(--glass-shadow);
+  }
+
+  .node .code {
+    display: inline-block;
+    font-family: var(--font-mono);
+    font-size: 0.62rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    color: #fff;
+    background: var(--track);
+    padding: 1px 7px;
+    border-radius: 999px;
+  }
+  .node .lbl {
+    display: block;
+    margin-top: 6px;
+    font-size: 0.78rem;
+    font-weight: 620;
+    line-height: 1.25;
+    color: var(--ink);
+    letter-spacing: -0.005em;
+  }
+  .node .status {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin-top: 8px;
+    font-size: 0.66rem;
+    font-weight: 600;
+    color: var(--ink-soft);
+  }
+  .node .status .sdot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .s-success .sdot { background: var(--ok); }
+  .s-running .sdot { background: var(--run); animation: pulse 1.3s ease-in-out infinite; }
+  .s-failed .sdot { background: var(--fail); }
+  .s-queued .sdot { background: var(--queue); }
+  .s-idle .sdot { background: var(--idle); }
+  .s-locked .sdot { background: var(--idle); }
+  .s-success .stxt { color: color-mix(in srgb, var(--ok) 70%, var(--ink)); }
+  .s-failed .stxt { color: color-mix(in srgb, var(--fail) 72%, var(--ink)); }
+  .s-running .stxt { color: color-mix(in srgb, var(--run) 68%, var(--ink)); }
+
+  /* corner chips */
+  .chip {
+    position: absolute;
+    top: -9px; right: 10px;
+    font-size: 0.56rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 2px 7px;
+    border-radius: 999px;
+    background: var(--glass-bg-strong);
+    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
+    border: 1px solid var(--glass-hair);
+    color: var(--ink-soft);
+    white-space: nowrap;
+  }
+  .chip.mand { color: #fff; background: var(--ink); border-color: var(--ink); }
+  .chip-l { right: auto; left: 10px; }
+
+  /* node modifier states */
+  .node.locked { opacity: 0.7; }
+  .node.locked::after {
+    content: "🔒";
+    position: absolute;
+    top: -10px; left: 10px;
+    font-size: 0.62rem;
+    padding: 2px 6px;
+    border-radius: 999px;
+    background: var(--glass-bg-strong);
+    border: 1px solid var(--glass-hair);
+  }
+  .node.superseded { opacity: 0.5; filter: saturate(0.5); }
+  .node.current { border-color: var(--ok); box-shadow: 0 0 0 2px color-mix(in srgb, var(--ok) 40%, transparent), var(--glass-shadow); }
+  .node.greyed {
+    opacity: 0.62;
+    filter: grayscale(0.85);
+    border-style: dashed;
+    box-shadow: none;
+    background: color-mix(in srgb, var(--glass-bg) 60%, transparent);
+  }
+  .node.greyed .code { background: var(--idle); }
+
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+
+  /* ---------- floating legend ---------- */
+  .legend {
+    position: absolute;
+    top: 16px; left: 16px;
+    z-index: 20;
+    width: 216px;
+    background: var(--glass-bg-strong);
+    -webkit-backdrop-filter: blur(20px) saturate(1.4);
+    backdrop-filter: blur(20px) saturate(1.4);
+    border: 1px solid var(--glass-brd);
+    border-radius: 14px;
+    box-shadow: var(--glass-shadow);
+    font-size: 0.72rem;
+    color: var(--ink-soft);
+    overflow: hidden;
+  }
+  .legend > summary {
+    list-style: none;
+    cursor: pointer;
+    padding: 10px 13px;
+    font-weight: 700;
+    color: var(--ink);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .legend > summary::-webkit-details-marker { display: none; }
+  .legend > summary::before { content: "▾"; color: var(--ink-faint); font-size: 0.7rem; transition: transform 0.15s; }
+  .legend:not([open]) > summary::before { content: "▸"; }
+  .legend-body { padding: 0 13px 12px; display: flex; flex-direction: column; gap: 11px; }
+  .legend h4 { margin: 0 0 5px; font-size: 0.58rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-faint); font-weight: 700; }
+  .lg-row { display: flex; align-items: center; gap: 8px; padding: 2px 0; }
+  .lg-line { width: 26px; height: 0; flex-shrink: 0; border-top: 2px solid var(--edge-solid); position: relative; }
+  .lg-line.opt { border-top: 1.6px dashed var(--edge-opt); }
+  .lg-sw { width: 15px; height: 12px; border-radius: 4px; flex-shrink: 0; }
+  .lg-A { background: color-mix(in srgb, var(--tA) 30%, transparent); border: 1.5px solid var(--tA); }
+  .lg-B { background: color-mix(in srgb, var(--tB) 30%, transparent); border: 1.5px solid var(--tB); }
+  .lg-C { background: color-mix(in srgb, var(--tC) 30%, transparent); border: 1.5px solid var(--tC); }
+  .lg-D { background: color-mix(in srgb, var(--tD) 30%, transparent); border: 1.5px solid var(--tD); }
+  .lg-hint { margin: 2px 0 0; font-size: 0.64rem; font-style: italic; color: var(--ink-faint); border-top: 1px solid var(--glass-hair); padding-top: 9px; }
+
+  /* ---------- zoom controls ---------- */
+  .zoom {
+    position: absolute;
+    left: 16px; bottom: 16px;
+    z-index: 20;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 6px;
+    background: var(--glass-bg-strong);
+    -webkit-backdrop-filter: blur(20px);
+    backdrop-filter: blur(20px);
+    border: 1px solid var(--glass-brd);
+    border-radius: 14px;
+    box-shadow: var(--glass-shadow);
+  }
+  .zoom button {
+    width: 34px; height: 34px;
+    border: none;
+    border-radius: 9px;
+    background: transparent;
+    color: var(--ink-soft);
+    font-size: 1.05rem;
+    cursor: pointer;
+    display: grid; place-items: center;
+    transition: background 0.14s, color 0.14s;
+  }
+  .zoom button:hover { background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--ink); }
+
+  /* ---------- detail sidebar ---------- */
+  .sidebar {
+    position: absolute;
+    top: 16px; right: 16px;
+    z-index: 30;
+    width: 348px;
+    max-height: calc(100% - 32px);
+    display: flex;
+    flex-direction: column;
+    background: var(--glass-bg-strong);
+    -webkit-backdrop-filter: blur(24px) saturate(1.5);
+    backdrop-filter: blur(24px) saturate(1.5);
+    border: 1px solid var(--glass-brd);
+    border-radius: 18px;
+    box-shadow: var(--glass-shadow);
+    overflow: hidden;
+  }
+  .sb-head {
+    padding: 15px 16px 13px;
+    border-bottom: 1px solid var(--glass-hair);
+  }
+  .sb-titlerow { display: flex; align-items: flex-start; gap: 8px; }
+  .sb-title { margin: 0; font-size: 1.02rem; font-weight: 700; letter-spacing: -0.01em; flex: 1; line-height: 1.25; }
+  .sb-close {
+    flex-shrink: 0; width: 26px; height: 26px;
+    border-radius: 8px; border: 1px solid var(--glass-hair);
+    background: var(--glass-bg); color: var(--ink-soft);
+    cursor: pointer; font-size: 0.85rem; line-height: 1;
+  }
+  .sb-close:hover { color: var(--ink); }
+  .sb-meta { display: flex; align-items: center; gap: 7px; margin-top: 9px; flex-wrap: wrap; }
+  .sb-code {
+    font-family: var(--font-mono); font-size: 0.66rem; font-weight: 700;
+    color: #fff; background: var(--tA); padding: 2px 8px; border-radius: 999px;
+  }
+  .sb-type {
+    font-size: 0.6rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;
+    color: #fff; background: var(--ink); padding: 2px 8px; border-radius: 999px;
+  }
+  .sb-status {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 0.68rem; font-weight: 600; color: color-mix(in srgb, var(--ok) 72%, var(--ink));
+    margin-left: auto;
+  }
+  .sb-status .sdot { width: 7px; height: 7px; border-radius: 50%; background: var(--ok); }
+  .sb-statusline { margin-top: 9px; font-size: 0.7rem; color: var(--ink-faint); font-family: var(--font-mono); display: flex; align-items: center; gap: 8px; }
+  .sb-statusline a { color: var(--accent); text-decoration: none; font-weight: 600; }
+  .sb-statusline a:hover { text-decoration: underline; }
+
+  .sb-body {
+    padding: 15px 16px 20px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+  }
+  .sb-desc { margin: 0; font-size: 0.8rem; line-height: 1.5; color: var(--ink-soft); }
+
+  .sb-links { display: flex; flex-direction: column; gap: 7px; }
+  .extlink {
+    display: flex; align-items: center; gap: 10px;
+    text-decoration: none; color: var(--ink);
+    border: 1px solid var(--glass-hair); border-radius: 11px;
+    padding: 9px 11px; font-size: 0.76rem;
+    background: var(--glass-bg);
+    transition: border-color 0.14s, background 0.14s, transform 0.14s;
+  }
+  .extlink:hover { border-color: color-mix(in srgb, var(--accent) 55%, transparent); transform: translateX(2px); }
+  .extlink .ic { width: 26px; height: 26px; border-radius: 8px; display: grid; place-items: center; background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--accent); flex-shrink: 0; font-size: 0.9rem; }
+  .extlink .tx { display: flex; flex-direction: column; line-height: 1.25; min-width: 0; }
+  .extlink .tx small { color: var(--ink-faint); font-size: 0.66rem; }
+  .extlink .arr { margin-left: auto; color: var(--ink-faint); }
+
+  .sectitle {
+    font-size: 0.6rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em;
+    color: var(--ink-faint);
+    display: flex; align-items: center; gap: 8px;
+    margin: 0 0 2px;
+  }
+  .sectitle::after { content: ""; flex: 1; height: 1px; background: var(--glass-hair); }
+
+  .form { display: flex; flex-direction: column; gap: 12px; }
+  .field { display: flex; flex-direction: column; gap: 5px; }
+  .field label { font-size: 0.74rem; font-weight: 620; color: var(--ink); }
+  .field label .req { color: var(--fail); }
+  .field .hint { font-size: 0.66rem; color: var(--ink-faint); line-height: 1.35; }
+  .control {
+    font: inherit; font-size: 0.76rem; color: var(--ink);
+    background: var(--glass-bg-strong);
+    border: 1px solid var(--glass-hair);
+    border-radius: 9px;
+    padding: 8px 10px;
+    width: 100%;
+    transition: border-color 0.14s, box-shadow 0.14s;
+  }
+  .control:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent); }
+  select.control { cursor: pointer; }
+  .checkrow { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.76rem; color: var(--ink); }
+  .checkrow input { width: 15px; height: 15px; accent-color: var(--accent); cursor: pointer; }
+  .chks { display: flex; flex-wrap: wrap; gap: 7px 14px; }
+  .chks .checkrow { font-size: 0.73rem; color: var(--ink-soft); }
+
+  .runrow { display: flex; gap: 9px; margin-top: 2px; }
+  .btn-primary {
+    flex: 1;
+    font: inherit; font-size: 0.8rem; font-weight: 700;
+    color: #fff; cursor: pointer;
+    border: none; border-radius: 10px;
+    padding: 10px 14px;
+    background: linear-gradient(135deg, #7c6cf5, #6d5cf0);
+    box-shadow: 0 8px 20px -8px rgba(109, 92, 240, 0.8);
+    transition: transform 0.14s, box-shadow 0.14s, filter 0.14s;
+  }
+  .btn-primary:hover { transform: translateY(-1px); filter: brightness(1.05); }
+  .btn-ghost {
+    font: inherit; font-size: 0.76rem; font-weight: 600;
+    color: var(--ink-soft); cursor: pointer;
+    border: 1px solid var(--glass-hair); border-radius: 10px;
+    padding: 10px 13px; background: var(--glass-bg);
+    transition: border-color 0.14s, color 0.14s;
+  }
+  .btn-ghost:hover { color: var(--ink); border-color: color-mix(in srgb, var(--accent) 50%, transparent); }
+
+  .out-item {
+    display: flex; align-items: center; gap: 9px;
+    font-size: 0.74rem;
+    padding: 8px 10px;
+    border-radius: 10px;
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-hair);
+    color: var(--ink);
+    text-decoration: none;
+  }
+  .out-item:hover { border-color: color-mix(in srgb, var(--accent) 50%, transparent); }
+  .out-item .ic { font-size: 0.95rem; }
+  .out-item small { color: var(--ink-faint); margin-left: auto; font-family: var(--font-mono); font-size: 0.64rem; }
+
+  /* scrollbars */
+  .sb-body::-webkit-scrollbar, .canvas::-webkit-scrollbar { width: 10px; height: 10px; }
+  .sb-body::-webkit-scrollbar-thumb, .canvas::-webkit-scrollbar-thumb {
+    background: color-mix(in srgb, var(--ink-faint) 40%, transparent);
+    border-radius: 999px; border: 2px solid transparent; background-clip: padding-box;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+
+  /* narrow screens: sidebar becomes a bottom sheet, canvas keeps its own scroll */
+  @media (max-width: 880px) {
+    .sidebar { position: static; width: auto; max-height: 44vh; margin: 0; border-radius: 0; border-left: none; border-right: none; }
+    .layout { display: flex; flex-direction: column; }
+    .canvas { position: relative; flex: 1; }
+  }
+</style>
+
+<div class="app-bg" aria-hidden="true"></div>
+
+<div class="app">
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo">SNT</div>
+      <div class="titles">
+        <h1>Pipelines Orchestrator</h1>
+        <span class="sub">Malaria stratification workflow map</span>
+      </div>
+    </div>
+    <span class="concept-tag">Frosted concept</span>
+    <div class="spacer"></div>
+    <span class="ws-pill"><span class="dot"></span>snt-app-dev</span>
+    <button class="icon-btn" id="themeBtn" title="Toggle light / dark" aria-label="Toggle theme">◐</button>
+  </header>
+
+  <div class="layout">
+    <div class="canvas" id="canvas" aria-label="Pipeline map">
+      <div id="stage">
+        <svg class="edges" id="edges" aria-hidden="true">
+          <defs>
+            <marker id="arrow" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto">
+              <path class="mk-solid" d="M0,0 L8,4.5 L0,9 Z"></path>
+            </marker>
+            <marker id="arrow-opt" markerWidth="8" markerHeight="8" refX="6.5" refY="4" orient="auto">
+              <path class="mk-opt" d="M0,0 L7,4 L0,8 Z"></path>
+            </marker>
+          </defs>
+        </svg>
+        <!-- group boxes + nodes injected by script -->
+      </div>
+    </div>
+
+    <!-- legend -->
+    <details class="legend" open>
+      <summary>Legend</summary>
+      <div class="legend-body">
+        <div>
+          <h4>Dependencies</h4>
+          <div class="lg-row"><span class="lg-line"></span><span>Hard — must finish first</span></div>
+          <div class="lg-row"><span class="lg-line opt"></span><span>Optional — used if present</span></div>
+        </div>
+        <div>
+          <h4>Data tracks</h4>
+          <div class="lg-row"><span class="lg-sw lg-A"></span><span>A — DHIS2 routine</span></div>
+          <div class="lg-row"><span class="lg-sw lg-B"></span><span>B — WorldPop &amp; MAP</span></div>
+          <div class="lg-row"><span class="lg-sw lg-C"></span><span>C — DHS surveys</span></div>
+          <div class="lg-row"><span class="lg-sw lg-D"></span><span>D — ERA5 climate</span></div>
+        </div>
+        <p class="lg-hint">Hover a node to trace its connections.</p>
+      </div>
+    </details>
+
+    <!-- zoom -->
+    <div class="zoom" aria-label="Zoom controls">
+      <button id="zin" title="Zoom in" aria-label="Zoom in">+</button>
+      <button id="zout" title="Zoom out" aria-label="Zoom out">−</button>
+      <button id="zfit" title="Reset view" aria-label="Reset view">⤢</button>
+    </div>
+
+    <!-- detail sidebar (selected node) -->
+    <aside class="sidebar" aria-label="Pipeline details">
+      <div class="sb-head">
+        <div class="sb-titlerow">
+          <h2 class="sb-title" id="sbTitle">DHIS2 Extract</h2>
+          <span class="sb-status" id="sbStatusTop"><span class="sdot"></span>Success</span>
+          <button class="sb-close" title="Close" aria-label="Close panel">✕</button>
+        </div>
+        <div class="sb-meta">
+          <span class="sb-code" id="sbCode">A.1</span>
+          <span class="sb-type" id="sbType">Mandatory</span>
+        </div>
+        <div class="sb-statusline">
+          <span id="sbStatusLine">snt_dhis2_extract · ran 4m 12s · 2h ago</span>
+          <a href="#" onclick="return false">open run ↗</a>
+        </div>
+      </div>
+
+      <div class="sb-body">
+        <p class="sb-desc" id="sbDesc">
+          Extracts the DHIS2 pyramid, routine analytics, population, org-unit shapes and
+          reporting rates for the selected period — the foundation every downstream track builds on.
+        </p>
+
+        <div class="sb-links">
+          <a class="extlink" href="#" onclick="return false">
+            <span class="ic">◆</span>
+            <span class="tx">Pipeline README<small>github.com/BLSQ/snt_development</small></span>
+            <span class="arr">↗</span>
+          </a>
+          <a class="extlink" href="#" onclick="return false">
+            <span class="ic">▷</span>
+            <span class="tx">Latest run in OpenHEXA<small>app.openhexa.org</small></span>
+            <span class="arr">↗</span>
+          </a>
+        </div>
+
+        <div class="form">
+          <div class="sectitle">Parameters</div>
+          <div class="field">
+            <label>DHIS2 connection <span class="req">*</span></label>
+            <select class="control">
+              <option>dhis2-nmdr-drc</option>
+              <option>dhis2-hmis-staging</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Period range <span class="req">*</span></label>
+            <input class="control" type="text" value="202301 – 202412" />
+            <span class="hint">Monthly periods in YYYYMM format.</span>
+          </div>
+          <div class="field">
+            <label>Org unit level</label>
+            <select class="control">
+              <option>4 — Health facility</option>
+              <option selected>3 — Health area</option>
+              <option>2 — District</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Extract</label>
+            <div class="chks">
+              <label class="checkrow"><input type="checkbox" checked />Routine analytics</label>
+              <label class="checkrow"><input type="checkbox" checked />Population</label>
+              <label class="checkrow"><input type="checkbox" checked />Org-unit shapes</label>
+              <label class="checkrow"><input type="checkbox" />Reporting rates</label>
+            </div>
+          </div>
+          <label class="checkrow"><input type="checkbox" />Overwrite existing extracts</label>
+
+          <div class="runrow">
+            <button class="btn-primary">▶  Run pipeline</button>
+            <button class="btn-ghost">Preview config</button>
+          </div>
+        </div>
+
+        <div class="sb-links">
+          <div class="sectitle">Latest outputs</div>
+          <a class="out-item" href="#" onclick="return false"><span class="ic">🗂</span>snt-dhis2-raw<small>dataset</small></a>
+          <a class="out-item" href="#" onclick="return false"><span class="ic">📄</span>extract_report.html<small>report</small></a>
+        </div>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<script>
+  // ---- authentic SNT pipeline map (subset of app/flowchart/pipeline_map.json) ----
+  var NODES = [
+    { id:"a1",   code:"A.1", label:"DHIS2 Extract",              track:"A", type:"mandatory",   x:560, y:20,  state:"success", info:"ran 4m 12s · 2h ago", fn:"snt_dhis2_extract",
+      desc:"Extracts the DHIS2 pyramid, routine analytics, population, org-unit shapes and reporting rates for the selected period — the foundation every downstream track builds on." },
+    { id:"a2",   code:"A.2", label:"DHIS2 Formatting",           track:"A", type:"mandatory",   x:560, y:130, state:"success", info:"ran 2m 05s · 2h ago", fn:"snt_dhis2_formatting",
+      desc:"Processes and formats the DHIS2 extracts (pyramid, shapes, routine data) into the shape the rest of the SNT workflow expects." },
+
+    { id:"a3mg", code:"A.3", label:"Outliers · Magic Glasses",   track:"A", type:"alternative", group:"g3", x:20,  y:268, state:"success", current:true, info:"chosen method · ran 1m 12s", fn:"snt_dhis2_outliers_imputation_magic_glasses",
+      desc:"Outlier detection and imputation using the Magic Glasses (MAD-based) method. Currently the chosen method for this session." },
+    { id:"a3mean", code:"A.3", label:"Outliers · Mean",          track:"A", type:"alternative", group:"g3", x:184, y:268, state:"idle", superseded:true, info:"superseded by Magic Glasses", fn:"snt_dhis2_outliers_imputation_mean",
+      desc:"Outlier detection and imputation using the mean ± k×SD method. Superseded this session by the Magic Glasses method." },
+    { id:"a3med", code:"A.3", label:"Outliers · Median",         track:"A", type:"alternative", group:"g3", x:348, y:268, state:"idle", superseded:true, info:"alternative method", fn:"snt_dhis2_outliers_imputation_median",
+      desc:"Outlier detection and imputation using the median ± k×MAD method." },
+    { id:"a3iqr", code:"A.3", label:"Outliers · IQR",            track:"A", type:"alternative", group:"g3", x:512, y:268, state:"idle", superseded:true, info:"alternative method", fn:"snt_dhis2_outliers_imputation_iqr",
+      desc:"Outlier detection and imputation using the inter-quartile range (IQR) method." },
+    { id:"a3path", code:"A.3", label:"Outliers · PATH",          track:"A", type:"alternative", group:"g3", x:676, y:268, state:"idle", superseded:true, info:"alternative method", fn:"snt_dhis2_outliers_imputation_path",
+      desc:"Outlier detection and imputation using the PATH method (mean ± 10×SD)." },
+
+    { id:"a4de", code:"A.4", label:"Reporting Rate · Data element", track:"A", type:"alternative", group:"g4", x:190, y:410, state:"locked", info:"waiting on A.3", fn:"snt_dhis2_reporting_rate_dataelement",
+      desc:"Reporting rate computed from routine data elements. Unlocks once an outlier method (A.3) has completed." },
+    { id:"a4ds", code:"A.4", label:"Reporting Rate · Dataset",   track:"A", type:"alternative", group:"g4", x:380, y:410, state:"idle", info:"alternative method", fn:"snt_dhis2_reporting_rate_dataset",
+      desc:"Reporting rate from DHIS2 dataset-level rate indicators." },
+
+    { id:"a5",   code:"A.5", label:"Population Transformation",  track:"A", type:"facultative", x:900, y:250, state:"idle", info:"ready to run", fn:"snt_dhis2_population_transformation",
+      desc:"Scales, projects and disaggregates DHIS2 population by demographic group." },
+    { id:"a7",   code:"A.7", label:"Seasonality · Cases",        track:"A", type:"facultative", x:900, y:355, state:"running", info:"running · 1m 40s", fn:"snt_seasonality_cases",
+      desc:"Classifies case seasonality at ADM2 from routine confirmed-malaria data." },
+    { id:"c1",   code:"C.1", label:"DHS Indicators",             track:"C", type:"facultative", x:900, y:460, state:"failed", info:"failed · 3h ago", fn:"snt_dhs_indicators",
+      desc:"Computes DHS survey-based indicators for the SNT process." },
+
+    { id:"b2",   code:"B.2", label:"MAP Extracts",               track:"B", type:"facultative", x:1092, y:150, state:"success", info:"ran 6m 30s · 1d ago", fn:"snt_map_extracts",
+      desc:"Extracts Malaria Atlas Project rasters and computes zonal statistics." },
+    { id:"b1",   code:"B.1", label:"WorldPop Extract",           track:"B", type:"facultative", x:1092, y:255, state:"idle", info:"ready to run", fn:"snt_worldpop_extract",
+      desc:"Extracts WorldPop population raster data for the country." },
+    { id:"b3",   code:"B.3", label:"Access to Health Care",      track:"B", type:"facultative", x:1092, y:360, state:"greyed", info:"not installed in this workspace", fn:"snt_healthcare_access",
+      desc:"Computes access-to-care metrics from facilities, population and catchments. Not installed in this workspace — greyed out." },
+
+    { id:"d1",   code:"D.1", label:"ERA5 Climate Data",          track:"D", type:"facultative", x:1092, y:478, state:"success", info:"ran 8m 11s · 1d ago", fn:"snt_era5_climate_data",
+      desc:"Extracts ERA5 climate data from the Copernicus Climate Data Store." },
+    { id:"d2",   code:"D.2", label:"ERA5 Seasonality · Rainfall", track:"D", type:"facultative", x:1092, y:583, state:"queued", info:"queued", fn:"snt_seasonality_rainfall",
+      desc:"Computes rainfall seasonality metrics from ERA5 climate data." },
+
+    { id:"a6",   code:"A.6", label:"DHIS2 Incidence",            track:"A", type:"facultative", x:560, y:560, state:"locked", info:"waiting on prerequisites", fn:"snt_dhis2_incidence",
+      desc:"Computes malaria case metrics and yearly incidence from routine HMIS data. Converges several upstream tracks." }
+  ];
+
+  var EDGES = [
+    ["a1","a2","solid"],
+    ["a2","a3mg","solid"], ["a2","a3mean","solid"], ["a2","a3med","solid"], ["a2","a3iqr","solid"], ["a2","a3path","solid"],
+    ["a2","a4de","solid"], ["a2","a4ds","solid"],
+    ["a2","a5","solid"], ["a2","a7","solid"], ["a2","c1","solid"],
+    ["a2","b1","solid"], ["a2","b2","solid"], ["a2","b3","solid"], ["a2","d1","solid"], ["a2","a6","solid"],
+    ["d1","d2","solid"],
+    ["a3mg","a4de","optional"],
+    ["a4de","a6","optional"], ["a4ds","a6","optional"], ["a5","a6","optional"], ["c1","a6","optional"]
+  ];
+
+  var STATUS_TXT = {
+    success:"Success", running:"Running", failed:"Failed",
+    queued:"Queued", idle:"Ready", locked:"Locked", greyed:"Not installed"
+  };
+  var TYPE_TXT = { mandatory:"Mandatory", facultative:"Optional", alternative:"Alternative" };
+  var TRACK_VAR = { A:"var(--tA)", B:"var(--tB)", C:"var(--tC)", D:"var(--tD)" };
+
+  var stage = document.getElementById("stage");
+  var svg = document.getElementById("edges");
+  var byId = {};
+
+  // ---- render nodes ----
+  NODES.forEach(function (n, i) {
+    byId[n.id] = n;
+    var el = document.createElement("div");
+    el.className = "node track-" + n.track + " s-" + n.state;
+    if (n.state === "locked") el.classList.add("locked");
+    if (n.state === "greyed") el.classList.add("greyed");
+    if (n.superseded) el.classList.add("superseded");
+    if (n.current) el.classList.add("current");
+    el.style.left = n.x + "px";
+    el.style.top = n.y + "px";
+    el.dataset.id = n.id;
+
+    var chips = "";
+    if (n.type === "mandatory") chips += '<span class="chip mand">Required</span>';
+    else if (n.type === "facultative") chips += '<span class="chip">Optional</span>';
+    if (n.current) chips += '<span class="chip chip-l" style="color:var(--ok);border-color:var(--ok)">✓ in use</span>';
+    else if (n.superseded) chips += '<span class="chip chip-l">superseded</span>';
+    else if (n.state === "greyed") chips += '<span class="chip chip-l">✚ install</span>';
+
+    el.innerHTML =
+      chips +
+      '<span class="code">' + n.code + "</span>" +
+      '<span class="lbl">' + n.label + "</span>" +
+      '<span class="status"><span class="sdot"></span><span class="stxt">' + STATUS_TXT[n.state] + "</span></span>";
+
+    el.addEventListener("click", function () { select(n.id); });
+    el.addEventListener("mouseenter", function () { focusEdges(n.id); });
+    el.addEventListener("mouseleave", function () { focusEdges(null); });
+    stage.appendChild(el);
+  });
+
+  // ---- group containers (drawn behind nodes) ----
+  function drawGroup(ids, label, trackVar) {
+    var pad = 16, top = 26;
+    var minX = 1e9, minY = 1e9, maxX = -1e9, maxY = -1e9;
+    ids.forEach(function (id) {
+      var el = stage.querySelector('[data-id="' + id + '"]');
+      var l = el.offsetLeft, t = el.offsetTop, w = el.offsetWidth, h = el.offsetHeight;
+      minX = Math.min(minX, l); minY = Math.min(minY, t);
+      maxX = Math.max(maxX, l + w); maxY = Math.max(maxY, t + h);
+    });
+    var box = document.createElement("div");
+    box.className = "groupbox";
+    box.style.left = (minX - pad) + "px";
+    box.style.top = (minY - top) + "px";
+    box.style.width = (maxX - minX + pad * 2) + "px";
+    box.style.height = (maxY - minY + top + pad) + "px";
+    box.style.borderColor = "color-mix(in srgb, " + trackVar + " 45%, transparent)";
+    box.style.background = "color-mix(in srgb, " + trackVar + " 6%, transparent)";
+    box.innerHTML = '<span class="glabel" style="color:color-mix(in srgb,' + trackVar + ' 78%, var(--ink))">' + label + "</span>";
+    stage.insertBefore(box, svg);
+  }
+  drawGroup(["a3mg","a3mean","a3med","a3iqr","a3path"], "A.3 · Outliers — choose one", "var(--tA)");
+  drawGroup(["a4de","a4ds"], "A.4 · Reporting rate — choose one", "var(--tA)");
+
+  // ---- edges ----
+  function rectOf(id) {
+    var el = stage.querySelector('[data-id="' + id + '"]');
+    return { l: el.offsetLeft, t: el.offsetTop, w: el.offsetWidth, h: el.offsetHeight };
+  }
+  function anchor(r, tx, ty) {
+    var cx = r.l + r.w / 2, cy = r.t + r.h / 2;
+    var dx = tx - cx, dy = ty - cy;
+    if (dx === 0 && dy === 0) return { x: cx, y: cy };
+    var hw = r.w / 2 + 2, hh = r.h / 2 + 2;
+    var sx = dx === 0 ? Infinity : hw / Math.abs(dx);
+    var sy = dy === 0 ? Infinity : hh / Math.abs(dy);
+    var s = Math.min(sx, sy);
+    return { x: cx + dx * s, y: cy + dy * s };
+  }
+  EDGES.forEach(function (e) {
+    var rs = rectOf(e[0]), rt = rectOf(e[1]);
+    var csx = rs.l + rs.w / 2, csy = rs.t + rs.h / 2;
+    var ctx = rt.l + rt.w / 2, cty = rt.t + rt.h / 2;
+    var a = anchor(rs, ctx, cty), b = anchor(rt, csx, csy);
+    var dx = Math.abs(b.x - a.x), dy = Math.abs(b.y - a.y);
+    var c1, c2;
+    if (dy >= dx) { var my = (a.y + b.y) / 2; c1 = a.x + "," + my; c2 = b.x + "," + my; }
+    else { var mx = (a.x + b.x) / 2; c1 = mx + "," + a.y; c2 = mx + "," + b.y; }
+    var path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    path.setAttribute("d", "M" + a.x + "," + a.y + " C" + c1 + " " + c2 + " " + b.x + "," + b.y);
+    var opt = e[2] === "optional";
+    path.setAttribute("class", opt ? "edge-opt" : "edge-solid");
+    path.setAttribute("marker-end", opt ? "url(#arrow-opt)" : "url(#arrow)");
+    path.dataset.from = e[0];
+    path.dataset.to = e[1];
+    svg.appendChild(path);
+  });
+
+  // ---- edge decluttering: focus a node's incident edges, dim the rest ----
+  var allPaths = Array.prototype.slice.call(svg.querySelectorAll("path[data-from]"));
+  function focusEdges(id) {
+    if (!id) { svg.classList.remove("focus"); allPaths.forEach(function (p) { p.classList.remove("hi"); }); return; }
+    svg.classList.add("focus");
+    allPaths.forEach(function (p) {
+      p.classList.toggle("hi", p.dataset.from === id || p.dataset.to === id);
+    });
+  }
+
+  // ---- selection → sidebar ----
+  var sel = { title:document.getElementById("sbTitle"), code:document.getElementById("sbCode"),
+    type:document.getElementById("sbType"), desc:document.getElementById("sbDesc"),
+    statusTop:document.getElementById("sbStatusTop"), statusLine:document.getElementById("sbStatusLine") };
+
+  // rebuild the status line so the "open run" link survives text updates
+  sel.statusLine.innerHTML = '<span id="sbStatusText"></span> <a href="#" onclick="return false">open run ↗</a>';
+  sel.statusText = document.getElementById("sbStatusText");
+
+  var STATUS_COL = { success:"var(--ok)", running:"var(--run)", failed:"var(--fail)",
+    queued:"var(--queue)", idle:"var(--idle)", locked:"var(--idle)", greyed:"var(--idle)" };
+
+  function select(id) {
+    var n = byId[id];
+    stage.querySelectorAll(".node.selected").forEach(function (el) { el.classList.remove("selected"); });
+    var el = stage.querySelector('[data-id="' + id + '"]');
+    if (el) el.classList.add("selected");
+
+    sel.title.textContent = n.label;
+    sel.code.textContent = n.code;
+    sel.code.style.background = TRACK_VAR[n.track];
+    sel.type.textContent = TYPE_TXT[n.type];
+    sel.desc.textContent = n.desc;
+    sel.statusText.textContent = n.fn + " · " + n.info;
+
+    var col = STATUS_COL[n.state];
+    sel.statusTop.innerHTML = '<span class="sdot" style="background:' + col + '"></span>' + STATUS_TXT[n.state];
+    sel.statusTop.style.color = "color-mix(in srgb, " + col + " 72%, var(--ink))";
+  }
+  select("a1");
+
+  // ---- zoom ----
+  var scale = 1;
+  function applyZoom() { stage.style.transform = "scale(" + scale + ")"; }
+  document.getElementById("zin").onclick = function () { scale = Math.min(1.6, scale + 0.15); applyZoom(); };
+  document.getElementById("zout").onclick = function () { scale = Math.max(0.5, scale - 0.15); applyZoom(); };
+  document.getElementById("zfit").onclick = function () { scale = 1; applyZoom(); document.getElementById("canvas").scrollTo({ left: 0, top: 0, behavior: "smooth" }); };
+
+  // ---- drag to pan ----
+  var canvas = document.getElementById("canvas");
+  var panning = false, sx0, sy0, sl0, st0;
+  canvas.addEventListener("pointerdown", function (e) {
+    if (e.target.closest(".node") || e.target.closest(".sidebar") || e.target.closest(".legend") || e.target.closest(".zoom")) return;
+    panning = true; canvas.classList.add("grabbing");
+    sx0 = e.clientX; sy0 = e.clientY; sl0 = canvas.scrollLeft; st0 = canvas.scrollTop;
+    canvas.setPointerCapture(e.pointerId);
+  });
+  canvas.addEventListener("pointermove", function (e) {
+    if (!panning) return;
+    canvas.scrollLeft = sl0 - (e.clientX - sx0);
+    canvas.scrollTop = st0 - (e.clientY - sy0);
+  });
+  canvas.addEventListener("pointerup", function () { panning = false; canvas.classList.remove("grabbing"); });
+
+  // ---- theme toggle ----
+  document.getElementById("themeBtn").onclick = function () {
+    var cur = document.documentElement.getAttribute("data-theme");
+    if (!cur) cur = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    document.documentElement.setAttribute("data-theme", cur === "dark" ? "light" : "dark");
+  };
+</script>
