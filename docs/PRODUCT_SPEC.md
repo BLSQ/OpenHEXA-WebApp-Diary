@@ -28,13 +28,13 @@ team **see the status of, and run, every pipeline** from one place.
 
 - The **SNT stratification process** imports, processes, cleans and transforms country data to
   produce the data layers needed for the next step — intervention mix and budgeting. Those layers
-  most often flow **back into the country's NMDR** (national malaria data repository), and may
-  also feed the **SNT Explorer**. This app covers only the stratification part.
+  most often feed the **SNT Explorer (IASO)**, and may
+  also flow **back into the country's NMDR** (national malaria data repository). This app covers only the stratification part.
 - The process is broken into steps; **each step is an OpenHEXA pipeline**. The standard SNT
   pipelines **already exist and work** in OpenHEXA and can be installed into any workspace from
-  templates (they work out of the box once the required input data is present). **More pipelines
+  **templates** (they work out of the box once the required input data is present). **More pipelines
   are still being added** — the map is expected to grow.
-- Today these pipelines appear in the OpenHEXA **Pipelines** section, **listed in order of
+- In any given OpenHEXA workspace these pipelines appear in the **Pipelines** section, **listed in order of
   creation** — not in logical order, and with no indication of which are mandatory, optional,
   or alternatives. This is hard for users to navigate.
 - **The app solves this** by re-casting that Pipelines view as a clear, fixed **flow chart**,
@@ -282,31 +282,23 @@ Resolved since the first draft (kept here for traceability):
 
 Still open:
 
-1. **Dependency locking — in scope, and when?** v1 draws the arrows but keeps all installed
-   pipelines clickable (no hard locking). Confirm whether locking is a fast-follow or stays
-   deferred. _(Questionnaire Q69: Open.)_
-2. **Guide vs. display — recommend the next step?** Should the app actively **recommend what to
+1. **Guide vs. display — recommend the next step?** Should the app actively **recommend what to
    run next** (given the "needs guidance throughout" persona) or only display the map and let the
    user choose? _(Q20: Open.)_ This is a product-shape decision.
-3. **In-app failure help.** On a failed run, should the app **re-cast the pipeline's own
+2. **In-app failure help.** On a failed run, should the app **re-cast the pipeline's own
    human-readable run Messages inside the app** (vs. sending the user to the OpenHEXA UI)? Given
    the Excel-level floor, linking out may be too technical. _(Q24: left blank — needs a decision.)_
-4. **Setup ownership.** Who performs technical setup (config, connections, install) — BLSQ, a more
+3. **Setup ownership.** Who performs technical setup (config, connections, install) — BLSQ, a more
    technical country-side person, or the running user? And does "one-click install" legitimately
    pull a non-technical user into setup? _(Q27/Q28/Q51: Open. Tension flagged in the questionnaire.)_
-5. **Connections ownership.** The steer is that users should eventually **set their own
+4. **Connections ownership.** The steer is that users should eventually **set their own
    connections** (contradicting "BLSQ always sets them up first"). Confirm the target model and
    whether the running user ever handles raw credentials. _(Q57/Q60.)_
-6. **Accountability & handoff.** Is the running user **accountable for the soundness** of the
-   outputs, or do they execute while a separate validator signs off (via validation workshops)?
-   And where do outputs go — back into the **NMDR** (most likely) and/or the SNT Explorer?
-   _(Q39/Q40: Open.)_ This affects how much decision-support the app must carry.
-7. **Team run model.** Do **all** team members run pipelines, or one runs while others view? Since
-   they share one workspace and one set of runs, does the app need to show "who is running what"?
+5. **Team run model.** Do **all** team members run pipelines, or one runs while others view? Since
+   they share one workspace and one set of runs, does the app need to show "who is running what"? Consider implications of two users installing the same template pipeline (real point of confusion during DRC workshop!).  
    _(Q3: Open; Q37 says they coordinate at overlapping hours.)_
-8. **French localization — when?** French is a firm long-term requirement and may be needed sooner
+6. **French localization — when?** French is a firm long-term requirement and may be needed sooner
    than "long term" (Q13 leaned that even early testing wants French). Decide the trigger point for
    starting localization.
-9. **Card descriptions.** The one-sentence description per pipeline is **not** in the pipeline
+7. **Card descriptions.** The one-sentence description per pipeline is **not** in the pipeline
    source. Who provides the canonical wording — PM, or pulled from each README? _(Carried over.)_
-10. **Product name.** Confirm "SNT Pipelines Orchestrator" as the user-facing name.
