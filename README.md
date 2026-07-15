@@ -53,9 +53,7 @@ origin.
 │   └── schema.generated.graphql     #   OpenHEXA GraphQL schema — query reference for agents
 │
 ├── docs/                            # Consolidated knowledge (stable)
-│   ├── PRODUCT_SPEC.md              #   Product specification
-│   ├── PLAN.md                      #   Phased, atomic task plan for the orchestrator
-│   ├── JIRA_ITEMS.md                #   Reference/drafting sheet for Jira issues — managed manually (project SNT25)
+│   ├── PRODUCT_SPEC.md              #   Product spec: functionality, UI variants, v0/v1/v2 roadmap
 │   └── personas/                    #   UX persona / discovery questionnaires
 │
 ├── design/                          # WIP / design explorations (not contracts)
@@ -169,8 +167,8 @@ OpenHEXA static webapp   (webapp id/slug resolved live via list_static_webapps; 
 ## Using with an AI agent (Claude Code)
 
 Open this directory in Claude Code. The agent reads `CLAUDE.md` for full instructions
-automatically. For orchestrator work it also reads `docs/PLAN.md` and `docs/JIRA_ITEMS.md`
-at session start. Then just describe what you want:
+automatically. For orchestrator work it also reads `docs/PRODUCT_SPEC.md` (product scope +
+v0/v1/v2 roadmap) at session start. Then just describe what you want:
 
 - **Deploy to an existing workspace:** "Update the flowchart webapp in workspace X to add pipeline Y"
 - **Set up a new workspace:** "Create the flowchart webapp for workspace Z" — the agent looks up

@@ -35,19 +35,18 @@ This includes:
 Give a precise, copy-pasteable instruction (what to click, what to paste back), do not guess
 the answer, and do not proceed on an assumption while waiting.
 
-## Master plan
+## Master plan & versions
 
-The plan of action for the SNT Pipelines Orchestrator lives in `docs/PLAN.md` (phased,
-atomic tasks with owner tags). **Read
-`docs/PLAN.md` at the start of any session working toward the orchestrator**, and locate
-the task being worked on (e.g. "do T1.2") there before starting.
+The product definition and the phased **v0 / v1 / v2 roadmap** for the SNT Pipelines Orchestrator
+live in `docs/PRODUCT_SPEC.md` (Part C — Versioning). **Read `docs/PRODUCT_SPEC.md` at the start
+of any session working toward the orchestrator** to locate the current scope and which version a
+piece of work targets. _(The former `docs/PLAN.md` and `docs/JIRA_ITEMS.md` task sheets have been
+retired; the roadmap now lives in PRODUCT_SPEC.md and task tracking lives in Jira.)_
 
-The plan is mirrored to Jira (project `SNT25`, Epic `SNT25-536`). **Giulia manages all Jira
-items manually through the Jira UI** — the agent does not create, edit, transition, or link
-Jira issues for this project. `docs/JIRA_ITEMS.md` is kept as a human-facing reference and
-drafting sheet (issue wording, hierarchy, and conventions) that inspires the manual updates; do
-not act on it as an agent task list. Only touch Jira via the Atlassian MCP if Giulia explicitly
-asks for it in a given session.
+Work is tracked in Jira (project `SNT25`, Epic `SNT25-536`). **Giulia manages all Jira items
+manually through the Jira UI** — the agent does not create, edit, transition, or link Jira issues
+for this project. Only touch Jira via the Atlassian MCP if Giulia explicitly asks for it in a
+given session.
 
 ## OpenHEXA GraphQL Schema
 
@@ -71,10 +70,12 @@ pipelines (~18, from the `snt_development` repo) as an interactive 2D map with a
 configuration/run sidebar. The current small single-pipeline webapps are stepping stones
 toward it.
 
-The visual and UX target is the wireframe `design/wireframes/orchestrator_wireframe.html` (a
-low-fidelity greyscale layout for UX review), and the product is fully specified in
-`docs/PRODUCT_SPEC.md` — **read both at the start of any session working toward the
-orchestrator UI.** The layout is a scrollable canvas showing the pipeline map on the left, and
+The visual/UX targets are the wireframes `design/wireframes/orchestrator_wireframe.html`
+(flowchart) and `design/wireframes/orchestrator_wireframe_cockpit.html` (cockpit). The product is
+fully specified in `docs/PRODUCT_SPEC.md`, which separates variant-independent **functionality**
+(Part A) from the **UI variants** (Part B) and the **v0 / v1 / v2 roadmap** (Part C) — **read the
+relevant wireframe + PRODUCT_SPEC at the start of any session working toward the orchestrator
+UI.** In the flowchart variant, the layout is a scrollable canvas showing the pipeline map on the left, and
 a side panel on the right that — when a node is selected — shows its description, a link to the
 pipeline's GitHub README, a generated parameters form, a **Run** button, a link to the live
 OpenHEXA run, and (after a run) the data outputs and HTML report links. Node tags mark each
