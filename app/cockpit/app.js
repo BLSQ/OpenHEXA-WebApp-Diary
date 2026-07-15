@@ -1436,10 +1436,12 @@ async function loadOutputs(node, run) {
     html += extLinkHtml(url, "▥", ds.name || ds.slug, "output dataset");
   });
 
+  var htmlReports = [];
   (pr.outputs || []).forEach(function (o) {
     if (o.__typename === "BucketObject") {
       if (o.type === "DIRECTORY") return;
       var html_report = isHtmlKey(o.key);
+      if (html_report) htmlReports.push({ key: o.key, name: o.name || o.key });
       html +=
         '<a class="extlink" href="#" data-objkey="' +
         escapeHtml(o.key) +
@@ -1471,6 +1473,8 @@ async function loadOutputs(node, run) {
       });
     },
   );
+
+  renderReportEmbeds(box, htmlReports, slug);
 }
 
 async function openBucketObject(key, a) {
@@ -1515,6 +1519,130 @@ async function openBucketObject(key, a) {
       a.classList.remove("busy");
     }
   }
+}
+
+/* ------------------------------------------------------------------ *
+ * Inline HTML-report preview (F6 embed — PRODUCT_SPEC §9.1 / #10).
+ * Option A: <iframe src={signed URL}>. GCS signed URLs send no
+ * X-Frame-Options, so the report renders in-frame (probe-confirmed,
+ * host storage.googleapis.com). Signed URLs expire (~1h), so we
+ * (re)mint on demand each time a preview is opened, and keep the
+ * ↗ link-out as a fallback.
+ * ------------------------------------------------------------------ */
+async function mintDownloadUrl(slug, key) {
+  var data = await gql(DOWNLOAD_MUTATION, {
+    input: { workspaceSlug: slug, objectKey: key, forceAttachment: false },
+  });
+  var r = data.prepareObjectDownload;
+  return r && r.success && r.downloadUrl ? r.downloadUrl : null;
+}
+
+function wireReportOpenLink(container, key) {
+  var a = container.querySelector(".sb-report-openlink");
+  if (a)
+    a.addEventListener("click", function (e) {
+      e.preventDefault();
+      openBucketObject(key, null);
+    });
+}
+
+function renderReportEmbeds(box, reports, slug) {
+  if (!box || !reports || !reports.length || !slug) return;
+
+  reports.forEach(function (rep, idx) {
+    var sec = document.createElement("div");
+    sec.className = "sb-report-embed";
+
+    var head = document.createElement("div");
+    head.className = "sb-report-head";
+    var title = document.createElement("span");
+    title.className = "sb-report-title";
+    title.innerHTML = '<span class="ic">▦</span>' + escapeHtml(rep.name);
+    var toggle = document.createElement("button");
+    toggle.type = "button";
+    toggle.className = "btn-secondary sb-report-toggle";
+    head.appendChild(title);
+    head.appendChild(toggle);
+    sec.appendChild(head);
+
+    var body = document.createElement("div");
+    body.className = "sb-report-body";
+    sec.appendChild(body);
+    box.appendChild(sec);
+
+    var loaded = false; // an iframe is currently mounted with a fresh URL
+    var shown = false; // body is expanded
+
+    function collapse() {
+      shown = false;
+      loaded = false;
+      body.style.display = "none";
+      body.innerHTML = "";
+      toggle.textContent = "Show preview";
+      toggle.classList.remove("is-active");
+    }
+
+    async function expand() {
+      shown = true;
+      body.style.display = "";
+      toggle.textContent = "Hide preview";
+      toggle.classList.add("is-active");
+      if (loaded) return;
+      body.innerHTML = '<p class="sb-muted">loading report…</p>';
+
+      var url = null;
+      try {
+        url = await mintDownloadUrl(slug, rep.key);
+      } catch (err) {
+        console.error(
+          "SNT Orchestrator (cockpit) — report preview mint failed:",
+          rep.key,
+          err,
+        );
+      }
+      if (!shown) return; // collapsed while minting
+
+      if (!url) {
+        body.innerHTML =
+          '<p class="sb-muted">Couldn\'t load the preview here. ' +
+          '<a href="#" class="sb-report-openlink">Open in a new tab ↗</a></p>';
+        wireReportOpenLink(body, rep.key);
+        return;
+      }
+
+      var frame = document.createElement("iframe");
+      frame.className = "sb-report-frame";
+      // Sandbox: allow the report's own scripts/styles to run, but isolate it
+      // from the app. allow-same-origin is needed for many report bundles.
+      frame.setAttribute(
+        "sandbox",
+        "allow-scripts allow-same-origin allow-popups allow-forms allow-downloads",
+      );
+      frame.setAttribute("referrerpolicy", "no-referrer");
+      frame.setAttribute("loading", "lazy");
+      frame.src = url;
+
+      var bar = document.createElement("div");
+      bar.className = "sb-report-bar";
+      bar.innerHTML =
+        '<a href="#" class="sb-report-openlink">Open in a new tab ↗</a>';
+
+      body.innerHTML = "";
+      body.appendChild(frame);
+      body.appendChild(bar);
+      wireReportOpenLink(bar, rep.key);
+      loaded = true;
+    }
+
+    toggle.addEventListener("click", function () {
+      if (shown) collapse();
+      else expand();
+    });
+
+    // Auto-open the first report so the result is visible without a click.
+    if (idx === 0) expand();
+    else collapse();
+  });
 }
 
 /* ================================================================== *
