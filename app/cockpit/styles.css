@@ -395,6 +395,45 @@ body {
   margin: 0;
 }
 
+/* collapsible section boxes (JS adds .sec-collapsible + .sec-toggle + caret) */
+.sec-collapsible {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+  overflow: hidden;
+}
+.sec-collapsible > h4.sec-toggle {
+  margin: 0;
+  padding: 13px 16px;
+  cursor: pointer;
+  user-select: none;
+}
+.sec-collapsible > h4.sec-toggle:hover {
+  background: #eef1f6;
+}
+.sec-collapsible.is-collapsed > h4.sec-toggle:hover {
+  background: #eef1f6;
+}
+.sec-collapsible .sec-body {
+  padding: 2px 16px 16px;
+}
+.sec-collapsible.is-collapsed .sec-body {
+  display: none;
+}
+.sec-caret {
+  width: 0;
+  height: 0;
+  border-left: 5px solid var(--faint);
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+  display: inline-block;
+  transition: transform 0.15s ease;
+  flex-shrink: 0;
+}
+.sec-collapsible:not(.is-collapsed) > h4.sec-toggle .sec-caret {
+  transform: rotate(90deg);
+}
+
 /* dependency context */
 .deps {
   display: flex;
@@ -869,7 +908,7 @@ select.finput {
 }
 .sb-report-frame {
   width: 100%;
-  height: 1200px;
+  height: 600px;
   border: 1px solid var(--line);
   border-radius: 6px;
   background: #fff;
