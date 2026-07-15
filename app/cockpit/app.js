@@ -294,7 +294,8 @@ function hardChildren(id) {
  * Live state: run status, cockpit state, locking
  * ================================================================== */
 function liveRunOf(node) {
-  var e = node && node.uuid && APP.statusByUuid ? APP.statusByUuid[node.uuid] : null;
+  var e =
+    node && node.uuid && APP.statusByUuid ? APP.statusByUuid[node.uuid] : null;
   return e ? e.run : null;
 }
 
@@ -424,7 +425,9 @@ function buildSteps() {
 
 // The node a group step currently points at (its selected member).
 function memberOf(step) {
-  return step.kind === "single" ? step.node : APP.nodeById[APP.altSel[step.group]];
+  return step.kind === "single"
+    ? step.node
+    : APP.nodeById[APP.altSel[step.group]];
 }
 function currentStep() {
   return APP.steps[APP.cur];
@@ -523,7 +526,10 @@ async function loadConnections() {
   var conns = (data.workspace && data.workspace.connections) || [];
   var byType = {};
   conns.forEach(function (c) {
-    (byType[c.type] = byType[c.type] || []).push({ slug: c.slug, name: c.name });
+    (byType[c.type] = byType[c.type] || []).push({
+      slug: c.slug,
+      name: c.name,
+    });
   });
   APP.connections = byType;
 }
@@ -741,7 +747,9 @@ function paramsFormHtml(node) {
     .join("");
 
   return (
-    '<form id="sb-form" class="sb-form" autocomplete="off">' + fields + "</form>"
+    '<form id="sb-form" class="sb-form" autocomplete="off">' +
+    fields +
+    "</form>"
   );
 }
 
@@ -972,21 +980,30 @@ function altChooserInnerHtml(step) {
         var sel = APP.altSel[step.group] === m.id;
         var greyed = !m.available;
         var run = liveRunOf(m);
-        var when = run && run.executionDate ? " · " + fmtRunDate(run.executionDate).slice(5) : "";
+        var when =
+          run && run.executionDate
+            ? " · " + fmtRunDate(run.executionDate).slice(5)
+            : "";
         var inUse = APP.groupInUse[step.group] === m.id;
         return (
           '<div class="alt ' +
           (sel ? "sel " : "") +
           (greyed ? "greyed" : "") +
           '"' +
-          (greyed ? "" : ' data-mid="' + escapeHtml(m.id) + '" data-group="' + escapeHtml(step.group) + '" role="button" tabindex="0"') +
+          (greyed
+            ? ""
+            : ' data-mid="' +
+              escapeHtml(m.id) +
+              '" data-group="' +
+              escapeHtml(step.group) +
+              '" role="button" tabindex="0"') +
           ">" +
           '<span class="radio"></span>' +
           '<div class="acode">' +
           escapeHtml(m.code) +
           '</div><div class="atitle">' +
           escapeHtml(m.label.replace(/^.*?:\s*/, "")) +
-          '</div>' +
+          "</div>" +
           '<div class="adesc">' +
           escapeHtml(m.description || "") +
           "</div>" +
@@ -1016,9 +1033,7 @@ function groupExclusionNoticeHtml(node) {
   var inFlight = !!(run && run.status && !isRunFinished(run.status));
 
   if (inUseId && inUseId === node.id) {
-    return (
-      '<div class="sb-altnote is-current">✓ In use — this method holds the most recent successful run for this group.</div>'
-    );
+    return '<div class="sb-altnote is-current">✓ In use — this method holds the most recent successful run for this group.</div>';
   }
   if (inFlight) {
     return (
@@ -1045,7 +1060,8 @@ function runRowHtml(node) {
   var locked = state === "none" ? lockedReason(node.id) : null;
   var run = liveRunOf(node);
   var inFlight =
-    !!APP.activeRun[node.id] || (run && run.status && !isRunFinished(run.status));
+    !!APP.activeRun[node.id] ||
+    (run && run.status && !isRunFinished(run.status));
   var isGroup = !!node.group;
 
   if (locked) {
@@ -1180,7 +1196,7 @@ function renderCockpit() {
       : node.description || "";
 
   var paramsTitle =
-    "Parameters" +
+    "Run with Parameters" +
     (step.kind === "group"
       ? " · " + escapeHtml(node.label.replace(/^.*?:\s*/, ""))
       : "");
@@ -1204,7 +1220,9 @@ function renderCockpit() {
     escapeHtml(typeLabel) +
     "</span>" +
     (step.kind === "group"
-      ? '<span class="chip stage">choose 1 of ' + step.members.length + "</span>"
+      ? '<span class="chip stage">choose 1 of ' +
+        step.members.length +
+        "</span>"
       : "") +
     '<span id="ck-statuspill-slot">' +
     statusPillHtml(node) +
@@ -1247,10 +1265,17 @@ function renderCockpit() {
   var wrap2 = document.querySelector(".cockpit-wrap");
   if (wrap2) wrap2.scrollTop = 0;
 
+  // Turn each labelled section (Dependencies, Choose a method, Parameters,
+  // Latest outputs) into its own collapsible box. The description block above
+  // Dependencies isn't a `.sec`, so it stays permanently open. Dependencies
+  // starts collapsed (it's the tallest — PRODUCT_SPEC #9).
+  makeSectionsCollapsible(ck, ["dependencies"]);
+
   // If a run for this node is already in flight (navigated away + back), reflect
   // it: disable the button + show the live status line.
   if (APP.activeRun[node.id]) {
-    var entry = APP.statusByUuid && node.uuid ? APP.statusByUuid[node.uuid] : null;
+    var entry =
+      APP.statusByUuid && node.uuid ? APP.statusByUuid[node.uuid] : null;
     var liveRun = entry ? entry.run : null;
     if (liveRun)
       setRunStatusLine(
@@ -1262,6 +1287,68 @@ function renderCockpit() {
 
   // Load this node's latest outputs (guarded by APP.selectedId inside).
   loadOutputs(node, liveRunOf(node));
+}
+
+/* ------------------------------------------------------------------ *
+ * Collapsible section boxes (cockpit panel). Wraps each `.sec` body so
+ * its <h4> toggles it open/closed. Called once per panel render on the
+ * fresh DOM; ids inside sections still resolve via getElementById, so
+ * the run/status/outputs plumbing is unaffected.
+ * ------------------------------------------------------------------ */
+function setSecOpen(sec, open) {
+  sec.setAttribute("data-open", open ? "1" : "0");
+  sec.classList.toggle("is-collapsed", !open);
+}
+
+function makeSectionsCollapsible(root, collapsedPrefixes) {
+  if (!root) return;
+  var collapsed = (collapsedPrefixes || []).map(function (s) {
+    return s.toLowerCase();
+  });
+  Array.prototype.forEach.call(root.querySelectorAll(".sec"), function (sec) {
+    if (sec.getAttribute("data-collapsible") === "1") return;
+    var h = sec.querySelector("h4");
+    if (!h) return;
+    sec.setAttribute("data-collapsible", "1");
+    sec.classList.add("sec-collapsible");
+
+    // Move everything after the <h4> into a body wrapper.
+    var body = document.createElement("div");
+    body.className = "sec-body";
+    var n = h.nextSibling;
+    while (n) {
+      var next = n.nextSibling;
+      body.appendChild(n);
+      n = next;
+    }
+    sec.appendChild(body);
+
+    // Make the header a keyboard-accessible toggle with a caret.
+    h.classList.add("sec-toggle");
+    h.setAttribute("role", "button");
+    h.setAttribute("tabindex", "0");
+    var caret = document.createElement("span");
+    caret.className = "sec-caret";
+    caret.setAttribute("aria-hidden", "true");
+    h.insertBefore(caret, h.firstChild);
+
+    var label = (h.textContent || "").trim().toLowerCase();
+    var startOpen = !collapsed.some(function (p) {
+      return label.indexOf(p) === 0;
+    });
+    setSecOpen(sec, startOpen);
+
+    function toggle() {
+      setSecOpen(sec, sec.getAttribute("data-open") !== "1");
+    }
+    h.addEventListener("click", toggle);
+    h.addEventListener("keydown", function (e) {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        toggle();
+      }
+    });
+  });
 }
 
 function missingBodyHtml(node) {
@@ -1662,7 +1749,8 @@ function isRunFinished(status) {
 
 function runPageUrl(node, run) {
   var slug = workspaceSlug();
-  var entry = APP.statusByUuid && node.uuid ? APP.statusByUuid[node.uuid] : null;
+  var entry =
+    APP.statusByUuid && node.uuid ? APP.statusByUuid[node.uuid] : null;
   var code = entry && entry.code ? entry.code : null;
   if (!slug || !code || !run || !run.id) return null;
   return (
@@ -1727,7 +1815,13 @@ function runStatusLineHtml(node, run) {
       '" target="_blank" rel="noopener noreferrer">view run ↗</a>'
     : "";
   return (
-    '<span class="rs-glyph' + spin + '">' + glyph + "</span> " + escapeHtml(label) + link
+    '<span class="rs-glyph' +
+    spin +
+    '">' +
+    glyph +
+    "</span> " +
+    escapeHtml(label) +
+    link
   );
 }
 
@@ -1828,7 +1922,8 @@ async function runNode(node) {
     setRunBtnBusy(node.id, false);
     setRunStatusLine(
       node.id,
-      '<span class="rs-glyph">⚠</span> Couldn’t start the run: ' + escapeHtml(msg),
+      '<span class="rs-glyph">⚠</span> Couldn’t start the run: ' +
+        escapeHtml(msg),
       "rs-err",
     );
     return;
@@ -1841,7 +1936,11 @@ async function runNode(node) {
     duration: null,
   };
   applyRunToNode(node, run);
-  setRunStatusLine(node.id, runStatusLineHtml(node, run), runStatusCls(run.status));
+  setRunStatusLine(
+    node.id,
+    runStatusLineHtml(node, run),
+    runStatusCls(run.status),
+  );
   pollRun(node, run.id);
 }
 
@@ -1928,7 +2027,11 @@ function pollRun(node, runId) {
 function finishRun(node, run) {
   if (APP.selectedId === node.id) {
     renderCockpit();
-    setRunStatusLine(node.id, runStatusLineHtml(node, run), runStatusCls(run.status));
+    setRunStatusLine(
+      node.id,
+      runStatusLineHtml(node, run),
+      runStatusCls(run.status),
+    );
   }
 }
 
@@ -2035,13 +2138,15 @@ function wireEvents() {
   }
 
   var backBtn = document.getElementById("backBtn");
-  if (backBtn) backBtn.addEventListener("click", function () {
-    go(APP.cur - 1);
-  });
+  if (backBtn)
+    backBtn.addEventListener("click", function () {
+      go(APP.cur - 1);
+    });
   var nextBtn = document.getElementById("nextBtn");
-  if (nextBtn) nextBtn.addEventListener("click", function () {
-    go(APP.cur + 1);
-  });
+  if (nextBtn)
+    nextBtn.addEventListener("click", function () {
+      go(APP.cur + 1);
+    });
 
   window.addEventListener("keydown", function (e) {
     var tag = document.activeElement ? document.activeElement.tagName : "";
