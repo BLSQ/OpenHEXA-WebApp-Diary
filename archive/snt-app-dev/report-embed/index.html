@@ -1,0 +1,413 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>SNT — HTML Report Embed Probe</title>
+    <style>
+      :root {
+        --bg: #0f1420;
+        --panel: #171e2e;
+        --panel2: #1e2740;
+        --edge: #2b3752;
+        --txt: #e6ebf5;
+        --muted: #93a0bd;
+        --accent: #5b9dff;
+        --ok: #37c98a;
+        --bad: #ff6b6b;
+        --warn: #ffce6b;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font: 14px/1.5 system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+        background: var(--bg);
+        color: var(--txt);
+        padding: 24px;
+      }
+      h1 { font-size: 19px; margin: 0 0 4px; }
+      h2 { font-size: 15px; margin: 22px 0 8px; color: var(--accent); }
+      p.sub { color: var(--muted); margin: 0 0 18px; max-width: 900px; }
+      .card {
+        background: var(--panel);
+        border: 1px solid var(--edge);
+        border-radius: 10px;
+        padding: 16px 18px;
+        margin-bottom: 16px;
+        max-width: 1100px;
+      }
+      label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+      input[type="text"], select {
+        width: 100%;
+        background: var(--panel2);
+        border: 1px solid var(--edge);
+        color: var(--txt);
+        border-radius: 7px;
+        padding: 8px 10px;
+        font: inherit;
+      }
+      .row { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; }
+      .row > div { flex: 1 1 240px; }
+      button {
+        background: var(--accent);
+        color: #06101f;
+        border: 0;
+        border-radius: 7px;
+        padding: 9px 16px;
+        font: inherit;
+        font-weight: 600;
+        cursor: pointer;
+        white-space: nowrap;
+      }
+      button.secondary { background: var(--panel2); color: var(--txt); border: 1px solid var(--edge); }
+      button:disabled { opacity: 0.45; cursor: default; }
+      .verdict {
+        display: inline-block;
+        font-weight: 700;
+        padding: 2px 10px;
+        border-radius: 20px;
+        font-size: 12px;
+        letter-spacing: 0.3px;
+      }
+      .v-ok { background: rgba(55,201,138,0.15); color: var(--ok); border: 1px solid var(--ok); }
+      .v-bad { background: rgba(255,107,107,0.15); color: var(--bad); border: 1px solid var(--bad); }
+      .v-warn { background: rgba(255,206,107,0.15); color: var(--warn); border: 1px solid var(--warn); }
+      .v-pend { background: var(--panel2); color: var(--muted); border: 1px solid var(--edge); }
+      table { border-collapse: collapse; width: 100%; font-size: 13px; }
+      td, th { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--edge); vertical-align: top; }
+      th { color: var(--muted); font-weight: 600; }
+      code, .mono {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-size: 12px;
+        word-break: break-all;
+      }
+      .kv { color: var(--muted); }
+      .kv b { color: var(--txt); font-weight: 600; }
+      #log {
+        background: #0a0e18;
+        border: 1px solid var(--edge);
+        border-radius: 7px;
+        padding: 10px 12px;
+        font-family: ui-monospace, Menlo, Consolas, monospace;
+        font-size: 12px;
+        white-space: pre-wrap;
+        max-height: 240px;
+        overflow: auto;
+        color: var(--muted);
+      }
+      iframe#reportFrame {
+        width: 100%;
+        height: 520px;
+        border: 1px solid var(--edge);
+        border-radius: 8px;
+        background: #fff;
+      }
+      .hint { color: var(--muted); font-size: 12px; margin: 6px 0 0; }
+      .pill { font-size: 11px; padding: 1px 7px; border-radius: 12px; border: 1px solid var(--edge); color: var(--muted); }
+      .none { color: var(--muted); font-style: italic; }
+    </style>
+  </head>
+  <body>
+    <h1>SNT — HTML Report Embed Probe</h1>
+    <p class="sub">
+      Diagnostic for PRODUCT_SPEC §9.1 "Report viewing" / open decision #10. Determines whether a
+      pipeline run's HTML report (a bucket object) can be embedded in-app. It mints a signed
+      <code>prepareObjectDownload</code> URL exactly as the orchestrator does, then runs two
+      tests: <b>(A)</b> can it be shown in an <code>&lt;iframe src&gt;</code> (Option A), and
+      <b>(B)</b> can it be fetched cross-origin for <code>srcdoc</code>/Blob injection (Option B).
+      Needs scopes <code>PIPELINES_READ</code> + <code>FILES_READ</code>.
+    </p>
+
+    <div class="card">
+      <div class="row">
+        <div>
+          <label for="ws">Workspace slug</label>
+          <input type="text" id="ws" />
+        </div>
+        <div style="flex: 0 0 auto">
+          <button id="scanBtn">1 · Scan for HTML reports</button>
+        </div>
+      </div>
+      <p class="hint" id="scanHint">
+        Scans recent runs of every pipeline and lists those whose outputs include an
+        <code>.html</code>/<code>.htm</code> bucket object.
+      </p>
+    </div>
+
+    <div class="card" id="pickCard" style="display: none">
+      <label for="reportSel">2 · Pick a report to test</label>
+      <div class="row">
+        <div>
+          <select id="reportSel"></select>
+        </div>
+        <div style="flex: 0 0 auto">
+          <button id="testBtn">3 · Run embed tests</button>
+        </div>
+      </div>
+      <p class="hint">
+        Or paste a bucket object key manually (advanced):
+        <input type="text" id="manualKey" placeholder="e.g. snt_dhis2_extract/outputs/report.html" style="margin-top:6px" />
+      </p>
+    </div>
+
+    <div class="card" id="resultCard" style="display: none">
+      <h2>Signed URL</h2>
+      <table>
+        <tr><th>Object key</th><td class="mono" id="rKey"></td></tr>
+        <tr><th>prepareObjectDownload</th><td id="rMint"></td></tr>
+        <tr><th>URL host</th><td class="mono" id="rHost"></td></tr>
+        <tr><th>Full URL</th><td class="mono" id="rUrl"></td></tr>
+      </table>
+
+      <h2>Test A — direct <code>&lt;iframe src&gt;</code> (Option A)</h2>
+      <p class="kv">
+        Verdict: <span class="verdict v-pend" id="vA">pending</span>
+        &nbsp; <span class="hint">Automatic detection of X-Frame-Options blocking is unreliable
+        cross-origin — <b>the real test is visual: does the report render in the box below?</b>
+        If the box is blank / shows an error, framing is blocked.</span>
+      </p>
+      <iframe
+        id="reportFrame"
+        sandbox="allow-scripts allow-same-origin allow-popups allow-forms allow-downloads"
+        referrerpolicy="no-referrer"
+      ></iframe>
+
+      <h2>Test B — cross-origin <code>fetch()</code> (Option B)</h2>
+      <p class="kv">Verdict: <span class="verdict v-pend" id="vB">pending</span></p>
+      <table id="bDetail"></table>
+
+      <h2>Diagnostics log</h2>
+      <div id="log"></div>
+    </div>
+
+    <script>
+      var $ = function (id) { return document.getElementById(id); };
+      function log(msg) {
+        var el = $("log");
+        el.textContent += (el.textContent ? "\n" : "") + msg;
+        el.scrollTop = el.scrollHeight;
+        try { console.log("[probe] " + msg); } catch (e) {}
+      }
+      function setVerdict(id, cls, txt) {
+        var el = $(id);
+        el.className = "verdict " + cls;
+        el.textContent = txt;
+      }
+      function isHtmlKey(k) {
+        return /\.html?$/i.test(String(k || ""));
+      }
+
+      // Same proxy pattern as the orchestrator.
+      async function gql(query, variables) {
+        var res = await fetch("/graphql/", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ query: query, variables: variables || {} }),
+        });
+        var json = await res.json();
+        if (json.errors) {
+          throw new Error(json.errors.map(function (e) { return e.message; }).join(" | "));
+        }
+        return json.data;
+      }
+
+      var PIPELINES_Q =
+        "query ($ws: String!) {" +
+        "  pipelines(workspaceSlug: $ws, page: 1, perPage: 100) {" +
+        "    items { id code name runs(orderBy: EXECUTION_DATE_DESC, page: 1, perPage: 5) {" +
+        "      items { id status executionDate } } }" +
+        "  }" +
+        "}";
+      var OUTPUTS_Q =
+        "query ($id: UUID!) {" +
+        "  pipelineRun(id: $id) {" +
+        "    status" +
+        "    outputs { __typename ... on BucketObject { key name type } }" +
+        "  }" +
+        "}";
+      var DOWNLOAD_M =
+        "mutation ($input: PrepareObjectDownloadInput!) {" +
+        "  prepareObjectDownload(input: $input) { success downloadUrl }" +
+        "}";
+
+      // Prefill workspace slug from the injected global, fall back to snt-app-dev.
+      (function () {
+        var slug = "snt-app-dev";
+        try {
+          if (window.OPENHEXA && window.OPENHEXA.workspaceSlug) slug = window.OPENHEXA.workspaceSlug;
+        } catch (e) {}
+        $("ws").value = slug;
+      })();
+
+      var FOUND = []; // { key, name, pipeline, runId, status }
+
+      $("scanBtn").addEventListener("click", async function () {
+        var slug = $("ws").value.trim();
+        if (!slug) { alert("Enter a workspace slug."); return; }
+        this.disabled = true;
+        $("scanHint").textContent = "Scanning…";
+        FOUND = [];
+        try {
+          var data = await gql(PIPELINES_Q, { ws: slug });
+          var pipes = (data.pipelines && data.pipelines.items) || [];
+          log("Found " + pipes.length + " pipelines. Inspecting recent successful runs for HTML outputs…");
+          // Look at recent runs, prefer success, and probe their outputs.
+          for (var i = 0; i < pipes.length; i++) {
+            var p = pipes[i];
+            var runs = (p.runs && p.runs.items) || [];
+            for (var j = 0; j < runs.length; j++) {
+              var r = runs[j];
+              if (r.status !== "success") continue;
+              var od;
+              try {
+                od = await gql(OUTPUTS_Q, { id: r.id });
+              } catch (e) {
+                log("  ! outputs query failed for run " + r.id + ": " + e.message);
+                continue;
+              }
+              var outs = (od.pipelineRun && od.pipelineRun.outputs) || [];
+              var hit = false;
+              for (var k = 0; k < outs.length; k++) {
+                var o = outs[k];
+                if (o.__typename === "BucketObject" && o.type !== "DIRECTORY" && isHtmlKey(o.key)) {
+                  FOUND.push({
+                    key: o.key,
+                    name: o.name || o.key,
+                    pipeline: p.name || p.code,
+                    runId: r.id,
+                    status: r.status,
+                  });
+                  hit = true;
+                }
+              }
+              if (hit) break; // one run per pipeline is enough
+            }
+          }
+          log("Scan complete. HTML reports found: " + FOUND.length);
+          if (!FOUND.length) {
+            $("scanHint").innerHTML =
+              '<span class="none">No HTML reports found in recent successful runs. ' +
+              "Try running a pipeline that produces one, or paste a key manually below.</span>";
+            $("pickCard").style.display = "";
+            $("reportSel").innerHTML = '<option value="">(none found — use manual key)</option>';
+            return;
+          }
+          var sel = $("reportSel");
+          sel.innerHTML = "";
+          FOUND.forEach(function (f, idx) {
+            var opt = document.createElement("option");
+            opt.value = String(idx);
+            opt.textContent = f.pipeline + "  —  " + f.name;
+            sel.appendChild(opt);
+          });
+          $("scanHint").textContent = FOUND.length + " HTML report(s) found. Pick one and run the tests.";
+          $("pickCard").style.display = "";
+        } catch (e) {
+          log("SCAN ERROR: " + e.message);
+          alert("Scan failed: " + e.message + "\n(Check the app has PIPELINES_READ scope.)");
+        } finally {
+          this.disabled = false;
+        }
+      });
+
+      $("testBtn").addEventListener("click", async function () {
+        var slug = $("ws").value.trim();
+        var manual = $("manualKey").value.trim();
+        var key = manual;
+        if (!key) {
+          var idx = $("reportSel").value;
+          if (idx === "" || !FOUND[idx]) { alert("Pick a report or paste a key."); return; }
+          key = FOUND[idx].key;
+        }
+        this.disabled = true;
+        $("resultCard").style.display = "";
+        $("log").textContent = "";
+        setVerdict("vA", "v-pend", "running…");
+        setVerdict("vB", "v-pend", "running…");
+        $("bDetail").innerHTML = "";
+        $("rKey").textContent = key;
+        $("rMint").textContent = "";
+        $("rHost").textContent = "";
+        $("rUrl").textContent = "";
+        $("reportFrame").src = "about:blank";
+
+        try {
+          log("Minting signed URL via prepareObjectDownload (forceAttachment:false)…");
+          var d = await gql(DOWNLOAD_M, {
+            input: { workspaceSlug: slug, objectKey: key, forceAttachment: false },
+          });
+          var pr = d.prepareObjectDownload;
+          if (!pr || !pr.success || !pr.downloadUrl) {
+            $("rMint").innerHTML = '<span class="verdict v-bad">failed</span>';
+            log("prepareObjectDownload did NOT return a URL: " + JSON.stringify(pr));
+            setVerdict("vA", "v-bad", "cannot test");
+            setVerdict("vB", "v-bad", "cannot test");
+            return;
+          }
+          var url = pr.downloadUrl;
+          $("rMint").innerHTML = '<span class="verdict v-ok">ok</span>';
+          var host = "";
+          try { host = new URL(url).host; } catch (e) { host = "(unparseable)"; }
+          $("rHost").textContent = host;
+          $("rUrl").textContent = url;
+          log("Signed URL host: " + host);
+
+          // ---- Test A: direct iframe ----
+          log("Test A: loading URL into <iframe src>…");
+          var frame = $("reportFrame");
+          var settled = false;
+          frame.onload = function () {
+            if (settled) return;
+            log("Test A: iframe fired 'load'. (Cross-origin: cannot read contents; blocking still shows as a blank/error box.)");
+            setVerdict("vA", "v-warn", "loaded — CONFIRM VISUALLY below");
+          };
+          frame.onerror = function () {
+            log("Test A: iframe fired 'error'.");
+            setVerdict("vA", "v-bad", "error");
+          };
+          frame.src = url;
+          // Fallback nudge if no load event within a few seconds.
+          setTimeout(function () {
+            if ($("vA").textContent === "running…") {
+              setVerdict("vA", "v-warn", "no load event — CONFIRM VISUALLY below");
+            }
+          }, 6000);
+
+          // ---- Test B: cross-origin fetch ----
+          log("Test B: attempting cross-origin fetch() (default cors mode)…");
+          try {
+            var res = await fetch(url, { method: "GET", mode: "cors" });
+            var ct = res.headers.get("content-type");
+            var cd = res.headers.get("content-disposition");
+            log("Test B: fetch resolved. status=" + res.status + " content-type=" + ct);
+            var rows =
+              "<tr><th>fetch status</th><td>" + res.status + " " + res.statusText + "</td></tr>" +
+              "<tr><th>content-type (if exposed)</th><td class='mono'>" + (ct || "(not exposed)") + "</td></tr>" +
+              "<tr><th>content-disposition (if exposed)</th><td class='mono'>" + (cd || "(not exposed)") + "</td></tr>";
+            $("bDetail").innerHTML = rows;
+            if (res.ok) {
+              setVerdict("vB", "v-ok", "CORS allowed — Option B feasible");
+              log("Test B: cross-origin fetch SUCCEEDED → srcdoc/Blob injection is possible.");
+            } else {
+              setVerdict("vB", "v-warn", "reachable but HTTP " + res.status);
+            }
+          } catch (e) {
+            log("Test B: fetch FAILED (likely CORS block): " + e.name + " — " + e.message);
+            $("bDetail").innerHTML =
+              "<tr><th>error</th><td class='mono'>" + e.name + ": " + e.message + "</td></tr>" +
+              "<tr><td colspan='2' class='hint'>A TypeError here almost always means the storage bucket does " +
+              "not send CORS headers for this origin, so Option B (fetch → srcdoc/Blob) is not available. " +
+              "This does <b>not</b> rule out Option A (direct iframe) — check the visual result above.</td></tr>";
+            setVerdict("vB", "v-bad", "CORS blocked — Option B not available");
+          }
+        } catch (e) {
+          log("TEST ERROR: " + e.message);
+          setVerdict("vA", "v-bad", "error");
+          setVerdict("vB", "v-bad", "error");
+        } finally {
+          this.disabled = false;
+        }
+      });
+    </script>
+  </body>
+</html>
