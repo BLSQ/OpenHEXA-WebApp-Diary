@@ -1,5 +1,5 @@
 {
-  "_description": "Hand-authored pipeline descriptions, shared across every UI variant and every workspace. Keyed by pipeline id (the Python function name — same join key used everywhere else). This is the SINGLE place to edit a pipeline's description text; see schemas/pipeline_descriptions.schema.json for the contract and deploy notes.",
+  "_description": "Hand-authored pipeline descriptions, shared across every UI variant and every workspace. Keyed by pipeline id (the Python function name — same join key used everywhere else). This is the SINGLE place to edit a pipeline's description text; see schemas/pipeline_descriptions.schema.json for the contract, formatting rules, and deploy notes.",
   "version": "2026-07-16",
   "descriptions": {
     "snt_dhis2_extract": "Extracts DHIS2 pyramid, routine analytics, population, shapes, and reporting rates for a period.",

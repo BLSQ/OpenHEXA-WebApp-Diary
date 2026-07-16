@@ -1,5 +1,5 @@
 {
-  "_description": "Schema reference for workspace-and-variant-specific pipeline_cards.json files. Agents read this to understand the expected structure when generating a pipeline_cards.json for a new workspace. Each UI variant of the orchestrator (e.g. flowchart, cockpit) has its own copy under workspaces/<ws>/<variant>/pipeline_cards.json. Pipeline description text is NOT stored here — see shared/pipeline_descriptions.json / schemas/pipeline_descriptions.schema.json (one copy, shared across every variant and workspace).",
+  "_description": "Schema reference for workspace-and-variant-specific pipeline_cards.json files. Agents read this to understand the expected structure when generating a pipeline_cards.json for a new workspace. Each UI variant of the orchestrator (e.g. flowchart, cockpit) has its own copy under workspaces/<ws>/<variant>/pipeline_cards.json. Pipeline description text is NOT stored here — see app/pipeline_descriptions.json / schemas/pipeline_descriptions.schema.json (one copy, shared across every variant and workspace).",
 
   "_generation_instructions": [
     "1. Call list_pipelines for the target workspace, paginating until all pages are retrieved.",

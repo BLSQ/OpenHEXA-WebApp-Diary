@@ -104,7 +104,7 @@ async function loadData() {
  * nodes are *available*: a node is available iff its `id` matches a pipeline in
  * this workspace's cards (with a `uuid`). Otherwise it is *greyed* — rendered
  * disabled in later tasks. Description text comes from the shared,
- * hand-authored shared/pipeline_descriptions.json (one copy across all
+ * hand-authored app/pipeline_descriptions.json (one copy across all
  * variants/workspaces), not from the map or the cards. */
 function mergeNodes(map, cards, descriptions) {
   var cardsById = {};
@@ -235,6 +235,26 @@ function escapeHtml(s) {
     .replace(/"/g, "&quot;");
 }
 
+/* Small Markdown-lite renderer for hand-authored pipeline descriptions
+ * (app/pipeline_descriptions.json): bold and italic markers, plus
+ * newlines -> <br>. Nothing else (no headers/links/lists) — text is escaped
+ * first, so any other markup is shown literally rather than executed. */
+function mdLite(s) {
+  var html = escapeHtml(s);
+  html = html.replace(/\*\*([^*]+?)\*\*/g, "<strong>$1</strong>");
+  html = html.replace(/__([^_]+?)__/g, "<strong>$1</strong>");
+  html = html.replace(/\*([^*]+?)\*/g, "<em>$1</em>");
+  html = html.replace(/_([^_]+?)_/g, "<em>$1</em>");
+  return html.replace(/\n/g, "<br>");
+}
+
+// Plain-text counterpart for native (non-HTML) contexts like a title="" tooltip
+// — strips the Markdown-lite markers instead of rendering them; newlines are
+// left as-is (browsers render \n as line breaks in native tooltips).
+function stripMd(s) {
+  return String(s == null ? "" : s).replace(/\*\*|__|\*|_/g, "");
+}
+
 /* Build the coordinate helpers + overall canvas size for a set of nodes.
  * nx/ny = top-left of a node's card; ncx/ncy = its centre. */
 function makeLayout(nodes) {
@@ -300,7 +320,7 @@ function renderGrid(nodes) {
     div.style.width = LAYOUT.NODE_W + "px";
     div.style.minHeight = LAYOUT.NODE_H + "px";
     div.title =
-      (n.description || "") +
+      stripMd(n.description || "") +
       "\n\n[" +
       n.type +
       "]  id: " +
@@ -1288,7 +1308,7 @@ function renderMissingSidebar(node) {
     "this page — it’ll become active and runnable here.</p>" +
     "</div>" +
     (node.description
-      ? '<p class="sb-desc">' + escapeHtml(node.description) + "</p>"
+      ? '<p class="sb-desc">' + mdLite(node.description) + "</p>"
       : "") +
     '<div class="sb-links">' +
     links +
@@ -1388,7 +1408,7 @@ function renderSidebar(node) {
     groupExclusionNoticeHtml(node) +
     "</div>" +
     (node.description
-      ? '<p class="sb-desc">' + escapeHtml(node.description) + "</p>"
+      ? '<p class="sb-desc">' + mdLite(node.description) + "</p>"
       : "") +
     '<div class="sb-links">' +
     links +

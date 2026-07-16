@@ -1,6 +1,6 @@
 {
   "version": "2026-07-16",
-  "_notes": "Authoring conventions, per-member-edge rule, and group-aware unlock semantics: see schemas/pipeline_map.schema.json (_generation_instructions) and CLAUDE.md (Node states). Descriptions are NOT stored here — they live in shared/pipeline_descriptions.json (one copy, shared across variants and workspaces); see schemas/pipeline_descriptions.schema.json.",
+  "_notes": "Authoring conventions, per-member-edge rule, and group-aware unlock semantics: see schemas/pipeline_map.schema.json (_generation_instructions) and CLAUDE.md (Node states). Descriptions are NOT stored here — they live in app/pipeline_descriptions.json (one copy, shared across variants and workspaces); see schemas/pipeline_descriptions.schema.json.",
   "grid": { "cols": 11 },
   "nodes": [
     {

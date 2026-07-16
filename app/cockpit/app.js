@@ -138,7 +138,7 @@ async function loadData() {
 /* Merge the shared map with this workspace's cards. Every map node is kept; a
  * node is *available* iff its id matches a pipeline in the cards (with a uuid),
  * otherwise it renders as "not installed" (greyed / missing). Description text
- * comes from the shared, hand-authored shared/pipeline_descriptions.json (one
+ * comes from the shared, hand-authored app/pipeline_descriptions.json (one
  * copy across all variants/workspaces), not from the map or the cards. */
 function mergeNodes(map, cards, descriptions) {
   var cardsById = {};
@@ -176,6 +176,19 @@ function escapeHtml(s) {
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
+}
+
+// Small Markdown-lite renderer for hand-authored pipeline descriptions
+// (app/pipeline_descriptions.json): bold and italic markers, and newlines
+// (`\n`) -> <br>. Nothing else (no headers/links/lists) — text is escaped first,
+// so any other markup is shown literally rather than executed.
+function mdLite(s) {
+  var html = escapeHtml(s);
+  html = html.replace(/\*\*([^*]+?)\*\*/g, "<strong>$1</strong>");
+  html = html.replace(/__([^_]+?)__/g, "<strong>$1</strong>");
+  html = html.replace(/\*([^*]+?)\*/g, "<em>$1</em>");
+  html = html.replace(/_([^_]+?)_/g, "<em>$1</em>");
+  return html.replace(/\n/g, "<br>");
 }
 
 // The main OpenHEXA front-end lives at app.openhexa.org (a different domain from
@@ -1010,7 +1023,7 @@ function altChooserInnerHtml(step) {
           escapeHtml(m.label.replace(/^.*?:\s*/, "")) +
           "</div>" +
           '<div class="adesc">' +
-          escapeHtml(m.description || "") +
+          mdLite(m.description || "") +
           "</div>" +
           '<div class="astat"><span class="sg ' +
           ms +
@@ -1238,7 +1251,7 @@ function renderCockpit() {
     '<div id="sb-altnote-slot">' +
     groupExclusionNoticeHtml(node) +
     "</div>" +
-    (desc ? '<p class="desc">' + escapeHtml(desc) + "</p>" : "") +
+    (desc ? '<p class="desc">' + mdLite(desc) + "</p>" : "") +
     '<div class="sb-links">' +
     extLinkHtml(
       githubFolderUrl(node.id),
@@ -1383,7 +1396,7 @@ function missingBodyHtml(node) {
     "</div>" +
     (node.description
       ? '<p class="desc" style="margin-top:14px">' +
-        escapeHtml(node.description) +
+        mdLite(node.description) +
         "</p>"
       : "") +
     '<div class="sec" style="margin-top:14px"><h4>More</h4><div class="outputs">' +
