@@ -891,6 +891,8 @@ function renderRail() {
       cls +
       '" data-step="' +
       i +
+      '" style="--track:' +
+      trackColor(s.track) +
       '" role="button" tabindex="0">' +
       '<span class="sg ' +
       glyphState +
@@ -905,7 +907,7 @@ function renderRail() {
       "</div>" +
       meta +
       "</div>" +
-      (i === APP.cur ? '<span class="here-tag">◂ you are here</span>' : "") +
+      (i === APP.cur ? '<span class="here-tag">🡄</span>' : "") +
       "</div>";
     var next = APP.steps[i + 1];
     if (!next || next.track !== s.track) h += "</div>";
