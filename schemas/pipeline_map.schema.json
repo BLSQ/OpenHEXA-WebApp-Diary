@@ -1,5 +1,5 @@
 {
-  "_description": "Schema reference for pipeline_map.json — the WORKSPACE-INDEPENDENT definition of the full SNT pipeline flow map for one UI variant of the orchestrator. It declares every pipeline node, its 2D grid position, classification, mutual-exclusion grouping, and the directed dependency edges between nodes. The SNT Pipelines Orchestrator webapp renders this map identically across all workspaces for a given variant. Which nodes are ACTIVE vs GREYED-OUT is decided at runtime by joining node `id` against the workspace's pipeline_cards.json — it is NOT defined here. Each UI variant (e.g. flowchart, cockpit) has its OWN pipeline_map.json under app/<variant>/ (deployed alongside that variant's app bundle) — it is NOT shared across variants, only across workspaces within a variant.",
+  "_description": "Schema reference for pipeline_map.json — the WORKSPACE-INDEPENDENT definition of the full SNT pipeline flow map for one UI variant of the orchestrator. It declares every pipeline node, its 2D grid position, classification, mutual-exclusion grouping, and the directed dependency edges between nodes. The SNT Pipelines Orchestrator webapp renders this map identically across all workspaces for a given variant. Which nodes are ACTIVE vs GREYED-OUT is decided at runtime by joining node `id` against the workspace's pipeline_cards.json — it is NOT defined here. Each UI variant (e.g. flowchart, cockpit) has its OWN pipeline_map.json under app/<variant>/ (deployed alongside that variant's app bundle) — it is NOT shared across variants, only across workspaces within a variant. Node description text is NOT stored here — see shared/pipeline_descriptions.json / schemas/pipeline_descriptions.schema.json (one copy, shared across every variant and workspace).",
 
   "_generation_instructions": [
     "1. This file is hand-authored and maintained, not auto-generated. It changes only when the official set of SNT pipelines or their logical relationships change.",
@@ -7,8 +7,8 @@
     "3. Place each node on the grid with `row` (execution stage, top-to-bottom; lower row = earlier) and `col` (horizontal position within the grid, left-to-right). Use distinct columns to separate parallel tracks (A / B / D).",
     "4. Add one entry to `edges` per direct dependency (a required predecessor / data-flow link). Endpoints reference node `id`. The webapp derives lock/unlock state from edges — do NOT add a separate `req` field on nodes.",
     "5. For mutually-exclusive alternatives (only one of the set may run), give every member the same `group` string and set type to 'alternative'.",
-    "6. Do NOT duplicate parameter definitions here — those live in pipeline_cards.json. The map carries only `label`/`code`/`description` for display, so that greyed-out nodes (absent from the workspace's pipeline_cards.json) still render a name.",
-    "7. `label`/`code`/`description` are the canonical display strings. When a node is active, the workspace card's `name` may override `label` for display.",
+    "6. Do NOT duplicate parameter definitions here — those live in pipeline_cards.json. The map carries only `label`/`code` for display, so that greyed-out nodes (absent from the workspace's pipeline_cards.json) still render a name. Do NOT add a `description` field here either — it lives in shared/pipeline_descriptions.json.",
+    "7. `label`/`code` are the canonical display strings. When a node is active, the workspace card's `name` may override `label` for display. The node's description is looked up separately, by `id`, in shared/pipeline_descriptions.json.",
     "8. Edges out of an alternative group are drawn per member: because edges reference individual node ids (there is no group->group edge), a dependency leaving a group is written once per member (e.g. A.3 -> A.6 is 5 edges, one per outlier method). For the unlock semantics of a solid edge out of a group, see the group-aware bucket rule in CLAUDE.md -> Node states."
   ],
 
@@ -28,7 +28,6 @@
         "id":          "string — Python function name; join key to pipeline_cards.json. REQUIRED",
         "code":        "string — short human code shown as a tag, e.g. 'A.1', 'A.3.1'. REQUIRED",
         "label":       "string — canonical display title WITHOUT the code prefix, e.g. 'DHIS2 Extract' (the code, e.g. 'A.1', is carried separately in `code` and shown alongside). REQUIRED",
-        "description": "string — short subtitle shown in the sidebar (optional)",
         "type":        "string — mandatory | alternative | facultative. REQUIRED",
         "row":         "int — execution stage, top-to-bottom (lower = earlier). REQUIRED",
         "col":         "number — horizontal position in the grid, left-to-right (usually an int; fractional values are allowed to centre a node/group between columns, e.g. A.4 at 1.5/2.5 to sit under the A.3 group). REQUIRED",

@@ -1,0 +1,24 @@
+{
+  "_description": "Hand-authored pipeline descriptions, shared across every UI variant and every workspace. Keyed by pipeline id (the Python function name — same join key used everywhere else). This is the SINGLE place to edit a pipeline's description text; see schemas/pipeline_descriptions.schema.json for the contract and deploy notes.",
+  "version": "2026-07-16",
+  "descriptions": {
+    "snt_dhis2_extract": "Extracts DHIS2 pyramid, routine analytics, population, shapes, and reporting rates for a period.",
+    "snt_dhis2_formatting": "Processes and formats the DHIS2 extracts (pyramid, shapes, routine data) for the SNT workflow.",
+    "snt_dhis2_outliers_imputation_magic_glasses": "Outlier detection and imputation using the Magic Glasses (MAD-based) method.",
+    "snt_dhis2_outliers_imputation_mean": "Outlier detection and imputation using the mean +/- k x SD method.",
+    "snt_dhis2_outliers_imputation_median": "Outlier detection and imputation using the median +/- k x MAD method.",
+    "snt_dhis2_outliers_imputation_iqr": "Outlier detection and imputation using the IQR (inter-quartile range) method.",
+    "snt_dhis2_outliers_imputation_path": "Outlier detection and imputation using the PATH method (mean +/- 10 x SD).",
+    "snt_dhis2_reporting_rate_dataelement": "Reporting rate computed from routine data elements.",
+    "snt_dhis2_reporting_rate_dataset": "Reporting rate from DHIS2 dataset-level rate indicators.",
+    "snt_dhis2_population_transformation": "Scales, projects, and disaggregates DHIS2 population by demographic group.",
+    "snt_dhis2_incidence": "Computes malaria case metrics and yearly incidence from routine HMIS data.",
+    "snt_seasonality_cases": "Classifies case seasonality at ADM2 from routine confirmed-malaria data.",
+    "snt_worldpop_extract": "Extracts WorldPop population raster data for the country.",
+    "snt_map_extracts": "Extracts Malaria Atlas Project rasters and computes zonal statistics.",
+    "snt_healthcare_access": "Computes access-to-care metrics from facilities, population, and catchments.",
+    "snt_dhs_indicators": "Computes DHS survey-based indicators for the SNT process.",
+    "snt_era5_climate_data": "Extracts ERA5 climate data from the Copernicus Climate Data Store.",
+    "snt_seasonality_rainfall": "Computes rainfall seasonality metrics from ERA5 climate data."
+  }
+}

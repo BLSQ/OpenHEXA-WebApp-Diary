@@ -6,7 +6,6 @@
     {
       "id": "snt_dhis2_extract",
       "name": "A.1 DHIS2 Extract",
-      "description": "Extracts DHIS2 pyramid, routine analytics, population, shapes, and reporting rates based on a defined period.",
       "uuid": "3d427c7b-79fb-4ea4-84cd-8604affa6489",
       "openhexa_code": "a-1-dhis2-extract",
       "parameters_source": "github_main",
@@ -22,7 +21,6 @@
     {
       "id": "snt_dhis2_formatting",
       "name": "A.2 DHIS2 Formatting",
-      "description": "Processes and formats DHIS2 data extracts for the SNT workflow.",
       "uuid": "05cab7c8-3602-4af3-b1e1-e31f2da311a7",
       "openhexa_code": "a-2-dhis2-formatting",
       "parameters_source": "github_main",
@@ -34,7 +32,6 @@
     {
       "id": "snt_dhis2_outliers_imputation_iqr",
       "name": "A.3 DHIS2 Outlier Detection and Imputation (IQR)",
-      "description": "Outlier detection and imputation using the IQR method.",
       "uuid": "bf96ca41-644b-4923-8055-a7eb6ee90cdc",
       "openhexa_code": "a-3-dhis2-outlier-detection-and-imputation-iqr",
       "parameters_source": "github_main",
@@ -48,7 +45,6 @@
     {
       "id": "snt_dhis2_outliers_imputation_magic_glasses",
       "name": "A.3 DHIS2 Outlier Detection and Imputation (MAGIC GLASSES)",
-      "description": "Outlier detection and imputation using the Magic Glasses (MAD-based) method.",
       "uuid": "4a40a7b9-9c57-4ebf-a4d1-ae5e3b7b68d0",
       "openhexa_code": "a-3-dhis2-outlier-detection-and-imputation-magic-glasses",
       "parameters_source": "github_main",
@@ -62,7 +58,6 @@
     {
       "id": "snt_dhis2_outliers_imputation_mean",
       "name": "A.3 DHIS2 Outlier Detection and Imputation (MEAN)",
-      "description": "Outlier detection and imputation using the mean ± k×SD method.",
       "uuid": "8630d3fb-a5c4-4483-ac16-1377766506e1",
       "openhexa_code": "a-3-dhis2-outlier-detection-and-imputation-mean",
       "parameters_source": "github_main",
@@ -76,7 +71,6 @@
     {
       "id": "snt_dhis2_outliers_imputation_median",
       "name": "A.3 DHIS2 Outlier Detection and Imputation (MEDIAN)",
-      "description": "Outlier detection and imputation using the median ± k×MAD method.",
       "uuid": "ecba2126-dd9d-466e-8cd6-11ecbe78cb12",
       "openhexa_code": "a-3-dhis2-outlier-detection-and-imputation-median",
       "parameters_source": "github_main",
@@ -90,7 +84,6 @@
     {
       "id": "snt_dhis2_outliers_imputation_path",
       "name": "A.3 DHIS2 Outlier Detection and Imputation (PATH)",
-      "description": "Outlier detection and imputation using the PATH method (mean ± 10×SD).",
       "uuid": "68da0d38-3525-47f0-b27f-541789510d57",
       "openhexa_code": "a-3-dhis2-outlier-detection-and-imputation-path",
       "parameters_source": "github_main",
@@ -104,7 +97,6 @@
     {
       "id": "snt_dhis2_reporting_rate_dataelement",
       "name": "A.4 DHIS2 Reporting Rate (Data element)",
-      "description": "Calculates facility reporting rates by data element based on routine data.",
       "uuid": "a7dad7ba-a3c4-4c34-b3c0-9be4a6a55244",
       "openhexa_code": "a-4-dhis2-reporting-rate-data-element",
       "parameters_source": "github_main",
@@ -121,7 +113,6 @@
     {
       "id": "snt_dhis2_reporting_rate_dataset",
       "name": "A.4 DHIS2 Reporting Rate (Dataset)",
-      "description": "Calculates reporting rates using DHIS2 dataset-level reporting rate indicators.",
       "uuid": "5701e79b-75ec-4310-81f5-fe32a5cffbf2",
       "openhexa_code": "a-4-dhis2-reporting-rate-dataset",
       "parameters_source": "github_main",
@@ -134,7 +125,6 @@
     {
       "id": "snt_dhis2_population_transformation",
       "name": "A.5 DHIS2 Population Transformation",
-      "description": "Processes DHIS2 population data: scaling, projections, and disaggregation by demographic group.",
       "uuid": "63fe7818-e87b-46a8-ab92-b25c7c6a9ada",
       "openhexa_code": "a-5-dhis2-population-transformation",
       "parameters_source": "github_main",
@@ -157,7 +147,6 @@
     {
       "id": "snt_dhis2_incidence",
       "name": "A.6 DHIS2 Incidence",
-      "description": "Calculates monthly malaria case metrics and yearly incidence rates from routine HMIS data, adjusting for incomplete testing, reporting, and careseeking.",
       "uuid": "8470cc97-d8fe-42e4-bc18-f7bbfb7af3d1",
       "openhexa_code": "a-6-dhis2-incidence",
       "parameters_source": "github_main",
@@ -174,7 +163,6 @@
     {
       "id": "snt_seasonality_cases",
       "name": "A.7 DHIS2 Seasonality - Cases",
-      "description": "Computes case seasonality indicators at ADM2 level from DHIS2 routine (confirmed malaria) data: seasonal classification, season duration, and onset month.",
       "uuid": "7bcd5337-2795-4b71-aeaa-4cda6f37e4a6",
       "openhexa_code": "a-7-dhis2-seasonality-cases",
       "parameters_source": "github_main",
@@ -191,7 +179,6 @@
     {
       "id": "snt_worldpop_extract",
       "name": "B.1 WorldPop Extract",
-      "description": "Extracts WorldPop population raster data for the workspace country.",
       "uuid": "76789abf-2ec6-4987-96b6-14cf0cb13a65",
       "openhexa_code": "b-1-worldpop-extract",
       "parameters_source": "github_main",
@@ -205,7 +192,6 @@
     {
       "id": "snt_map_extracts",
       "name": "B.2 MAP Extracts",
-      "description": "Extracts raster data from the Malaria Atlas Project (MAP) and computes zonal statistics.",
       "uuid": "66d6dc71-dd3c-4f41-8b68-2e4698b59173",
       "openhexa_code": "b-2-map-extracts",
       "parameters_source": "github_main",
@@ -219,7 +205,6 @@
     {
       "id": "snt_healthcare_access",
       "name": "B.3 Access to health care",
-      "description": "Computes access to healthcare metrics based on facility locations, population, and catchment areas.",
       "uuid": "70e84f96-6ef3-4b62-8b35-84baeda28eec",
       "openhexa_code": "b-3-access-to-health-care",
       "parameters_source": "github_main",
@@ -235,7 +220,6 @@
     {
       "id": "snt_dhs_indicators",
       "name": "C.1 DHS Indicators",
-      "description": "Computes DHS-based indicators for the SNT process.",
       "uuid": "f9382644-eb2c-4c6b-8ccc-2668e1e27bbe",
       "openhexa_code": "c-1-dhs-indicators",
       "parameters_source": "github_main",
@@ -247,7 +231,6 @@
     {
       "id": "snt_era5_climate_data",
       "name": "D.1 ERA5 Climate Data",
-      "description": "Extracts ERA5 climate data from the Copernicus Climate Data Store for the workspace country.",
       "uuid": "1c902bcf-1bc1-4468-b0c2-2d25011b3ebb",
       "openhexa_code": "d-1-era5-climate-data",
       "parameters_source": "github_main",
@@ -262,7 +245,6 @@
     {
       "id": "snt_seasonality_rainfall",
       "name": "D.2 ERA5 Seasonality - Rainfall",
-      "description": "Computes rainfall seasonality metrics from ERA5 climate data.",
       "uuid": "18564ea3-435f-4e89-9708-b79d819f5c7a",
       "openhexa_code": "d-2-era5-seasonality-rainfall",
       "parameters_source": "github_main",

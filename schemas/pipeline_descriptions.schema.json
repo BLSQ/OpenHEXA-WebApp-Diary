@@ -1,0 +1,20 @@
+{
+  "_description": "Schema reference for shared/pipeline_descriptions.json — the single, hand-authored source of pipeline description text. Shared across every UI variant (flowchart, cockpit) and every workspace: unlike pipeline_map.json (per-variant) and pipeline_cards.json (per-workspace-per-variant), this file has exactly ONE copy in the repo.",
+
+  "_generation_instructions": [
+    "1. This file is hand-authored by a human (Giulia), not AI-generated — agents should not invent or rewrite description text here without being asked to.",
+    "2. Keyed by pipeline `id` (the Python function name), the same join key used in pipeline_map.json and pipeline_cards.json.",
+    "3. A short paragraph is expected (a few sentences), not a one-liner — this supersedes the old per-node `description` field that used to live in pipeline_map.json.",
+    "4. Bump `version` (YYYY-MM-DD) when descriptions change.",
+    "5. Adding a new pipeline to the map? Add its id here too, or the app falls back to an empty description for that node."
+  ],
+
+  "_deploy_note": "Each UI variant is deployed as its own OpenHEXA static webapp (separate origin), so app.js can only same-origin fetch('./pipeline_descriptions.json'). This repo file is the single source, but it must be copied into BOTH app/flowchart/ and app/cockpit/'s deploy bundle (files_json) at deploy time — same content, deployed twice. Never hand-edit the deployed copies independently; always edit shared/pipeline_descriptions.json and redeploy.",
+
+  "_schema": {
+    "version": "string — date (YYYY-MM-DD), bumped when descriptions change",
+    "descriptions": {
+      "<pipeline_id>": "string — hand-authored paragraph shown in the sidebar for this node"
+    }
+  }
+}

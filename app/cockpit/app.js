@@ -116,6 +116,7 @@ async function loadData() {
   var responses = await Promise.all([
     fetch("./pipeline_map.json"),
     fetch("./pipeline_cards.json"),
+    fetch("./pipeline_descriptions.json"),
   ]);
   for (var i = 0; i < responses.length; i++) {
     if (!responses[i].ok) {
@@ -130,18 +131,22 @@ async function loadData() {
   }
   var map = await responses[0].json();
   var cards = await responses[1].json();
-  return { map: map, cards: cards };
+  var descriptions = await responses[2].json();
+  return { map: map, cards: cards, descriptions: descriptions };
 }
 
 /* Merge the shared map with this workspace's cards. Every map node is kept; a
  * node is *available* iff its id matches a pipeline in the cards (with a uuid),
- * otherwise it renders as "not installed" (greyed / missing). */
-function mergeNodes(map, cards) {
+ * otherwise it renders as "not installed" (greyed / missing). Description text
+ * comes from the shared, hand-authored shared/pipeline_descriptions.json (one
+ * copy across all variants/workspaces), not from the map or the cards. */
+function mergeNodes(map, cards, descriptions) {
   var cardsById = {};
   var pipelines = (cards && cards.pipelines) || [];
   for (var i = 0; i < pipelines.length; i++) {
     cardsById[pipelines[i].id] = pipelines[i];
   }
+  var descById = (descriptions && descriptions.descriptions) || {};
   var nodes = (map && map.nodes) || [];
   return nodes.map(function (node) {
     var card = cardsById[node.id] || null;
@@ -149,7 +154,7 @@ function mergeNodes(map, cards) {
       id: node.id,
       code: node.code,
       label: node.label,
-      description: node.description,
+      description: descById[node.id] || "",
       type: node.type,
       group: node.group || null,
       row: node.row,
@@ -2171,7 +2176,8 @@ async function init() {
     var data = await loadData();
     APP.map = data.map;
     APP.cards = data.cards;
-    APP.nodes = mergeNodes(data.map, data.cards);
+    APP.descriptions = data.descriptions;
+    APP.nodes = mergeNodes(data.map, data.cards, data.descriptions);
     APP.nodeById = {};
     APP.nodes.forEach(function (n) {
       APP.nodeById[n.id] = n;

@@ -1,5 +1,5 @@
 {
-  "_description": "Schema reference for workspace-and-variant-specific pipeline_cards.json files. Agents read this to understand the expected structure when generating a pipeline_cards.json for a new workspace. Each UI variant of the orchestrator (e.g. flowchart, cockpit) has its own copy under workspaces/<ws>/<variant>/pipeline_cards.json.",
+  "_description": "Schema reference for workspace-and-variant-specific pipeline_cards.json files. Agents read this to understand the expected structure when generating a pipeline_cards.json for a new workspace. Each UI variant of the orchestrator (e.g. flowchart, cockpit) has its own copy under workspaces/<ws>/<variant>/pipeline_cards.json. Pipeline description text is NOT stored here — see shared/pipeline_descriptions.json / schemas/pipeline_descriptions.schema.json (one copy, shared across every variant and workspace).",
 
   "_generation_instructions": [
     "1. Call list_pipelines for the target workspace, paginating until all pages are retrieved.",
@@ -29,7 +29,6 @@
       {
         "id":                "string — Python function name; stable key across workspaces",
         "name":              "string — human-readable display name for the UI card header",
-        "description":       "string — subtitle shown below the card title",
         "uuid":              "string — workspace-specific pipeline UUID; NEVER copy across workspaces",
         "openhexa_code":     "string — OpenHEXA pipeline code/slug; useful when multiple instances of the same pipeline exist in one workspace",
         "parameters_source": "string — 'github_main' or 'unavailable' (GitHub 404)",

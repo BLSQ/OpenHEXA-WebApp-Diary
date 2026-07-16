@@ -78,6 +78,7 @@ async function loadData() {
   var responses = await Promise.all([
     fetch("./pipeline_map.json"),
     fetch("./pipeline_cards.json"),
+    fetch("./pipeline_descriptions.json"),
   ]);
   for (var i = 0; i < responses.length; i++) {
     if (!responses[i].ok) {
@@ -92,7 +93,8 @@ async function loadData() {
   }
   var map = await responses[0].json();
   var cards = await responses[1].json();
-  return { map: map, cards: cards };
+  var descriptions = await responses[2].json();
+  return { map: map, cards: cards, descriptions: descriptions };
 }
 
 /* Merge the map with the workspace's cards into one list of nodes.
@@ -101,13 +103,16 @@ async function loadData() {
  * identical across all workspaces. What differs per workspace is only which
  * nodes are *available*: a node is available iff its `id` matches a pipeline in
  * this workspace's cards (with a `uuid`). Otherwise it is *greyed* — rendered
- * disabled in later tasks. */
-function mergeNodes(map, cards) {
+ * disabled in later tasks. Description text comes from the shared,
+ * hand-authored shared/pipeline_descriptions.json (one copy across all
+ * variants/workspaces), not from the map or the cards. */
+function mergeNodes(map, cards, descriptions) {
   var cardsById = {};
   var pipelines = (cards && cards.pipelines) || [];
   for (var i = 0; i < pipelines.length; i++) {
     cardsById[pipelines[i].id] = pipelines[i];
   }
+  var descById = (descriptions && descriptions.descriptions) || {};
 
   var nodes = (map && map.nodes) || [];
   return nodes.map(function (node) {
@@ -117,7 +122,7 @@ function mergeNodes(map, cards) {
       id: node.id,
       code: node.code,
       label: node.label,
-      description: node.description,
+      description: descById[node.id] || "",
       type: node.type,
       group: node.group || null,
       row: node.row,
@@ -2459,7 +2464,8 @@ async function init() {
     var data = await loadData();
     APP.map = data.map;
     APP.cards = data.cards;
-    APP.nodes = mergeNodes(data.map, data.cards);
+    APP.descriptions = data.descriptions;
+    APP.nodes = mergeNodes(data.map, data.cards, data.descriptions);
     // T1.6 — id -> node lookup, used by the click handler / sidebar.
     APP.nodeById = {};
     APP.nodes.forEach(function (n) {
