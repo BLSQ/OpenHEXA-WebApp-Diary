@@ -154,6 +154,7 @@ function mergeNodes(map, cards, descriptions) {
       id: node.id,
       code: node.code,
       label: node.label,
+      ohName: node.ohName || null,
       description: descById[node.id] || "",
       type: node.type,
       group: node.group || null,
@@ -374,7 +375,7 @@ function lockedReason(id) {
  * Walkthrough model — steps, stages, tracks, glyphs
  * ================================================================== */
 var TRK = {
-  A: { c: "var(--A)", name: "Track A · DHIS2 core" },
+  A: { c: "var(--A)", name: "Track A · Routine Surveillance Data" },
   B: { c: "var(--B)", name: "Track B · Geo & raster" },
   C: { c: "var(--C)", name: "Track C · DHS surveys" },
   D: { c: "var(--D)", name: "Track D · Climate" },
@@ -896,9 +897,10 @@ function renderRail() {
       '">' +
       railGlyph +
       "</span>" +
-      '<div style="min-width:0"><div class="rlabel"><span class="rcode">' +
+      '<div style="min-width:0"><div class="rlabel">' +
+      /* '<span class="rcode">' +
       escapeHtml(s.code) +
-      "</span> " +
+      "</span> " + */
       escapeHtml(s.title) +
       "</div>" +
       meta +
@@ -1176,11 +1178,11 @@ function renderCockpit() {
       trackC +
       '"></span>' +
       escapeHtml(trackName(step.track)) +
-      " · Stage: " +
-      escapeHtml(stageLabel) +
+      /* " · Stage: " +
+      escapeHtml(stageLabel) + */
       "</div>" +
       "<h2>" +
-      escapeHtml(step.code + " " + step.title) +
+      escapeHtml(/* step.code + " " + */ step.title) +
       "</h2>" +
       '<div class="chips"><span class="chip type">not installed</span></div>' +
       "</div>" +
@@ -1227,12 +1229,15 @@ function renderCockpit() {
     trackC +
     '"></span>' +
     escapeHtml(trackName(step.track)) +
-    " · Stage: " +
-    escapeHtml(stageLabel) +
+    /* " · Stage: " +
+    escapeHtml(stageLabel) + */
     "</div>" +
     "<h2>" +
-    escapeHtml(step.code + " " + step.title) +
+    escapeHtml(/* step.code + " " + */ step.title) +
     "</h2>" +
+    (node && node.ohName
+      ? '<div class="ck-ohname">OpenHEXA: ' + escapeHtml(node.ohName) + "</div>"
+      : "") +
     '<div class="chips">' +
     '<span class="chip type">' +
     escapeHtml(typeLabel) +
