@@ -6,7 +6,6 @@
     {
       "id": "snt_dhis2_extract",
       "name": "A.1 DHIS2 Extract",
-      "description": "Extracts DHIS2 pyramid, routine analytics, population, shapes, and reporting rates based on a defined period.",
       "uuid": "c13a9749-c7be-40c6-bc53-cdc576fdea7e",
       "openhexa_code": "a-1-dhis2-extract",
       "parameters_source": "openhexa_deployed",
@@ -22,7 +21,6 @@
     {
       "id": "snt_dhis2_formatting",
       "name": "A.2 DHIS2 Formatting",
-      "description": "Processes and formats DHIS2 data extracts for the SNT workflow.",
       "uuid": "bc8dfac5-a056-4951-81a8-aa9c20c8d9b5",
       "openhexa_code": "a-2-dhis2-formatting",
       "parameters_source": "openhexa_deployed",
@@ -34,7 +32,6 @@
     {
       "id": "snt_dhis2_outliers_imputation_mean",
       "name": "A.3 DHIS2 Outlier Detection and Imputation (MEAN)",
-      "description": "Outlier detection and imputation using the mean ± k×SD method.",
       "uuid": "6c316ca4-1c75-48dc-97c9-e52bcf53c91d",
       "openhexa_code": "a-3-1-dhis2-outlier-detection-and-imputation-mean-classic",
       "parameters_source": "openhexa_deployed",
@@ -48,7 +45,6 @@
     {
       "id": "snt_dhis2_outliers_imputation_median",
       "name": "A.3 DHIS2 Outlier Detection and Imputation (MEDIAN)",
-      "description": "Outlier detection and imputation using the median ± k×MAD method.",
       "uuid": "0ea9cb1d-93d7-458e-97b2-745e2a66f03b",
       "openhexa_code": "a-3-1-dhis2-outlier-detection-and-imputation-median-classic",
       "parameters_source": "openhexa_deployed",
@@ -62,7 +58,6 @@
     {
       "id": "snt_dhis2_outliers_imputation_iqr",
       "name": "A.3 DHIS2 Outlier Detection and Imputation (IQR)",
-      "description": "Outlier detection and imputation using the IQR method.",
       "uuid": "222a3068-67b3-45b1-bd48-3d2679506446",
       "openhexa_code": "a-3-1-dhis2-outlier-detection-and-imputation-iqr-classic",
       "parameters_source": "openhexa_deployed",
@@ -76,7 +71,6 @@
     {
       "id": "snt_dhis2_reporting_rate_dataelement",
       "name": "A.4 DHIS2 Reporting Rate (Data element)",
-      "description": "Calculates facility reporting rates by data element based on routine data.",
       "uuid": "a3b30801-7851-4d8a-9d6b-a72b596e721e",
       "openhexa_code": "a-4-dhis2-reporting-rate-data-element",
       "parameters_source": "openhexa_deployed",
@@ -93,7 +87,6 @@
     {
       "id": "snt_dhis2_population_transformation",
       "name": "A.5 DHIS2 Population Transformation",
-      "description": "Processes DHIS2 population data: scaling, projections, and disaggregation by demographic group.",
       "uuid": "865373ef-9c6b-4d04-93b5-32a0ec14049a",
       "openhexa_code": "a-5-dhis2-population-transformation",
       "parameters_source": "openhexa_deployed",
@@ -116,7 +109,6 @@
     {
       "id": "snt_dhis2_incidence",
       "name": "A.6 DHIS2 Incidence",
-      "description": "Calculates monthly malaria case metrics and yearly incidence rates from routine HMIS data, adjusting for incomplete testing, reporting, and careseeking.",
       "uuid": "cce43ebb-1cdb-4a2d-90b5-4b618b976287",
       "openhexa_code": "a-6-dhis2-incidence",
       "parameters_source": "openhexa_deployed",
@@ -133,7 +125,6 @@
     {
       "id": "snt_worldpop_extract",
       "name": "B.1 WorldPop Extract",
-      "description": "Extracts WorldPop population raster data for the workspace country.",
       "uuid": "aab63ad7-562d-44ab-8ac7-0c52405a6671",
       "openhexa_code": "b-1-worldpop-extract",
       "parameters_source": "openhexa_deployed",
@@ -146,7 +137,6 @@
     {
       "id": "snt_map_extracts",
       "name": "B.2 MAP Extracts",
-      "description": "Extracts raster data from the Malaria Atlas Project (MAP) and computes zonal statistics.",
       "uuid": "d3df0673-009d-4c65-b64f-96d254d53c7f",
       "openhexa_code": "b-2-map-extracts",
       "parameters_source": "openhexa_deployed",
@@ -160,7 +150,6 @@
     {
       "id": "snt_healthcare_access",
       "name": "B.3 Access to health care",
-      "description": "Computes access to healthcare metrics based on facility locations, population, and catchment areas.",
       "uuid": "9731c611-6136-40c2-9890-42489ddee0ab",
       "openhexa_code": "b-3-access-to-health-care",
       "parameters_source": "openhexa_deployed",
@@ -176,7 +165,6 @@
     {
       "id": "snt_era5_climate_data",
       "name": "D.1 ERA5 Climate Data",
-      "description": "Extracts ERA5 climate data from the Copernicus Climate Data Store for the workspace country.",
       "uuid": "3d08af10-c1df-4553-84b5-a621224ddb4e",
       "openhexa_code": "d-1-era5-climate-data",
       "parameters_source": "openhexa_deployed",
@@ -191,7 +179,6 @@
     {
       "id": "snt_seasonality_rainfall",
       "name": "D.2 ERA5 Seasonality - Rainfall",
-      "description": "Computes rainfall seasonality metrics from ERA5 climate data.",
       "uuid": "6a65eb1e-df2e-4f7f-806f-58f22a1b807a",
       "openhexa_code": "d-3-era5-seasonality-rainfall",
       "parameters_source": "openhexa_deployed",

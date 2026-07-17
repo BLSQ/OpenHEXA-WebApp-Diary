@@ -101,31 +101,44 @@ drift independently. Per-workspace data mirrors this: `workspaces/<ws>/<variant>
   OpenHEXA UI) to `snt-app-dev` and `snt-testing` as of 2026-07-13, as the
   `SNT Pipelines Orchestrator — Cockpit` webapp.
 
-Deploying a given (workspace, variant) pair is still **5 files** — 4 generic (`app/<variant>/*`)
-+ 1 workspace-specific (`workspaces/<ws>/<variant>/pipeline_cards.json`) — just nested one level
-deeper by variant than before. Since webapp identity isn't stored in the repo, tell variants
-apart on the live platform by **webapp name** (e.g. `SNT Pipelines Orchestrator` for `flowchart`
-vs `SNT Pipelines Orchestrator — Cockpit` for `cockpit`) — there is no other per-variant marker.
+Deploying a given (workspace, variant) pair is **6 files** — 4 generic (`app/<variant>/*`) + 1
+cross-variant shared file (`app/pipeline_descriptions.json`) + 1 workspace-specific
+(`workspaces/<ws>/<variant>/pipeline_cards.json`). Since webapp identity isn't stored in the repo,
+tell variants apart on the live platform by **webapp name** (e.g. `SNT Pipelines Orchestrator` for
+`flowchart` vs `SNT Pipelines Orchestrator — Cockpit` for `cockpit`) — there is no other
+per-variant marker.
 
 ### Data architecture
 
-The orchestrator separates concerns across three kinds of file. The stable join key everywhere
+The orchestrator separates concerns across four kinds of file. The stable join key everywhere
 is the node `id` == the pipeline's Python function name (e.g. `snt_dhis2_extract`).
 
 | File                                   | Scope                                                  | Holds                                                                                          |
 | -------------------------------------- | ------------------------------------------------------ | ---------------------------------------------------------------------------------------------- |
 | `app/<variant>/pipeline_map.json`      | per-variant, workspace-independent (see _UI variants_) | all nodes, grid position (`row`/`col`), `type`, mutex `group`, directed `edges` (dependencies) |
+| `app/pipeline_descriptions.json`       | shared across every variant AND every workspace (see _Data architecture_ note below) | hand-authored, Markdown-lite-formatted paragraph description per node, keyed by `id` |
 | `workspaces/<ws>/<variant>/pipeline_cards.json` | per-workspace, per-variant                    | which pipelines exist + `uuid` + `parameters` (drives _active vs greyed_)                      |
-| `app/<variant>/index.html` + `app/<variant>/app.js` + `app/<variant>/styles.css` | per-variant app shell (multi-file) | renders the UI, merges the map with the workspace cards, runs/polls pipelines            |
+| `app/<variant>/index.html` + `app/<variant>/app.js` + `app/<variant>/styles.css` | per-variant app shell (multi-file) | renders the UI, merges the map + descriptions with the workspace cards, runs/polls pipelines |
 
-**Generic vs workspace-specific:** for a given variant, the deployed bundle is **5 files — 4
-generic + 1 workspace-specific.** Generic (reused unchanged across every workspace for that
-variant, all under `app/<variant>/`): `index.html`, `styles.css`, `app.js`, `pipeline_map.json`.
-Workspace-specific (the only file that changes per workspace, per variant): the workspace's
-`workspaces/<ws>/<variant>/pipeline_cards.json`. The app self-adapts at runtime via
-`window.OPENHEXA.workspaceSlug` + cards-driven greying, so the only non-per-workspace assumption
-baked into `app.js` is the hardcoded SaaS base `https://app.openhexa.org`. → **new workspace =
-same 4 generic files for the variant (`app/<variant>/`) + a new
+`app/pipeline_descriptions.json` is the one exception to "each variant owns its files": it sits
+directly under `app/` (not inside any `app/<variant>/` subfolder) because the same hand-authored
+text is shown identically in every variant. There's only ever one copy to edit — see
+`schemas/pipeline_descriptions.schema.json` for the contract and the Markdown-lite formatting
+rules (bold/italic/line breaks; no headers, links, or lists). Because each variant is still
+deployed as its own separate OpenHEXA static webapp (same-origin `fetch` only), this one repo
+file must be copied into **both** `app/flowchart/`'s and `app/cockpit/`'s deploy bundle at deploy
+time — same content, deployed twice.
+
+**Generic vs workspace-specific:** for a given variant, the deployed bundle is **6 files — 4
+variant-generic + 1 cross-variant shared + 1 workspace-specific.** Variant-generic (reused
+unchanged across every workspace for that variant, all under `app/<variant>/`): `index.html`,
+`styles.css`, `app.js`, `pipeline_map.json`. Cross-variant shared (same content in both variants'
+bundles): `app/pipeline_descriptions.json`. Workspace-specific (the only file that changes per
+workspace, per variant): the workspace's `workspaces/<ws>/<variant>/pipeline_cards.json`. The app
+self-adapts at runtime via `window.OPENHEXA.workspaceSlug` + cards-driven greying, so the only
+non-per-workspace assumption baked into `app.js` is the hardcoded SaaS base
+`https://app.openhexa.org`. → **new workspace = same 4 generic files + `pipeline_descriptions.json`
+for the variant (`app/<variant>/` + `app/pipeline_descriptions.json`) + a new
 `workspaces/<ws>/<variant>/pipeline_cards.json`.** (See README's "Generic vs workspace-specific"
 for the human-facing version.)
 
@@ -218,8 +231,9 @@ prefixed element handling) still apply — they just live in `app.js` rather tha
   `workspace_config.json` any more; distinguish variants live by webapp **name** — see _UI
   variants_). For a full bundle deploy, use `mcp__claude_ai_OpenHEXA__update_static_webapp` with
   that `id` and `files_json` as the multi-file array: one `{path, content}` object per file in
-  the bundle above. The files to send are `app/<variant>/*` (generic to that variant) + that
-  workspace's `workspaces/<ws>/<variant>/pipeline_cards.json`. For a small, targeted change to
+  the bundle above. The files to send are `app/<variant>/*` (generic to that variant) +
+  `app/pipeline_descriptions.json` (shared, same content for every variant) + that workspace's
+  `workspaces/<ws>/<variant>/pipeline_cards.json`. For a small, targeted change to
   one already-deployed file, use `mcp__claude_ai_OpenHEXA__edit_static_webapp_file` instead —
   see _MCP deployment_ below.
 - `allowed_operations`: at minimum `PIPELINES_READ, PIPELINES_RUN, FILES_READ`. Add
@@ -283,8 +297,9 @@ drift is caught by inspecting the live webapp rather than a stored config file.
 **Scopes are webapp metadata, not part of the deployed bundle.** They live on the platform's
 webapp object, set **once per webapp at create/update time** — not re-sent with every file
 deploy, and not derivable from the files. So porting the orchestrator to a new workspace is:
-(1) create the webapp **with the four scopes**, then (2) deploy the 4 generic files + that
-workspace's `pipeline_cards.json`. Three ways to set the scopes:
+(1) create the webapp **with the four scopes**, then (2) deploy the 4 generic files +
+`pipeline_descriptions.json` + that workspace's `pipeline_cards.json`. Three ways to set the
+scopes:
 
 - **OpenHEXA UI** — the webapp settings page has an **"Allowed operations"** checklist (confirmed
   2026-06-23 — Giulia can tick the four by hand; no agent/API needed).
@@ -638,6 +653,10 @@ separate:
   `styles.css`, `app.js`, `pipeline_map.json`), shared by every workspace for that variant.
   Single source of truth for that variant's app; there are no per-workspace copies. See
   _UI variants_ for the current list (`flowchart`, `cockpit`).
+- **`app/pipeline_descriptions.json`** — the one file under `app/` that sits outside any
+  `<variant>/` subfolder: hand-authored node description text, shared unchanged across every
+  variant and every workspace. Single source of truth; must be copied into both variants' deploy
+  bundles (see _Data architecture_).
 - **`workspaces/<ws>/<variant>/pipeline_cards.json`** — the **only** per-workspace-per-variant
   file: that workspace's cached pipeline catalog (names, UUIDs, parameters) for that variant.
   `<ws>` is the workspace slug with hyphens (e.g. `snt-app-dev`). Never copy UUIDs from another
@@ -679,18 +698,20 @@ are:
 - **`schemas/pipeline_cards.schema.json`** — canonical pipeline definitions: which parameters to expose, their types, defaults, and help text.
 - **`workspaces/<ws>/<variant>/pipeline_cards.json`** — workspace-and-variant-specific catalog with pipeline UUIDs and parameter definitions. Fetched at runtime by the app.
 - **`app/<variant>/pipeline_map.json`** (+ `schemas/pipeline_map.schema.json`) — that variant's map and its contract.
+- **`app/pipeline_descriptions.json`** (+ `schemas/pipeline_descriptions.schema.json`) — the single, hand-authored source of each node's description text, shared across every variant and workspace.
 
 When building or updating the orchestrator for a workspace:
 
 1. Settle which variant (`flowchart` or `cockpit`) you're working on.
 2. Use `schemas/pipeline_cards.schema.json` and `workspaces/<ws>/<variant>/pipeline_cards.json` to determine which pipelines exist and what UI to build.
-3. Edit the variant's app under `app/<variant>/` (shared by all workspaces for that variant); edit only `workspaces/<ws>/<variant>/pipeline_cards.json` for per-workspace changes.
+3. Edit the variant's app under `app/<variant>/` (shared by all workspaces for that variant); edit `app/pipeline_descriptions.json` for description-text changes (shared across variants); edit only `workspaces/<ws>/<variant>/pipeline_cards.json` for per-workspace changes.
 4. Follow the runtime patterns above (prefixed IDs, shared functions, `allowed_operations`, etc.).
 5. Resolve the webapp `id` via `list_static_webapps` (distinguish variants by webapp name — see
    _UI variants_), then deploy: for a new workspace or a full-bundle refresh use
    `mcp__claude_ai_OpenHEXA__update_static_webapp` with `app/<variant>/*` +
-   `workspaces/<ws>/<variant>/pipeline_cards.json`; for a small edit to one already-deployed file
-   use `mcp__claude_ai_OpenHEXA__edit_static_webapp_file` instead (see _MCP deployment_).
+   `app/pipeline_descriptions.json` + `workspaces/<ws>/<variant>/pipeline_cards.json`; for a small
+   edit to one already-deployed file use `mcp__claude_ai_OpenHEXA__edit_static_webapp_file` instead
+   (see _MCP deployment_).
 6. Keep the repo in sync (save any regenerated cards back to `workspaces/<ws>/<variant>/pipeline_cards.json`).
 
 > For the **SNT Pipelines Orchestrator** specifically, follow the multi-file architecture in

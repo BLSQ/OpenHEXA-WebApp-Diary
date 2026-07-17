@@ -116,6 +116,7 @@ async function loadData() {
   var responses = await Promise.all([
     fetch("./pipeline_map.json"),
     fetch("./pipeline_cards.json"),
+    fetch("./pipeline_descriptions.json"),
   ]);
   for (var i = 0; i < responses.length; i++) {
     if (!responses[i].ok) {
@@ -130,18 +131,22 @@ async function loadData() {
   }
   var map = await responses[0].json();
   var cards = await responses[1].json();
-  return { map: map, cards: cards };
+  var descriptions = await responses[2].json();
+  return { map: map, cards: cards, descriptions: descriptions };
 }
 
 /* Merge the shared map with this workspace's cards. Every map node is kept; a
  * node is *available* iff its id matches a pipeline in the cards (with a uuid),
- * otherwise it renders as "not installed" (greyed / missing). */
-function mergeNodes(map, cards) {
+ * otherwise it renders as "not installed" (greyed / missing). Description text
+ * comes from the shared, hand-authored app/pipeline_descriptions.json (one
+ * copy across all variants/workspaces), not from the map or the cards. */
+function mergeNodes(map, cards, descriptions) {
   var cardsById = {};
   var pipelines = (cards && cards.pipelines) || [];
   for (var i = 0; i < pipelines.length; i++) {
     cardsById[pipelines[i].id] = pipelines[i];
   }
+  var descById = (descriptions && descriptions.descriptions) || {};
   var nodes = (map && map.nodes) || [];
   return nodes.map(function (node) {
     var card = cardsById[node.id] || null;
@@ -149,7 +154,8 @@ function mergeNodes(map, cards) {
       id: node.id,
       code: node.code,
       label: node.label,
-      description: node.description,
+      ohName: node.ohName || null,
+      description: descById[node.id] || "",
       type: node.type,
       group: node.group || null,
       row: node.row,
@@ -171,6 +177,19 @@ function escapeHtml(s) {
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
+}
+
+// Small Markdown-lite renderer for hand-authored pipeline descriptions
+// (app/pipeline_descriptions.json): bold and italic markers, and newlines
+// (`\n`) -> <br>. Nothing else (no headers/links/lists) — text is escaped first,
+// so any other markup is shown literally rather than executed.
+function mdLite(s) {
+  var html = escapeHtml(s);
+  html = html.replace(/\*\*([^*]+?)\*\*/g, "<strong>$1</strong>");
+  html = html.replace(/__([^_]+?)__/g, "<strong>$1</strong>");
+  html = html.replace(/\*([^*]+?)\*/g, "<em>$1</em>");
+  html = html.replace(/_([^_]+?)_/g, "<em>$1</em>");
+  return html.replace(/\n/g, "<br>");
 }
 
 // The main OpenHEXA front-end lives at app.openhexa.org (a different domain from
@@ -356,7 +375,7 @@ function lockedReason(id) {
  * Walkthrough model — steps, stages, tracks, glyphs
  * ================================================================== */
 var TRK = {
-  A: { c: "var(--A)", name: "Track A · DHIS2 core" },
+  A: { c: "var(--A)", name: "Track A · Routine Surveillance Data" },
   B: { c: "var(--B)", name: "Track B · Geo & raster" },
   C: { c: "var(--C)", name: "Track C · DHS surveys" },
   D: { c: "var(--D)", name: "Track D · Climate" },
@@ -872,20 +891,23 @@ function renderRail() {
       cls +
       '" data-step="' +
       i +
+      '" style="--track:' +
+      trackColor(s.track) +
       '" role="button" tabindex="0">' +
       '<span class="sg ' +
       glyphState +
       '">' +
       railGlyph +
       "</span>" +
-      '<div style="min-width:0"><div class="rlabel"><span class="rcode">' +
+      '<div style="min-width:0"><div class="rlabel">' +
+      /* '<span class="rcode">' +
       escapeHtml(s.code) +
-      "</span> " +
+      "</span> " + */
       escapeHtml(s.title) +
       "</div>" +
       meta +
       "</div>" +
-      (i === APP.cur ? '<span class="here-tag">◂ you are here</span>' : "") +
+      (i === APP.cur ? '<span class="here-tag">🡄</span>' : "") +
       "</div>";
     var next = APP.steps[i + 1];
     if (!next || next.track !== s.track) h += "</div>";
@@ -1005,7 +1027,7 @@ function altChooserInnerHtml(step) {
           escapeHtml(m.label.replace(/^.*?:\s*/, "")) +
           "</div>" +
           '<div class="adesc">' +
-          escapeHtml(m.description || "") +
+          mdLite(m.description || "") +
           "</div>" +
           '<div class="astat"><span class="sg ' +
           ms +
@@ -1158,11 +1180,11 @@ function renderCockpit() {
       trackC +
       '"></span>' +
       escapeHtml(trackName(step.track)) +
-      " · Stage: " +
-      escapeHtml(stageLabel) +
+      /* " · Stage: " +
+      escapeHtml(stageLabel) + */
       "</div>" +
       "<h2>" +
-      escapeHtml(step.code + " " + step.title) +
+      escapeHtml(/* step.code + " " + */ step.title) +
       "</h2>" +
       '<div class="chips"><span class="chip type">not installed</span></div>' +
       "</div>" +
@@ -1209,12 +1231,15 @@ function renderCockpit() {
     trackC +
     '"></span>' +
     escapeHtml(trackName(step.track)) +
-    " · Stage: " +
-    escapeHtml(stageLabel) +
+    /* " · Stage: " +
+    escapeHtml(stageLabel) + */
     "</div>" +
     "<h2>" +
-    escapeHtml(step.code + " " + step.title) +
+    escapeHtml(/* step.code + " " + */ step.title) +
     "</h2>" +
+    (node && node.ohName
+      ? '<div class="ck-ohname">OpenHEXA: ' + escapeHtml(node.ohName) + "</div>"
+      : "") +
     '<div class="chips">' +
     '<span class="chip type">' +
     escapeHtml(typeLabel) +
@@ -1233,7 +1258,7 @@ function renderCockpit() {
     '<div id="sb-altnote-slot">' +
     groupExclusionNoticeHtml(node) +
     "</div>" +
-    (desc ? '<p class="desc">' + escapeHtml(desc) + "</p>" : "") +
+    (desc ? '<p class="desc">' + mdLite(desc) + "</p>" : "") +
     '<div class="sb-links">' +
     extLinkHtml(
       githubFolderUrl(node.id),
@@ -1378,7 +1403,7 @@ function missingBodyHtml(node) {
     "</div>" +
     (node.description
       ? '<p class="desc" style="margin-top:14px">' +
-        escapeHtml(node.description) +
+        mdLite(node.description) +
         "</p>"
       : "") +
     '<div class="sec" style="margin-top:14px"><h4>More</h4><div class="outputs">' +
@@ -2171,7 +2196,8 @@ async function init() {
     var data = await loadData();
     APP.map = data.map;
     APP.cards = data.cards;
-    APP.nodes = mergeNodes(data.map, data.cards);
+    APP.descriptions = data.descriptions;
+    APP.nodes = mergeNodes(data.map, data.cards, data.descriptions);
     APP.nodeById = {};
     APP.nodes.forEach(function (n) {
       APP.nodeById[n.id] = n;
