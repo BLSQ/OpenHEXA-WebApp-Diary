@@ -27,7 +27,7 @@
       {
         "id":          "string — Python function name; join key to pipeline_cards.json. REQUIRED",
         "code":        "string — short human code shown as a tag, e.g. 'A.1', 'A.3.1'. REQUIRED",
-        "label":       "string — canonical display title WITHOUT the code prefix, e.g. 'DHIS2 Extract' (the code, e.g. 'A.1', is carried separately in `code` and shown alongside). REQUIRED",
+        "label":       "canonical display title WITHOUT the code prefix, e.g. 'DHIS2 Extract' (the code, e.g. 'A.1', is carried separately in `code` and shown alongside). REQUIRED. May be a plain string (English-only / legacy — flowchart variant) OR a bilingual { \"en\": ..., \"fr\": ... } object (cockpit variant). The app resolves the active language via pickLang() and falls back to `en`; a plain string is treated as `en`. `code`/`type`/`group`/`row`/`col`/`track` and `ohName` are NOT translated (ohName is the load-bearing OpenHEXA display name).",
         "type":        "string — mandatory | alternative | facultative. REQUIRED",
         "row":         "int — execution stage, top-to-bottom (lower = earlier). REQUIRED",
         "col":         "number — horizontal position in the grid, left-to-right (usually an int; fractional values are allowed to centre a node/group between columns, e.g. A.4 at 1.5/2.5 to sit under the A.3 group). REQUIRED",
