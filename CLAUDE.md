@@ -60,6 +60,16 @@ To refresh the schema if it becomes stale:
 Invoke-WebRequest -Uri "https://raw.githubusercontent.com/BLSQ/openhexa-app/main/frontend/schema.generated.graphql" -OutFile "schemas/schema.generated.graphql"
 ```
 
+**New MCP tool (noted 2026-07-17): `mcp__claude_ai_OpenHEXA__get_help_or_doc`.** Call it with no
+topic for an orientation overview, or `topic="static-webapps"` (also: `cli`, `sdk`,
+`notebooks-advanced`, `toolbox-dhis2`, `toolbox-hexa`, `toolbox-iaso`, `writing-pipelines`) for a
+full reference page. The `static-webapps` topic documents the GraphQL scope table (matches what's
+already recorded below — no drift), five example webapps, and the `window.OPENHEXA` global (see
+_Platform-injected global_). It does **not** mention `edit_static_webapp_file`,
+`get_static_webapp_file`, `get_static_webapp`, or `update_static_webapp` at all — those four
+remain undocumented-upstream, agent-only conveniences on top of the public API; treat this repo's
+_MCP deployment_ section as their only source of truth.
+
 ---
 
 ## SNT Pipelines Orchestrator (end goal)
@@ -263,6 +273,22 @@ The platform injects this global at page load — the only reliable way to get t
 ```js
 window.OPENHEXA.workspaceSlug;
 ```
+
+Per the official `static-webapps` help doc (checked 2026-07-17), the object actually carries two
+more fields the orchestrator doesn't currently use:
+
+```js
+window.OPENHEXA = Object.freeze({
+  workspaceSlug: "my-workspace",
+  webappSlug: "my-webapp",   // this webapp's own slug — e.g. "snt-pipelines-orchestrator" vs
+                              // "snt-pipelines-orchestrator-cockpit"
+  isPublic: false,            // true for public webapps
+});
+```
+
+`webappSlug` is a possible future alternative to distinguishing UI variants by webapp *name*
+(see _UI variants_) if that ever needs to be runtime-detectable from inside `app.js` — not
+currently exploited, just noting it exists.
 
 ### GraphQL proxy
 
@@ -482,8 +508,21 @@ Two tools can push changes to a webapp; pick based on the size of the change:
   rewrite** of a file, or the first deploy of a bundle. Takes `files_json` as a JSON array of
   `{path, content}` objects. The `name`/`description` fields are silently ignored by this tool
   (rename webapps from the OpenHEXA UI instead); `create_static_webapp` **does** honor `name`.
+  **New (confirmed live 2026-07-17):** it also takes `files_to_delete_json`, a JSON array of
+  paths to remove (e.g. `["old.js", "legacy/style.css"]`) — paths that don't exist are ignored.
+  Can be combined with `files_json` in the same call; both are applied as one commit. Not yet
+  needed by any orchestrator task, but relevant if a variant ever needs to drop a stale file
+  (e.g. retiring an old data file after a `pipeline_map.json` restructure) without a full
+  wholesale rewrite.
 
-**Partial / incremental deploys work (confirmed live 2026-06-19).** Despite `update_static_webapp`'s own description still saying "replace all files," `files_json` may contain **only the files that changed** — the omitted files are left untouched, _not_ deleted. Verified by deploying `app.js` alone to the orchestrator and reading back with `get_static_webapp`: all other files (CSS, HTML, both JSON) survived intact. Caveats: (1) confirmed on the SaaS as of 2026-06-19 — if a future deploy ever shows files vanishing, fall back to sending the full set; (2) **always re-verify after a partial deploy** (see below); (3) keep the full bundle reproducible from the repo (`app/<variant>/` + `workspaces/<ws>/<variant>/pipeline_cards.json`) so a full re-deploy is always possible.
+**Partial / incremental deploys work (confirmed live 2026-06-19; as of 2026-07-17 the tool's own
+description now says so too — previously it still said "replace all files," contradicting the
+observed behavior).** `files_json` may contain **only the files that changed** — the omitted
+files are left untouched, _not_ deleted. Verified by deploying `app.js` alone to the orchestrator
+and reading back with `get_static_webapp`: all other files (CSS, HTML, both JSON) survived
+intact. Caveats: (1) confirmed on the SaaS; (2) **always re-verify after a partial deploy** (see
+below); (3) keep the full bundle reproducible from the repo (`app/<variant>/` +
+`workspaces/<ws>/<variant>/pipeline_cards.json`) so a full re-deploy is always possible.
 
 To **read back** the currently-deployed files:
 
@@ -498,14 +537,14 @@ To **read back** the currently-deployed files:
   `list_static_webapps`), not the UUID, for both tools. Since scopes/allowedOperations are
   webapp-level, not variant-level, still resolve the right webapp by name first (see _UI variants_).
 
-⚠️ **`start_line`/`end_line` on `get_static_webapp_file` are currently broken** (confirmed
-2026-07-08): the MCP tool declares them as `string` params, but the underlying `readWebappFile`
-GraphQL query requires `Int` — confirmed by re-checking `schemas/schema.generated.graphql`
-after a refresh (`readWebappFile(endLine: Int, ..., startLine: Int, ...)`). GraphQL variables
-don't coerce a quoted `"1"` to `1`, so passing either param throws `Variable '$startLine' got
-invalid value '1'; Int cannot represent non-integer value: '1'`. **Omit both for now** and read
-the whole file — this is a bug in the tool wrapper, not something fixable from this repo.
-Reported upstream 2026-07-08.
+✅ **`start_line`/`end_line` on `get_static_webapp_file` are fixed** (confirmed live 2026-07-17):
+the tool's schema now declares both as `integer` (was `string`), matching the underlying
+`readWebappFile` GraphQL field's `Int` type. Verified by reading `app.js` lines 1–15 from the
+live `snt-pipelines-orchestrator` webapp in `snt-app-dev` — returned exactly that slice with
+`success: true`, no coercion error. The previous workaround (omit both, read the whole file) is
+no longer necessary — pass both params for large files to avoid the Read-cap risk described
+below. (Previously broken/reported upstream 2026-07-08; this note previously said "currently
+broken" — that is now stale.)
 
 **Large-file deploy friction (Read cap) — now mostly avoided.** `update_static_webapp`'s
 `files_json` carries file _contents inline_ — the tool can't read from a path on disk, so
