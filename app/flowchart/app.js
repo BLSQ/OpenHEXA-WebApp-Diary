@@ -106,6 +106,16 @@ async function loadData() {
  * disabled in later tasks. Description text comes from the shared,
  * hand-authored app/pipeline_descriptions.json (one copy across all
  * variants/workspaces), not from the map or the cards. */
+// Resolve a description value to plain text. app/pipeline_descriptions.json is
+// shared with the cockpit variant, which stores each value bilingually as
+// { en, fr }; the flowchart variant is English-only for now, so pick `en`
+// (a legacy plain string is returned as-is). Keeps flowchart working after the
+// shared file is upgraded to the nested shape — no French toggle here yet.
+function descText(v) {
+  if (v && typeof v === "object" && !Array.isArray(v)) return v.en || "";
+  return v || "";
+}
+
 function mergeNodes(map, cards, descriptions) {
   var cardsById = {};
   var pipelines = (cards && cards.pipelines) || [];
@@ -122,7 +132,7 @@ function mergeNodes(map, cards, descriptions) {
       id: node.id,
       code: node.code,
       label: node.label,
-      description: descById[node.id] || "",
+      description: descText(descById[node.id]),
       type: node.type,
       group: node.group || null,
       row: node.row,

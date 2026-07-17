@@ -19,8 +19,15 @@
          wires the live OpenHEXA calls (status, run, poll, outputs). -->
     <header class="appbar">
       <h1>SNT Pipelines Orchestrator</h1>
-      <div class="ws">Workspace: <b id="workspaceLabel">—</b></div>
+      <div class="ws"><span id="wsWord">Workspace:</span> <b id="workspaceLabel">—</b></div>
       <div class="nav">
+        <!-- Language toggle (EN / FR). app.js reads the choice (?lang= /
+             localStorage / default en), wires these buttons, and re-renders
+             everything on switch. -->
+        <div class="langtoggle" role="group" aria-label="Language">
+          <button type="button" class="langbtn" data-lang="en">EN</button>
+          <button type="button" class="langbtn" data-lang="fr">FR</button>
+        </div>
         <span class="stepcount" id="stepcount"></span>
         <button class="nbtn" id="backBtn" type="button">&#9666; Back</button>
         <button class="nbtn primary" id="nextBtn" type="button">Next &#9656;</button>

@@ -257,6 +257,400 @@ function workspaceSlug() {
 }
 
 /* ================================================================== *
+ * i18n — language state, string table, and accessors
+ * ------------------------------------------------------------------ *
+ * The cockpit is bilingual (English / French). Scope of this phase:
+ * app chrome (this string table), the hand-authored node descriptions
+ * (app/pipeline_descriptions.json), and node/step titles
+ * (pipeline_map.json `label`) — all resolved via pickLang(). Parameter
+ * labels/help + dropdown choices (from pipeline_cards.json) stay English
+ * for now. The whole panel re-renders from scratch on every render, so
+ * switching language is just: set LANG, rebuild steps, re-render.
+ * French strings below are drafts pending Giulia's review.
+ * ================================================================== */
+var LANGS = ["en", "fr"];
+var LANG = "en";
+
+// Resolve the active language once at boot: ?lang= query param (wins and is
+// remembered) -> localStorage -> default "en".
+function currentLang() {
+  var q = null;
+  try {
+    q = new URLSearchParams(window.location.search).get("lang");
+  } catch (e) {}
+  if (q && LANGS.indexOf(q) >= 0) {
+    try {
+      localStorage.setItem("snt_lang", q);
+    } catch (e) {}
+    return q;
+  }
+  var stored = null;
+  try {
+    stored = localStorage.getItem("snt_lang");
+  } catch (e) {}
+  if (stored && LANGS.indexOf(stored) >= 0) return stored;
+  return "en";
+}
+
+// Switch language: persist, update <html lang>, rebuild the (title-bearing)
+// steps, refresh static shell text + toggle state, and re-render everything.
+function setLang(l) {
+  if (LANGS.indexOf(l) < 0 || l === LANG) return;
+  LANG = l;
+  try {
+    localStorage.setItem("snt_lang", l);
+  } catch (e) {}
+  if (document.documentElement) document.documentElement.setAttribute("lang", l);
+  if (APP.nodes && APP.nodes.length) APP.steps = buildSteps();
+  applyStaticI18n();
+  renderRail();
+  renderCockpit();
+}
+
+// Resolve a possibly-bilingual data value. Nested { en, fr } objects pick the
+// active language (falling back to en); a plain string is returned as-is, so
+// legacy flat data still works (and the flowchart variant is unaffected).
+function pickLang(v) {
+  if (v && typeof v === "object" && !Array.isArray(v)) {
+    return v[LANG] != null ? v[LANG] : v.en != null ? v.en : "";
+  }
+  return v == null ? "" : v;
+}
+
+// Chrome string lookup with {placeholder} substitution. Missing keys fall back
+// to English, then to the key itself (so a typo is visible, not silent).
+function t(key, params) {
+  var table = I18N[LANG] || I18N.en;
+  var s = table[key];
+  if (s == null) s = I18N.en[key] != null ? I18N.en[key] : key;
+  if (params) {
+    s = s.replace(/\{(\w+)\}/g, function (m, k) {
+      return params[k] != null ? params[k] : m;
+    });
+  }
+  return s;
+}
+
+var I18N = {
+  en: {
+    // static shell
+    workspaceWord: "Workspace:",
+    back: "Back",
+    next: "Next",
+    // status labels
+    "status.ok": "Succeeded",
+    "status.fail": "Failed",
+    "status.run": "Running…",
+    "status.none": "Never run",
+    "status.missing": "Not installed",
+    "status.locked": "Locked",
+    // tracks
+    "track.A": "Track A · Routine Surveillance Data",
+    "track.B": "Track B · Geo & raster",
+    "track.C": "Track C · DHS surveys",
+    "track.D": "Track D · Climate",
+    "track.fallback": "Track {t}",
+    // stages (currently dormant — breadcrumb stage display is commented out)
+    "stage.0": "Extract",
+    "stage.1": "Format",
+    "stage.2": "Clean & enrich",
+    "stage.3": "Derive",
+    "stage.4": "Outputs",
+    // alternative group titles
+    "group.a3_outliers": "Outliers Imputation",
+    "group.a4_reporting_rate": "Reporting Rate",
+    "group.desc":
+      "Pick one method, then configure and run it. The map treats the whole group as a single step — the method with the latest successful run is the one in use downstream.",
+    // node type chips
+    "type.mandatory": "mandatory",
+    "type.alternative": "alternative",
+    "type.facultative": "facultative",
+    // rail
+    "rail.head": "Stratification process · {n} steps",
+    "rail.chooseOne": "choose one of {n}",
+    // footer / appbar nav
+    "foot.step": "Step {n} of {total}",
+    // section headings
+    "heading.chooseMethod": "Choose a method",
+    "heading.dependencies": "Dependencies",
+    "heading.runParams": "Run with Parameters",
+    "heading.latestOutputs": "Latest outputs",
+    "heading.more": "More",
+    // dependency columns
+    "dep.requires": "Requires (hard)",
+    "dep.uses": "Uses if available (soft)",
+    "dep.unlocks": "Unlocks next",
+    "dep.none": "none",
+    // chips
+    "chip.notInstalled": "not installed",
+    "chip.chooseNof": "choose 1 of {n}",
+    // alternative chooser + notices
+    "mutex.note":
+      "These are <b>mutually exclusive</b> — the method with the most recent successful run is the one in use for this group.",
+    "alt.inUse": "IN USE",
+    "altnote.current":
+      "✓ In use — this method holds the most recent successful run for this group.",
+    "altnote.runningInUse":
+      "● Running — {label} stays in use until this run succeeds.",
+    "altnote.runningNew":
+      "● Running — this becomes the method in use if the run succeeds.",
+    "altnote.superseded":
+      "⊘ Superseded — {label} is in use for this group (most recent successful run).",
+    // run row
+    "run.locked": "🔒 Locked",
+    "run.runFirst": "Run <b>{list}</b> first.",
+    "run.running": "⟳ Running…",
+    "run.previewConfig": "Preview config",
+    "run.rerun": "↻ Re-run",
+    "run.rerunSelected": "↻ Re-run selected method",
+    "run.run": "▶ Run pipeline",
+    "run.runSelected": "▶ Run selected method",
+    // status pill
+    "statuspill.openRun": "Open this run in OpenHEXA",
+    // parameter form chrome (labels/help themselves stay English this phase)
+    "form.noParams": "This pipeline takes no parameters.",
+    "form.required": "Required",
+    "form.selectEmpty": "— select —",
+    "form.selectConn": "— select connection —",
+    "form.connPlaceholder": "connection slug (e.g. dhis2-nmdr-drc)",
+    "form.commaSep": "comma-separated",
+    "form.filePath": "workspace file path (optional)",
+    // validation
+    "val.selectAtLeastOne": "{label} — select at least one",
+    "val.required": "{label} is required",
+    "val.wholeNumber": "{label} must be a whole number",
+    "val.number": "{label} must be a number",
+    // preview / run banners
+    "preview.fixHeader": "Fix these before running:",
+    "preview.configSoFar": "config so far:",
+    "run.fixFields": "Fix the highlighted fields, then run again.",
+    // run lifecycle
+    "runstat.queued": "Queued…",
+    "runstat.running": "Running…",
+    "runstat.terminating": "Stopping…",
+    "runstat.success": "Completed successfully",
+    "runstat.failed": "Run failed",
+    "runstat.stopped": "Run stopped",
+    "runstat.skipped": "Run skipped",
+    "runstat.viewRun": "view run ↗",
+    // run flow messages
+    "msg.runOnlyInOH": "Running a pipeline only works inside OpenHEXA.",
+    "msg.notAvailableWs": "This pipeline isn’t available in this workspace.",
+    "msg.startingRun": "Starting run…",
+    "msg.couldntStart": "Couldn’t start the run: ",
+    "msg.runNotAccepted": "the run was not accepted.",
+    "msg.unknownError": "unknown error",
+    "msg.lostTrack": "Lost track of the run — check it in OpenHEXA.",
+    "msg.stoppedWatchingStillRunning":
+      "(stopped watching — still running in OpenHEXA)",
+    "msg.stoppedWatching": "Stopped watching the run — check it in OpenHEXA.",
+    "msg.couldntOpenFile": "Could not open this output file.",
+    // outputs
+    "out.noOutputsYet": "No outputs yet — this pipeline hasn’t run.",
+    "out.onlyInOH": "Outputs are only available inside OpenHEXA.",
+    "out.loading": "loading outputs…",
+    "out.couldntLoad": "Couldn’t load outputs.",
+    "out.dataset": "output dataset",
+    "out.htmlReport": "HTML report",
+    "out.outputFile": "output file",
+    "out.output": "output",
+    "out.noLinkable": "This run produced no linkable outputs.",
+    // report embed
+    "report.showPreview": "Show preview",
+    "report.hidePreview": "Hide preview",
+    "report.loading": "loading report…",
+    "report.couldntPreview": "Couldn’t load the preview here. ",
+    "report.openNewTab": "Open in a new tab ↗",
+    // external links
+    "link.readmeGithub": "README on GitHub",
+    "link.seeWhat": "see what this pipeline does",
+    "link.installTemplates": "Install from pipeline templates",
+    "link.browseTemplates":
+      "browse the available SNT templates in OpenHEXA",
+    // missing / not-installed panel
+    "missing.title": "This pipeline isn’t installed in this workspace yet.",
+    "missing.body":
+      "It’s part of the standard SNT pipeline map, but it hasn’t been added to {slug}. Install it from the OpenHEXA pipeline templates below, then reload this page — it’ll become active and runnable here.",
+    "missing.thisWorkspace": "this workspace",
+    "missing.templatesOnlyInOH":
+      "The link to the templates page is only available when this app is opened inside OpenHEXA.",
+    // boot / fatal
+    "boot.loading": "Loading pipelines…",
+    "boot.failed": "Couldn’t load the pipeline data.",
+    "boot.unknownError": "Unknown error",
+    "boot.noSteps": "No steps to show.",
+  },
+  fr: {
+    // static shell
+    workspaceWord: "Espace de travail :",
+    back: "Retour",
+    next: "Suivant",
+    // status labels
+    "status.ok": "Réussi",
+    "status.fail": "Échoué",
+    "status.run": "En cours…",
+    "status.none": "Jamais exécuté",
+    "status.missing": "Non installé",
+    "status.locked": "Verrouillé",
+    // tracks
+    "track.A": "Piste A · Données de surveillance de routine",
+    "track.B": "Piste B · Géo & raster",
+    "track.C": "Piste C · Enquêtes DHS",
+    "track.D": "Piste D · Climat",
+    "track.fallback": "Piste {t}",
+    // stages (currently dormant — breadcrumb stage display is commented out)
+    "stage.0": "Extraction",
+    "stage.1": "Formatage",
+    "stage.2": "Nettoyage & enrichissement",
+    "stage.3": "Calcul",
+    "stage.4": "Résultats",
+    // alternative group titles
+    "group.a3_outliers": "Imputation des valeurs aberrantes",
+    "group.a4_reporting_rate": "Taux de complétude",
+    "group.desc":
+      "Choisissez une méthode, puis configurez-la et exécutez-la. La carte traite tout le groupe comme une seule étape — la méthode dont l’exécution réussie est la plus récente est celle utilisée en aval.",
+    // node type chips
+    "type.mandatory": "obligatoire",
+    "type.alternative": "alternative",
+    "type.facultative": "facultatif",
+    // rail
+    "rail.head": "Processus de stratification · {n} étapes",
+    "rail.chooseOne": "en choisir une parmi {n}",
+    // footer / appbar nav
+    "foot.step": "Étape {n} sur {total}",
+    // section headings
+    "heading.chooseMethod": "Choisir une méthode",
+    "heading.dependencies": "Dépendances",
+    "heading.runParams": "Exécuter avec paramètres",
+    "heading.latestOutputs": "Derniers résultats",
+    "heading.more": "Plus",
+    // dependency columns
+    "dep.requires": "Requis (obligatoire)",
+    "dep.uses": "Utilisé si disponible (optionnel)",
+    "dep.unlocks": "Débloque la suite",
+    "dep.none": "aucune",
+    // chips
+    "chip.notInstalled": "non installé",
+    "chip.chooseNof": "en choisir 1 parmi {n}",
+    // alternative chooser + notices
+    "mutex.note":
+      "Ces méthodes sont <b>mutuellement exclusives</b> — celle dont l’exécution réussie est la plus récente est celle utilisée pour ce groupe.",
+    "alt.inUse": "UTILISÉ",
+    "altnote.current":
+      "✓ Utilisé — cette méthode détient l’exécution réussie la plus récente de ce groupe.",
+    "altnote.runningInUse":
+      "● En cours — {label} reste utilisé jusqu’à la réussite de cette exécution.",
+    "altnote.runningNew":
+      "● En cours — cette méthode sera utilisée si l’exécution réussit.",
+    "altnote.superseded":
+      "⊘ Remplacé — {label} est utilisé pour ce groupe (exécution réussie la plus récente).",
+    // run row
+    "run.locked": "🔒 Verrouillé",
+    "run.runFirst": "Exécutez d’abord <b>{list}</b>.",
+    "run.running": "⟳ En cours…",
+    "run.previewConfig": "Aperçu de la config",
+    "run.rerun": "↻ Relancer",
+    "run.rerunSelected": "↻ Relancer la méthode choisie",
+    "run.run": "▶ Exécuter le pipeline",
+    "run.runSelected": "▶ Exécuter la méthode choisie",
+    // status pill
+    "statuspill.openRun": "Ouvrir cette exécution dans OpenHEXA",
+    // parameter form chrome (labels/help themselves stay English this phase)
+    "form.noParams": "Ce pipeline ne prend aucun paramètre.",
+    "form.required": "Obligatoire",
+    "form.selectEmpty": "— sélectionner —",
+    "form.selectConn": "— sélectionner une connexion —",
+    "form.connPlaceholder": "identifiant de connexion (ex. dhis2-nmdr-drc)",
+    "form.commaSep": "séparés par des virgules",
+    "form.filePath": "chemin du fichier dans l’espace de travail (optionnel)",
+    // validation
+    "val.selectAtLeastOne": "{label} — sélectionnez-en au moins un",
+    "val.required": "{label} est obligatoire",
+    "val.wholeNumber": "{label} doit être un nombre entier",
+    "val.number": "{label} doit être un nombre",
+    // preview / run banners
+    "preview.fixHeader": "Corrigez ceci avant d’exécuter :",
+    "preview.configSoFar": "config actuelle :",
+    "run.fixFields": "Corrigez les champs en surbrillance, puis réessayez.",
+    // run lifecycle
+    "runstat.queued": "En file d’attente…",
+    "runstat.running": "En cours…",
+    "runstat.terminating": "Arrêt…",
+    "runstat.success": "Terminé avec succès",
+    "runstat.failed": "Échec de l’exécution",
+    "runstat.stopped": "Exécution arrêtée",
+    "runstat.skipped": "Exécution ignorée",
+    "runstat.viewRun": "voir l’exécution ↗",
+    // run flow messages
+    "msg.runOnlyInOH": "L’exécution d’un pipeline ne fonctionne que dans OpenHEXA.",
+    "msg.notAvailableWs": "Ce pipeline n’est pas disponible dans cet espace de travail.",
+    "msg.startingRun": "Démarrage de l’exécution…",
+    "msg.couldntStart": "Impossible de démarrer l’exécution : ",
+    "msg.runNotAccepted": "l’exécution n’a pas été acceptée.",
+    "msg.unknownError": "erreur inconnue",
+    "msg.lostTrack": "Exécution perdue de vue — vérifiez-la dans OpenHEXA.",
+    "msg.stoppedWatchingStillRunning":
+      "(suivi interrompu — toujours en cours dans OpenHEXA)",
+    "msg.stoppedWatching":
+      "Suivi de l’exécution interrompu — vérifiez-la dans OpenHEXA.",
+    "msg.couldntOpenFile": "Impossible d’ouvrir ce fichier de résultat.",
+    // outputs
+    "out.noOutputsYet": "Aucun résultat pour l’instant — ce pipeline n’a pas été exécuté.",
+    "out.onlyInOH": "Les résultats ne sont disponibles que dans OpenHEXA.",
+    "out.loading": "chargement des résultats…",
+    "out.couldntLoad": "Impossible de charger les résultats.",
+    "out.dataset": "jeu de données de sortie",
+    "out.htmlReport": "rapport HTML",
+    "out.outputFile": "fichier de sortie",
+    "out.output": "sortie",
+    "out.noLinkable": "Cette exécution n’a produit aucun résultat consultable.",
+    // report embed
+    "report.showPreview": "Afficher l’aperçu",
+    "report.hidePreview": "Masquer l’aperçu",
+    "report.loading": "chargement du rapport…",
+    "report.couldntPreview": "Impossible d’afficher l’aperçu ici. ",
+    "report.openNewTab": "Ouvrir dans un nouvel onglet ↗",
+    // external links
+    "link.readmeGithub": "README sur GitHub",
+    "link.seeWhat": "voir ce que fait ce pipeline",
+    "link.installTemplates": "Installer depuis les modèles de pipeline",
+    "link.browseTemplates":
+      "parcourir les modèles SNT disponibles dans OpenHEXA",
+    // missing / not-installed panel
+    "missing.title": "Ce pipeline n’est pas encore installé dans cet espace de travail.",
+    "missing.body":
+      "Il fait partie de la carte standard des pipelines SNT, mais il n’a pas été ajouté à {slug}. Installez-le depuis les modèles de pipeline OpenHEXA ci-dessous, puis rechargez cette page — il deviendra actif et exécutable ici.",
+    "missing.thisWorkspace": "cet espace de travail",
+    "missing.templatesOnlyInOH":
+      "Le lien vers la page des modèles n’est disponible que lorsque cette application est ouverte dans OpenHEXA.",
+    // boot / fatal
+    "boot.loading": "Chargement des pipelines…",
+    "boot.failed": "Impossible de charger les données des pipelines.",
+    "boot.unknownError": "Erreur inconnue",
+    "boot.noSteps": "Aucune étape à afficher.",
+  },
+};
+
+// Populate the static shell text (header) + language-toggle active state.
+// Called on boot and on every language switch.
+function applyStaticI18n() {
+  var wsWord = document.getElementById("wsWord");
+  if (wsWord) wsWord.textContent = t("workspaceWord");
+  var back = document.getElementById("backBtn");
+  if (back) back.innerHTML = "&#9666; " + escapeHtml(t("back"));
+  var next = document.getElementById("nextBtn");
+  if (next) next.innerHTML = escapeHtml(t("next")) + " &#9656;";
+  Array.prototype.forEach.call(
+    document.querySelectorAll(".langbtn"),
+    function (b) {
+      var on = b.getAttribute("data-lang") === LANG;
+      b.classList.toggle("is-active", on);
+      b.setAttribute("aria-pressed", on ? "true" : "false");
+    },
+  );
+}
+
+/* ================================================================== *
  * App state
  * ================================================================== */
 var APP = {
@@ -365,7 +759,7 @@ function lockedReason(id) {
       var rep = APP.nodeById[srcs[0]];
       if (key.indexOf("grp:") === 0)
         missing.push(rep.code + " " + groupTitle(rep.group));
-      else missing.push(rep.code + " " + rep.label);
+      else missing.push(rep.code + " " + pickLang(rep.label));
     }
   });
   return missing.length ? missing : null;
@@ -374,39 +768,32 @@ function lockedReason(id) {
 /* ================================================================== *
  * Walkthrough model — steps, stages, tracks, glyphs
  * ================================================================== */
-var TRK = {
-  A: { c: "var(--A)", name: "Track A · Routine Surveillance Data" },
-  B: { c: "var(--B)", name: "Track B · Geo & raster" },
-  C: { c: "var(--C)", name: "Track C · DHS surveys" },
-  D: { c: "var(--D)", name: "Track D · Climate" },
-};
+// Track accent colors only; the human-readable track/status/stage names now
+// live in the I18N table (see t("track.A"), t("status.ok"), etc.).
+var TRK_COLOR = { A: "var(--A)", B: "var(--B)", C: "var(--C)", D: "var(--D)" };
 var G = { ok: "✓", fail: "✕", run: "⟳", none: "○", missing: "⦸", locked: "🔒" };
-var SL = {
-  ok: "Succeeded",
-  fail: "Failed",
-  run: "Running…",
-  none: "Never run",
-  missing: "Not installed",
-  locked: "Locked",
-};
-var STAGE = {
-  0: "Extract",
-  1: "Format",
-  2: "Clean & enrich",
-  3: "Derive",
-  4: "Outputs",
-};
+
+// Localized status label for a cockpit state (missing/none/ok/fail/run/locked).
+function statusLabel(state) {
+  return t("status." + state);
+}
+// Localized stage label (dormant — breadcrumb stage display is commented out).
+function stageLabelFor(row) {
+  return t("stage." + row) || "";
+}
 
 function groupTitle(g) {
-  if (g === "a3_outliers") return "Outliers Imputation";
-  if (g === "a4_reporting_rate") return "Reporting Rate";
-  return g;
+  var key = "group." + g;
+  var v = (I18N[LANG] || I18N.en)[key] || I18N.en[key];
+  return v != null ? v : g;
 }
-function trackColor(t) {
-  return TRK[t] ? TRK[t].c : "var(--soft)";
+function trackColor(track) {
+  return TRK_COLOR[track] || "var(--soft)";
 }
-function trackName(t) {
-  return TRK[t] ? TRK[t].name : "Track " + t;
+function trackName(track) {
+  return TRK_COLOR[track]
+    ? t("track." + track)
+    : t("track.fallback", { t: track });
 }
 
 // Build the ordered list of walkthrough steps, collapsing each alternative
@@ -433,7 +820,7 @@ function buildSteps() {
       steps.push({
         kind: "single",
         code: n.code,
-        title: n.label,
+        title: pickLang(n.label),
         track: n.track,
         node: n,
       });
@@ -574,7 +961,7 @@ function connOptionsFor(ptype) {
 
 function fieldControlHtml(p) {
   var id = fieldId(p.key);
-  var t = p.type;
+  var ptype = p.type;
 
   if (p.multiple && p.choices && p.choices.length) {
     var defs = Array.isArray(p.default) ? p.default.map(String) : [];
@@ -605,7 +992,7 @@ function fieldControlHtml(p) {
       '<select id="' +
       id +
       '" class="finput">' +
-      '<option value="">— select —</option>' +
+      '<option value="">' + escapeHtml(t("form.selectEmpty")) + "</option>" +
       p.choices
         .map(function (c) {
           var v = String(c);
@@ -624,14 +1011,14 @@ function fieldControlHtml(p) {
     );
   }
 
-  if (t === "DHIS2Connection" || t === "CustomConnection") {
-    var conns = connOptionsFor(t);
+  if (ptype === "DHIS2Connection" || ptype === "CustomConnection") {
+    var conns = connOptionsFor(ptype);
     if (conns && conns.length) {
       return (
         '<select id="' +
         id +
         '" class="finput">' +
-        '<option value="">— select connection —</option>' +
+        '<option value="">' + escapeHtml(t("form.selectConn")) + "</option>" +
         conns
           .map(function (c) {
             return (
@@ -651,11 +1038,13 @@ function fieldControlHtml(p) {
     return (
       '<input id="' +
       id +
-      '" class="finput" type="text" placeholder="connection slug (e.g. dhis2-nmdr-drc)">'
+      '" class="finput" type="text" placeholder="' +
+      escapeHtml(t("form.connPlaceholder")) +
+      '">'
     );
   }
 
-  if (t === "bool") {
+  if (ptype === "bool") {
     return (
       '<input id="' +
       id +
@@ -665,8 +1054,8 @@ function fieldControlHtml(p) {
     );
   }
 
-  if (t === "int" || t === "float") {
-    var step = t === "int" ? "1" : "any";
+  if (ptype === "int" || ptype === "float") {
+    var step = ptype === "int" ? "1" : "any";
     var nv =
       p.default !== undefined && p.default !== null
         ? escapeHtml(String(p.default))
@@ -687,17 +1076,21 @@ function fieldControlHtml(p) {
     return (
       '<input id="' +
       id +
-      '" class="finput" type="text" placeholder="comma-separated" value="' +
+      '" class="finput" type="text" placeholder="' +
+      escapeHtml(t("form.commaSep")) +
+      '" value="' +
       escapeHtml(mv) +
       '">'
     );
   }
 
-  if (t === "File") {
+  if (ptype === "File") {
     return (
       '<input id="' +
       id +
-      '" class="finput" type="text" placeholder="workspace file path (optional)">'
+      '" class="finput" type="text" placeholder="' +
+      escapeHtml(t("form.filePath")) +
+      '">'
     );
   }
 
@@ -713,12 +1106,16 @@ function fieldControlHtml(p) {
 function paramsFormHtml(node) {
   var params = node.parameters || [];
   if (!params.length)
-    return '<p class="sb-muted">This pipeline takes no parameters.</p>';
+    return (
+      '<p class="sb-muted">' + escapeHtml(t("form.noParams")) + "</p>"
+    );
 
   var fields = params
     .map(function (p) {
       var req = p.required
-        ? ' <span class="req" title="Required">*</span>'
+        ? ' <span class="req" title="' +
+          escapeHtml(t("form.required")) +
+          '">*</span>'
         : "";
       var help = p.help
         ? '<div class="fhelp">' + escapeHtml(p.help) + "</div>"
@@ -781,10 +1178,10 @@ function buildConfig(node) {
   (node.parameters || []).forEach(function (p) {
     var wrap = form.querySelector('.field[data-key="' + p.key + '"]');
     if (!wrap) return;
-    var t = p.type;
+    var ptype = p.type;
     var label = p.label || p.key;
 
-    if (t === "bool") {
+    if (ptype === "bool") {
       var cb = wrap.querySelector('input[type="checkbox"]');
       config[p.key] = !!(cb && cb.checked);
       return;
@@ -798,7 +1195,8 @@ function buildConfig(node) {
         },
       );
       if (picked.length) config[p.key] = picked;
-      else if (p.required) errors.push(label + " — select at least one");
+      else if (p.required)
+        errors.push(t("val.selectAtLeastOne", { label: label }));
       return;
     }
 
@@ -811,28 +1209,28 @@ function buildConfig(node) {
         })
         .filter(Boolean);
       if (arr.length) config[p.key] = arr;
-      else if (p.required) errors.push(label + " is required");
+      else if (p.required) errors.push(t("val.required", { label: label }));
       return;
     }
 
     var ctl = wrap.querySelector(".finput");
     var val = ctl ? String(ctl.value).trim() : "";
     if (val === "") {
-      if (p.required) errors.push(label + " is required");
+      if (p.required) errors.push(t("val.required", { label: label }));
       return;
     }
 
-    if (t === "int") {
+    if (ptype === "int") {
       var iv = Number(val);
       if (!isFinite(iv) || Math.floor(iv) !== iv) {
-        errors.push(label + " must be a whole number");
+        errors.push(t("val.wholeNumber", { label: label }));
         return;
       }
       config[p.key] = iv;
-    } else if (t === "float") {
+    } else if (ptype === "float") {
       var fv = Number(val);
       if (!isFinite(fv)) {
-        errors.push(label + " must be a number");
+        errors.push(t("val.number", { label: label }));
         return;
       }
       config[p.key] = fv;
@@ -855,9 +1253,9 @@ function renderRail() {
   var rail = document.getElementById("rail");
   if (!rail) return;
   var h =
-    '<div class="railhead">Stratification process · ' +
-    APP.steps.length +
-    " steps</div>";
+    '<div class="railhead">' +
+    escapeHtml(t("rail.head", { n: APP.steps.length })) +
+    "</div>";
   var lastTrack = null;
   APP.steps.forEach(function (s, i) {
     if (s.track !== lastTrack) {
@@ -884,7 +1282,9 @@ function renderRail() {
       (!avail ? "missing " : showLocked ? "locked " : "");
     var meta =
       s.kind === "group"
-        ? '<div class="rmeta">choose one of ' + s.members.length + "</div>"
+        ? '<div class="rmeta">' +
+          escapeHtml(t("rail.chooseOne", { n: s.members.length })) +
+          "</div>"
         : "";
     h +=
       '<div class="ritem ' +
@@ -935,7 +1335,7 @@ function statusPillHtml(node) {
     '">' +
     G[state] +
     "</span>" +
-    (showLocked ? "Locked" : SL[state]) +
+    escapeHtml(showLocked ? statusLabel("locked") : statusLabel(state)) +
     escapeHtml(meta);
   // When there's a run to link to, the whole pill becomes a link to that run's
   // OpenHEXA page (with an outlink glyph); otherwise it's a plain badge.
@@ -946,7 +1346,9 @@ function statusPillHtml(node) {
       state +
       ' statuspill-link" href="' +
       escapeHtml(url) +
-      '" target="_blank" rel="noopener noreferrer" title="Open this run in OpenHEXA">' +
+      '" target="_blank" rel="noopener noreferrer" title="' +
+      escapeHtml(t("statuspill.openRun")) +
+      '">' +
       inner +
       ' <span class="arr">↗</span></a>'
     );
@@ -959,12 +1361,14 @@ function depColHtml(lab, ids, soft) {
   if (!ids.length)
     return (
       '<div class="col"><div class="lab">' +
-      lab +
-      '</div><span class="none-note">none</span></div>'
+      escapeHtml(lab) +
+      '</div><span class="none-note">' +
+      escapeHtml(t("dep.none")) +
+      "</span></div>"
     );
   return (
     '<div class="col"><div class="lab">' +
-    lab +
+    escapeHtml(lab) +
     "</div>" +
     ids
       .map(function (id) {
@@ -983,7 +1387,7 @@ function depColHtml(lab, ids, soft) {
           '</span><span class="cd">' +
           escapeHtml(p.code) +
           "</span> " +
-          escapeHtml(p.label) +
+          escapeHtml(pickLang(p.label)) +
           "</span>"
         );
       })
@@ -1024,20 +1428,22 @@ function altChooserInnerHtml(step) {
           '<div class="acode">' +
           escapeHtml(m.code) +
           '</div><div class="atitle">' +
-          escapeHtml(m.label.replace(/^.*?:\s*/, "")) +
+          escapeHtml(pickLang(m.label).replace(/^.*?:\s*/, "")) +
           "</div>" +
           '<div class="adesc">' +
-          mdLite(m.description || "") +
+          mdLite(pickLang(m.description)) +
           "</div>" +
           '<div class="astat"><span class="sg ' +
           ms +
           '">' +
           G[ms] +
           "</span>" +
-          (greyed ? "Not installed" : SL[ms]) +
+          escapeHtml(greyed ? statusLabel("missing") : statusLabel(ms)) +
           escapeHtml(greyed ? "" : when) +
           "</div>" +
-          (inUse ? '<span class="inuse">IN USE</span>' : "") +
+          (inUse
+            ? '<span class="inuse">' + escapeHtml(t("alt.inUse")) + "</span>"
+            : "") +
           "</div>"
         );
       })
@@ -1055,22 +1461,30 @@ function groupExclusionNoticeHtml(node) {
   var inFlight = !!(run && run.status && !isRunFinished(run.status));
 
   if (inUseId && inUseId === node.id) {
-    return '<div class="sb-altnote is-current">✓ In use — this method holds the most recent successful run for this group.</div>';
+    return (
+      '<div class="sb-altnote is-current">' +
+      t("altnote.current") +
+      "</div>"
+    );
   }
   if (inFlight) {
     return (
-      '<div class="sb-altnote running">● Running — ' +
+      '<div class="sb-altnote running">' +
       (inUseNode
-        ? escapeHtml(inUseNode.label) + " stays in use until this run succeeds."
-        : "this becomes the method in use if the run succeeds.") +
+        ? t("altnote.runningInUse", {
+            label: escapeHtml(pickLang(inUseNode.label)),
+          })
+        : t("altnote.runningNew")) +
       "</div>"
     );
   }
   if (inUseId) {
     return (
-      '<div class="sb-altnote superseded">⊘ Superseded — ' +
-      escapeHtml(inUseNode ? inUseNode.label : inUseId) +
-      " is in use for this group (most recent successful run).</div>"
+      '<div class="sb-altnote superseded">' +
+      t("altnote.superseded", {
+        label: escapeHtml(inUseNode ? pickLang(inUseNode.label) : inUseId),
+      }) +
+      "</div>"
     );
   }
   return "";
@@ -1088,30 +1502,42 @@ function runRowHtml(node) {
 
   if (locked) {
     return (
-      '<button type="button" id="sb-run" class="btn-primary is-busy" disabled>🔒 Locked</button>' +
-      '<span class="runhint">Run <b>' +
-      escapeHtml(locked.join(", ")) +
-      "</b> first.</span>"
+      '<button type="button" id="sb-run" class="btn-primary is-busy" disabled>' +
+      escapeHtml(t("run.locked")) +
+      "</button>" +
+      '<span class="runhint">' +
+      t("run.runFirst", { list: escapeHtml(locked.join(", ")) }) +
+      "</span>"
     );
   }
   if (inFlight) {
     return (
-      '<button type="button" id="sb-run" class="btn-primary is-busy" disabled>⟳ Running…</button>' +
-      '<button type="button" id="sb-preview" class="btn-secondary">Preview config</button>'
+      '<button type="button" id="sb-run" class="btn-primary is-busy" disabled>' +
+      escapeHtml(t("run.running")) +
+      "</button>" +
+      '<button type="button" id="sb-preview" class="btn-secondary">' +
+      escapeHtml(t("run.previewConfig")) +
+      "</button>"
     );
   }
   var label =
     state === "ok"
-      ? "↻ Re-run" + (isGroup ? " selected method" : "")
-      : "▶ Run" + (isGroup ? " selected method" : " pipeline");
+      ? isGroup
+        ? t("run.rerunSelected")
+        : t("run.rerun")
+      : isGroup
+        ? t("run.runSelected")
+        : t("run.run");
   var cls = "btn-primary" + (state === "ok" ? " rerun" : "");
   return (
     '<button type="button" id="sb-run" class="' +
     cls +
     '">' +
-    label +
+    escapeHtml(label) +
     "</button>" +
-    '<button type="button" id="sb-preview" class="btn-secondary">Preview config</button>'
+    '<button type="button" id="sb-preview" class="btn-secondary">' +
+    escapeHtml(t("run.previewConfig")) +
+    "</button>"
   );
 }
 
@@ -1139,17 +1565,23 @@ function footHtml(step) {
     '<div class="ck-foot">' +
     '<button class="fbtn" data-nav="back" type="button"' +
     (APP.cur === 0 ? " disabled" : "") +
-    ">◂ Back</button>" +
-    '<span class="fcenter">Step ' +
-    (APP.cur + 1) +
-    " of " +
-    APP.steps.length +
-    " · " +
-    escapeHtml(step.code + " " + step.title) +
+    ">&#9666; " +
+    escapeHtml(t("back")) +
+    "</button>" +
+    '<span class="fcenter">' +
+    escapeHtml(
+      t("foot.step", { n: APP.cur + 1, total: APP.steps.length }) +
+        " · " +
+        step.code +
+        " " +
+        step.title,
+    ) +
     "</span>" +
     '<button class="fbtn primary" data-nav="next" type="button"' +
     (APP.cur === APP.steps.length - 1 ? " disabled" : "") +
-    ">Next ▸</button>" +
+    ">" +
+    escapeHtml(t("next")) +
+    " &#9656;</button>" +
     "</div>"
   );
 }
@@ -1159,7 +1591,8 @@ function renderCockpit() {
   if (!ck) return;
   var step = currentStep();
   if (!step) {
-    ck.innerHTML = '<div class="ck-boot">No steps to show.</div>';
+    ck.innerHTML =
+      '<div class="ck-boot">' + escapeHtml(t("boot.noSteps")) + "</div>";
     return;
   }
   var node = memberOf(step);
@@ -1168,7 +1601,7 @@ function renderCockpit() {
   updateAppbarNav();
 
   var trackC = trackColor(step.track);
-  var stageLabel = STAGE[node ? node.row : 0] || "";
+  var stageLabel = stageLabelFor(node ? node.row : 0);
 
   // --- Not-installed (greyed) step: lightweight panel, nav still works. ---
   if (!stepAvailable(step)) {
@@ -1186,7 +1619,9 @@ function renderCockpit() {
       "<h2>" +
       escapeHtml(/* step.code + " " + */ step.title) +
       "</h2>" +
-      '<div class="chips"><span class="chip type">not installed</span></div>' +
+      '<div class="chips"><span class="chip type">' +
+      escapeHtml(t("chip.notInstalled")) +
+      "</span></div>" +
       "</div>" +
       '<div class="ck-body">' +
       missingBodyHtml(node || step.members[0]) +
@@ -1197,7 +1632,8 @@ function renderCockpit() {
     return;
   }
 
-  var typeLabel = step.kind === "group" ? "Alternative" : node.type;
+  var typeLabel =
+    step.kind === "group" ? t("type.alternative") : t("type." + node.type);
   var hp = hardParents(node.id);
   var sp = softParents(node.id);
   var hc = hardChildren(node.id);
@@ -1205,22 +1641,24 @@ function renderCockpit() {
   var altsHtml = "";
   if (step.kind === "group") {
     altsHtml =
-      '<div class="sec"><h4>Choose a method</h4>' +
-      '<p class="mutex-note">These are <b>mutually exclusive</b> — the method with the most recent successful run is the one in use for this group.</p>' +
+      '<div class="sec"><h4>' +
+      escapeHtml(t("heading.chooseMethod")) +
+      "</h4>" +
+      '<p class="mutex-note">' +
+      t("mutex.note") +
+      "</p>" +
       '<div id="ck-alts-slot">' +
       altChooserInnerHtml(step) +
       "</div></div>";
   }
 
   var desc =
-    step.kind === "group"
-      ? "Pick one method, then configure and run it. The map treats the whole group as a single step — the method with the latest successful run is the one in use downstream."
-      : node.description || "";
+    step.kind === "group" ? t("group.desc") : pickLang(node.description);
 
   var paramsTitle =
-    "Run with Parameters" +
+    t("heading.runParams") +
     (step.kind === "group"
-      ? " · " + escapeHtml(node.label.replace(/^.*?:\s*/, ""))
+      ? " · " + pickLang(node.label).replace(/^.*?:\s*/, "")
       : "");
 
   ck.innerHTML =
@@ -1245,8 +1683,8 @@ function renderCockpit() {
     escapeHtml(typeLabel) +
     "</span>" +
     (step.kind === "group"
-      ? '<span class="chip stage">choose 1 of ' +
-        step.members.length +
+      ? '<span class="chip stage">' +
+        escapeHtml(t("chip.chooseNof", { n: step.members.length })) +
         "</span>"
       : "") +
     '<span id="ck-statuspill-slot">' +
@@ -1263,18 +1701,20 @@ function renderCockpit() {
     extLinkHtml(
       githubFolderUrl(node.id),
       "▤",
-      "README on GitHub",
+      t("link.readmeGithub"),
       "snt_development / " + node.id,
     ) +
     "</div>" +
-    '<div class="sec"><h4>Dependencies</h4><div class="deps">' +
-    depColHtml("Requires (hard)", hp, false) +
-    depColHtml("Uses if available (soft)", sp, true) +
-    depColHtml("Unlocks next", hc, false) +
+    '<div class="sec"><h4>' +
+    escapeHtml(t("heading.dependencies")) +
+    '</h4><div class="deps">' +
+    depColHtml(t("dep.requires"), hp, false) +
+    depColHtml(t("dep.uses"), sp, true) +
+    depColHtml(t("dep.unlocks"), hc, false) +
     "</div></div>" +
     altsHtml +
     '<div class="sec"><h4>' +
-    paramsTitle +
+    escapeHtml(paramsTitle) +
     "</h4>" +
     paramsFormHtml(node) +
     '<div class="runrow" style="margin-top:16px">' +
@@ -1283,7 +1723,9 @@ function renderCockpit() {
     '<div id="sb-runstatus" class="sb-runstatus" hidden></div>' +
     '<pre id="sb-config" class="sb-config" hidden></pre>' +
     "</div>" +
-    '<div class="sec"><h4>Latest outputs</h4><div id="sb-outputs" class="outputs"></div></div>' +
+    '<div class="sec"><h4>' +
+    escapeHtml(t("heading.latestOutputs")) +
+    '</h4><div id="sb-outputs" class="outputs"></div></div>' +
     "</div>" +
     footHtml(step);
 
@@ -1294,7 +1736,7 @@ function renderCockpit() {
   // Latest outputs) into its own collapsible box. The description block above
   // Dependencies isn't a `.sec`, so it stays permanently open. Dependencies
   // starts collapsed (it's the tallest — PRODUCT_SPEC #9).
-  makeSectionsCollapsible(ck, ["dependencies"]);
+  makeSectionsCollapsible(ck, [t("heading.dependencies").toLowerCase()]);
 
   // If a run for this node is already in flight (navigated away + back), reflect
   // it: disable the button + show the live status line.
@@ -1381,8 +1823,8 @@ function missingBodyHtml(node) {
   var links = extLinkHtml(
     githubFolderUrl(node.id),
     "▤",
-    "README on GitHub",
-    "see what this pipeline does",
+    t("link.readmeGithub"),
+    t("link.seeWhat"),
   );
   if (slug) {
     var templatesUrl =
@@ -1390,28 +1832,36 @@ function missingBodyHtml(node) {
     links += extLinkHtml(
       templatesUrl,
       "✚",
-      "Install from pipeline templates",
-      "browse the available SNT templates in OpenHEXA",
+      t("link.installTemplates"),
+      t("link.browseTemplates"),
     );
   }
   return (
     '<div class="sb-missing">' +
-    "<p><strong>This pipeline isn’t installed in this workspace yet.</strong></p>" +
-    "<p>It’s part of the standard SNT pipeline map, but it hasn’t been added to <strong>" +
-    escapeHtml(slug || "this workspace") +
-    "</strong>. Install it from the OpenHEXA pipeline templates below, then reload this page — it’ll become active and runnable here.</p>" +
+    "<p><strong>" +
+    escapeHtml(t("missing.title")) +
+    "</strong></p>" +
+    "<p>" +
+    t("missing.body", {
+      slug: "<strong>" + escapeHtml(slug || t("missing.thisWorkspace")) + "</strong>",
+    }) +
+    "</p>" +
     "</div>" +
     (node.description
       ? '<p class="desc" style="margin-top:14px">' +
-        mdLite(node.description) +
+        mdLite(pickLang(node.description)) +
         "</p>"
       : "") +
-    '<div class="sec" style="margin-top:14px"><h4>More</h4><div class="outputs">' +
+    '<div class="sec" style="margin-top:14px"><h4>' +
+    escapeHtml(t("heading.more")) +
+    '</h4><div class="outputs">' +
     links +
     "</div></div>" +
     (slug
       ? ""
-      : '<p class="sb-muted" style="margin-top:10px">The link to the templates page is only available when this app is opened inside OpenHEXA.</p>')
+      : '<p class="sb-muted" style="margin-top:10px">' +
+        escapeHtml(t("missing.templatesOnlyInOH")) +
+        "</p>")
   );
 }
 
@@ -1433,7 +1883,11 @@ function updateLiveBits() {
 
 function updateAppbarNav() {
   var sc = document.getElementById("stepcount");
-  if (sc) sc.textContent = "Step " + (APP.cur + 1) + " of " + APP.steps.length;
+  if (sc)
+    sc.textContent = t("foot.step", {
+      n: APP.cur + 1,
+      total: APP.steps.length,
+    });
   var b = document.getElementById("backBtn");
   if (b) b.disabled = APP.cur === 0;
   var n = document.getElementById("nextBtn");
@@ -1483,9 +1937,13 @@ function togglePreview() {
   if (built.errors.length) {
     configBox.className = "sb-config has-errors";
     configBox.textContent =
-      "⚠ Fix these before running:\n  - " +
+      "⚠ " +
+      t("preview.fixHeader") +
+      "\n  - " +
       built.errors.join("\n  - ") +
-      "\n\nconfig so far:\n" +
+      "\n\n" +
+      t("preview.configSoFar") +
+      "\n" +
       JSON.stringify(built.config, null, 2);
   } else {
     configBox.className = "sb-config";
@@ -1502,17 +1960,17 @@ async function loadOutputs(node, run) {
 
   if (!run) {
     box.innerHTML =
-      '<p class="sb-muted">No outputs yet — this pipeline hasn\'t run.</p>';
+      '<p class="sb-muted">' + escapeHtml(t("out.noOutputsYet")) + "</p>";
     return;
   }
   var slug = workspaceSlug();
   if (!slug) {
     box.innerHTML =
-      '<p class="sb-muted">Outputs are only available inside OpenHEXA.</p>';
+      '<p class="sb-muted">' + escapeHtml(t("out.onlyInOH")) + "</p>";
     return;
   }
 
-  box.innerHTML = '<p class="sb-muted">loading outputs…</p>';
+  box.innerHTML = '<p class="sb-muted">' + escapeHtml(t("out.loading")) + "</p>";
 
   var data;
   try {
@@ -1520,7 +1978,8 @@ async function loadOutputs(node, run) {
   } catch (err) {
     console.error("SNT Orchestrator (cockpit) — outputs query failed:", err);
     if (APP.selectedId === node.id)
-      box.innerHTML = '<p class="sb-muted">Couldn\'t load outputs.</p>';
+      box.innerHTML =
+        '<p class="sb-muted">' + escapeHtml(t("out.couldntLoad")) + "</p>";
     return;
   }
   if (APP.selectedId !== node.id) return; // navigated away
@@ -1545,7 +2004,7 @@ async function loadOutputs(node, run) {
       fromSlug +
       "/?version=" +
       encodeURIComponent(dv.id);
-    html += extLinkHtml(url, "▥", ds.name || ds.slug, "output dataset");
+    html += extLinkHtml(url, "▥", ds.name || ds.slug, t("out.dataset"));
   });
 
   var htmlReports = [];
@@ -1564,16 +2023,16 @@ async function loadOutputs(node, run) {
         '<span class="extlink-txt">' +
         escapeHtml(o.name || o.key) +
         "<small>" +
-        (html_report ? "HTML report" : "output file") +
+        escapeHtml(html_report ? t("out.htmlReport") : t("out.outputFile")) +
         "</small></span>" +
         '<span class="arr">↗</span></a>';
     } else if (o.__typename === "GenericOutput") {
-      html += extLinkHtml(o.uri, "▣", o.genericName || o.uri, "output");
+      html += extLinkHtml(o.uri, "▣", o.genericName || o.uri, t("out.output"));
     }
   });
 
   if (!html)
-    html = '<p class="sb-muted">This run produced no linkable outputs.</p>';
+    html = '<p class="sb-muted">' + escapeHtml(t("out.noLinkable")) + "</p>";
   box.innerHTML = html;
 
   Array.prototype.forEach.call(
@@ -1616,7 +2075,7 @@ async function openBucketObject(key, a) {
         r,
       );
       if (win) win.close();
-      alert("Could not open this output file.");
+      alert(t("msg.couldntOpenFile"));
     }
   } catch (err) {
     console.error(
@@ -1624,7 +2083,7 @@ async function openBucketObject(key, a) {
       err,
     );
     if (win) win.close();
-    alert("Could not open this output file.");
+    alert(t("msg.couldntOpenFile"));
   } finally {
     if (a) {
       a.removeAttribute("data-busy");
@@ -1690,17 +2149,18 @@ function renderReportEmbeds(box, reports, slug) {
       loaded = false;
       body.style.display = "none";
       body.innerHTML = "";
-      toggle.textContent = "Show preview";
+      toggle.textContent = t("report.showPreview");
       toggle.classList.remove("is-active");
     }
 
     async function expand() {
       shown = true;
       body.style.display = "";
-      toggle.textContent = "Hide preview";
+      toggle.textContent = t("report.hidePreview");
       toggle.classList.add("is-active");
       if (loaded) return;
-      body.innerHTML = '<p class="sb-muted">loading report…</p>';
+      body.innerHTML =
+        '<p class="sb-muted">' + escapeHtml(t("report.loading")) + "</p>";
 
       var url = null;
       try {
@@ -1716,8 +2176,11 @@ function renderReportEmbeds(box, reports, slug) {
 
       if (!url) {
         body.innerHTML =
-          '<p class="sb-muted">Couldn\'t load the preview here. ' +
-          '<a href="#" class="sb-report-openlink">Open in a new tab ↗</a></p>';
+          '<p class="sb-muted">' +
+          escapeHtml(t("report.couldntPreview")) +
+          '<a href="#" class="sb-report-openlink">' +
+          escapeHtml(t("report.openNewTab")) +
+          "</a></p>";
         wireReportOpenLink(body, rep.key);
         return;
       }
@@ -1737,7 +2200,9 @@ function renderReportEmbeds(box, reports, slug) {
       var bar = document.createElement("div");
       bar.className = "sb-report-bar";
       bar.innerHTML =
-        '<a href="#" class="sb-report-openlink">Open in a new tab ↗</a>';
+        '<a href="#" class="sb-report-openlink">' +
+        escapeHtml(t("report.openNewTab")) +
+        "</a>";
 
       body.innerHTML = "";
       body.appendChild(frame);
@@ -1822,22 +2287,15 @@ function runStatusLineHtml(node, run) {
         : s === "stopped" || s === "skipped" || s === "terminating"
           ? "■"
           : "●";
-  var labels = {
-    queued: "Queued…",
-    running: "Running…",
-    terminating: "Stopping…",
-    success: "Completed successfully",
-    failed: "Run failed",
-    stopped: "Run stopped",
-    skipped: "Run skipped",
-  };
-  var label = labels[s] || s;
+  var label = I18N[LANG]["runstat." + s] != null ? t("runstat." + s) : s;
   var spin = s === "queued" || s === "running" ? " spin" : "";
   var url = runPageUrl(node, run);
   var link = url
     ? ' <a class="run-link" href="' +
       escapeHtml(url) +
-      '" target="_blank" rel="noopener noreferrer">view run ↗</a>'
+      '" target="_blank" rel="noopener noreferrer">' +
+      escapeHtml(t("runstat.viewRun")) +
+      "</a>"
     : "";
   return (
     '<span class="rs-glyph' +
@@ -1877,11 +2335,11 @@ async function runNode(node) {
       configBox.hidden = false;
       configBox.className = "sb-config has-errors";
       configBox.textContent =
-        "⚠ Fix these before running:\n  - " + built.errors.join("\n  - ");
+        "⚠ " + t("preview.fixHeader") + "\n  - " + built.errors.join("\n  - ");
     }
     setRunStatusLine(
       node.id,
-      '<span class="rs-glyph">⚠</span> Fix the highlighted fields, then run again.',
+      '<span class="rs-glyph">⚠</span> ' + escapeHtml(t("run.fixFields")),
       "rs-err",
     );
     return;
@@ -1891,7 +2349,7 @@ async function runNode(node) {
   if (!slug) {
     setRunStatusLine(
       node.id,
-      '<span class="rs-glyph">⚠</span> Running a pipeline only works inside OpenHEXA.',
+      '<span class="rs-glyph">⚠</span> ' + escapeHtml(t("msg.runOnlyInOH")),
       "rs-err",
     );
     return;
@@ -1899,7 +2357,7 @@ async function runNode(node) {
   if (!node.uuid) {
     setRunStatusLine(
       node.id,
-      '<span class="rs-glyph">⚠</span> This pipeline isn’t available in this workspace.',
+      '<span class="rs-glyph">⚠</span> ' + escapeHtml(t("msg.notAvailableWs")),
       "rs-err",
     );
     return;
@@ -1915,7 +2373,7 @@ async function runNode(node) {
   }
   setRunStatusLine(
     node.id,
-    '<span class="rs-glyph spin">●</span> Starting run…',
+    '<span class="rs-glyph spin">●</span> ' + escapeHtml(t("msg.startingRun")),
     "rs-run",
   );
 
@@ -1930,8 +2388,8 @@ async function runNode(node) {
     setRunBtnBusy(node.id, false);
     setRunStatusLine(
       node.id,
-      '<span class="rs-glyph">⚠</span> Couldn’t start the run: ' +
-        escapeHtml(err.message || "unknown error"),
+      '<span class="rs-glyph">⚠</span> ' +
+        escapeHtml(t("msg.couldntStart") + (err.message || t("msg.unknownError"))),
       "rs-err",
     );
     return;
@@ -1942,13 +2400,13 @@ async function runNode(node) {
     var msg =
       rp && rp.errors && rp.errors.length
         ? rp.errors.join(", ")
-        : "the run was not accepted.";
+        : t("msg.runNotAccepted");
     delete APP.activeRun[node.id];
     setRunBtnBusy(node.id, false);
     setRunStatusLine(
       node.id,
-      '<span class="rs-glyph">⚠</span> Couldn’t start the run: ' +
-        escapeHtml(msg),
+      '<span class="rs-glyph">⚠</span> ' +
+        escapeHtml(t("msg.couldntStart") + msg),
       "rs-err",
     );
     return;
@@ -1988,7 +2446,7 @@ function pollRun(node, runId) {
           stop();
           setRunStatusLine(
             node.id,
-            '<span class="rs-glyph">⚠</span> Lost track of the run — check it in OpenHEXA.',
+            '<span class="rs-glyph">⚠</span> ' + escapeHtml(t("msg.lostTrack")),
             "rs-err",
           );
           return;
@@ -2017,7 +2475,9 @@ function pollRun(node, runId) {
           setRunStatusLine(
             node.id,
             runStatusLineHtml(node, run) +
-              " <small>(stopped watching — still running in OpenHEXA)</small>",
+              " <small>" +
+              escapeHtml(t("msg.stoppedWatchingStillRunning")) +
+              "</small>",
             runStatusCls(pr.status),
           );
           return;
@@ -2035,7 +2495,8 @@ function pollRun(node, runId) {
           stop();
           setRunStatusLine(
             node.id,
-            '<span class="rs-glyph">⚠</span> Stopped watching the run — check it in OpenHEXA.',
+            '<span class="rs-glyph">⚠</span> ' +
+              escapeHtml(t("msg.stoppedWatching")),
             "rs-err",
           );
           return;
@@ -2173,6 +2634,16 @@ function wireEvents() {
       go(APP.cur + 1);
     });
 
+  // Language toggle (EN / FR) in the app bar.
+  Array.prototype.forEach.call(
+    document.querySelectorAll(".langbtn"),
+    function (b) {
+      b.addEventListener("click", function () {
+        setLang(b.getAttribute("data-lang"));
+      });
+    },
+  );
+
   window.addEventListener("keydown", function (e) {
     var tag = document.activeElement ? document.activeElement.tagName : "";
     if (tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA") return;
@@ -2185,12 +2656,20 @@ function wireEvents() {
  * Boot
  * ================================================================== */
 async function init() {
+  // Resolve language first, then paint the static shell in that language.
+  LANG = currentLang();
+  if (document.documentElement)
+    document.documentElement.setAttribute("lang", LANG);
+  applyStaticI18n();
+
   var wsLabel = document.getElementById("workspaceLabel");
   var slug = workspaceSlug();
   if (wsLabel) wsLabel.textContent = slug || "—";
 
   var ck = document.getElementById("cockpit");
-  if (ck) ck.innerHTML = '<div class="ck-boot">Loading pipelines…</div>';
+  if (ck)
+    ck.innerHTML =
+      '<div class="ck-boot">' + escapeHtml(t("boot.loading")) + "</div>";
 
   try {
     var data = await loadData();
@@ -2225,8 +2704,10 @@ async function init() {
     console.error("SNT Orchestrator (cockpit) — failed to load:", err);
     if (ck)
       ck.innerHTML =
-        '<div class="ck-boot">Couldn’t load the pipeline data.<br>' +
-        escapeHtml(err && err.message ? err.message : "Unknown error") +
+        '<div class="ck-boot">' +
+        escapeHtml(t("boot.failed")) +
+        "<br>" +
+        escapeHtml(err && err.message ? err.message : t("boot.unknownError")) +
         "</div>";
   }
 }

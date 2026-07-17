@@ -15,12 +15,19 @@
     "In JSON, write a literal newline inside the string as \\n, e.g. \"First sentence.\\nSecond sentence.\"."
   ],
 
+  "_i18n": [
+    "Bilingual (English / French). Each description value is a { \"en\": ..., \"fr\": ... } object; both hold the same Markdown-lite prose, one per language.",
+    "The cockpit variant resolves the active language via pickLang() and falls back to `en` (then to \"\"). The flowchart variant is English-only for now and reads `en` via its descText() helper — so both variants keep working after the upgrade to the nested shape.",
+    "Backward compatible: a plain string value is still accepted and treated as `en`. New/edited entries should use the { en, fr } object form.",
+    "When adding a pipeline, provide BOTH `en` and `fr`. French drafts are authored/reviewed by Giulia (agents translate on request, per CLAUDE.md — do not invent description prose unprompted)."
+  ],
+
   "_deploy_note": "Each UI variant is deployed as its own OpenHEXA static webapp (separate origin), so app.js can only same-origin fetch('./pipeline_descriptions.json'). This repo file (app/pipeline_descriptions.json) is the single source, but it must be copied into BOTH app/flowchart/ and app/cockpit/'s deploy bundle (files_json) at deploy time — same content, deployed twice, alongside the variant's other 4 generic files. Never hand-edit the deployed copies independently; always edit app/pipeline_descriptions.json and redeploy both variants.",
 
   "_schema": {
     "version": "string — date (YYYY-MM-DD), bumped when descriptions change",
     "descriptions": {
-      "<pipeline_id>": "string — hand-authored, Markdown-lite-formatted paragraph shown in the sidebar for this node (see _formatting)"
+      "<pipeline_id>": "{ en, fr } object — hand-authored, Markdown-lite-formatted paragraph per language, shown in the sidebar for this node (see _formatting and _i18n). A plain string is also accepted for backward compatibility and treated as `en`."
     }
   }
 }
