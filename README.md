@@ -33,24 +33,33 @@ origin.
 │   │   ├── styles.css               #     All styling
 │   │   ├── app.js                   #     All logic (renders map, merges cards, runs/polls pipelines)
 │   │   └── pipeline_map.json        #     Hand-authored map (layout + dependency edges), this variant only
-│   └── cockpit/                     #   Alternative UI — same data/functionality
+│   ├── cockpit/                     #   Alternative UI (production): guided one-step-at-a-time walkthrough
+│   │   ├── index.html               #     Same 4-file shape as flowchart — variant owns its own copies
+│   │   ├── styles.css
+│   │   ├── app.js
+│   │   └── pipeline_map.json        #     May drift from flowchart's map (own layout/labels)
+│   └── pipeline_descriptions.json   #   Shared node descriptions — ONE copy, same in every variant AND workspace
 │
 ├── workspaces/                      # Per-workspace, per-variant data — ONLY the file that differs
 │   ├── snt-app-dev/
 │   │   ├── flowchart/
 │   │   │   └── pipeline_cards.json  #   Cached pipeline catalog (names, UUIDs, parameters)
-│   │   └── cockpit/                 #   pipeline_cards.json (built and deployed)
+│   │   └── cockpit/
+│   │       └── pipeline_cards.json
 │   ├── snt-testing/
-│   │   └── flowchart/
+│   │   ├── flowchart/
+│   │   │   └── pipeline_cards.json
+│   │   └── cockpit/
 │   │       └── pipeline_cards.json
 │   └── cmr-snt-process/
 │       └── flowchart/
 │           └── pipeline_cards.json
 │
 ├── schemas/                         # Machine-readable contracts / references
-│   ├── pipeline_map.schema.json     #   Schema for app/<variant>/pipeline_map.json
-│   ├── pipeline_cards.schema.json   #   Schema + instructions for generating pipeline_cards.json
-│   └── schema.generated.graphql     #   OpenHEXA GraphQL schema — query reference for agents
+│   ├── pipeline_map.schema.json          #   Schema for app/<variant>/pipeline_map.json
+│   ├── pipeline_cards.schema.json        #   Schema + instructions for generating pipeline_cards.json
+│   ├── pipeline_descriptions.schema.json #   Schema + Markdown-lite rules for pipeline_descriptions.json
+│   └── schema.generated.graphql          #   OpenHEXA GraphQL schema — query reference for agents
 │
 ├── docs/                            # Consolidated knowledge (stable)
 │   ├── PRODUCT_SPEC.md              #   Product spec: functionality, UI variants, v0/v1/v2 roadmap
@@ -68,10 +77,12 @@ origin.
 ```
 
 **Generic** artifacts live in `app/<variant>/` (one bundle per UI variant) plus `schemas/` /
-`docs/` / `design/`. **Workspace-specific** data is just
-`workspaces/<ws>/<variant>/pipeline_cards.json` — one file per workspace per variant. Adding a
-new workspace to an existing variant means adding one `pipeline_cards.json`; nothing else
-changes. See "UI variants" below for why there's more than one `app/` subfolder.
+`docs/` / `design/`. **Cross-variant shared** text lives in `app/pipeline_descriptions.json` —
+one hand-authored copy of every node's description, deployed unchanged into both variants'
+bundles. **Workspace-specific** data is just `workspaces/<ws>/<variant>/pipeline_cards.json` —
+one file per workspace per variant. Adding a new workspace to an existing variant means adding
+one `pipeline_cards.json`; nothing else changes. See "UI variants" below for why there's more
+than one `app/` subfolder.
 
 > **No stored webapp config.** Webapp identity and scopes (id, slug, URL, allowed operations) are
 > resolved **live** from the OpenHEXA API (`list_static_webapps` / `get_static_webapp`) at deploy
@@ -91,23 +102,25 @@ evolve independently).
 | `flowchart` | **Production** (this repo's current deployed app) | Interactive 2D node/edge map + config/run sidebar                                                                  |
 | `cockpit`   | **Production**                                    | Focused, one-step-at-a-time guided walkthrough. Target UX: `design/wireframes/orchestrator_wireframe_cockpit.html` |
 
-Deploying a given workspace + variant combination is still 5 files — 4 generic
-(`app/<variant>/*`) + 1 workspace-specific (`workspaces/<ws>/<variant>/pipeline_cards.json`).
-Since webapp identity isn't stored in the repo, live webapps are told apart by **name** (e.g.
-`SNT Pipelines Orchestrator` for `flowchart` vs `SNT Pipelines Orchestrator — Cockpit`).
+Deploying a given workspace + variant combination is 6 files — 4 generic (`app/<variant>/*`) +
+1 cross-variant shared (`app/pipeline_descriptions.json`, same content in both variants' bundles)
++ 1 workspace-specific (`workspaces/<ws>/<variant>/pipeline_cards.json`). Since webapp identity
+isn't stored in the repo, live webapps are told apart by **name** (e.g. `SNT Pipelines
+Orchestrator` for `flowchart` vs `SNT Pipelines Orchestrator — Cockpit`).
 
 ---
 
 ## The data architecture (orchestrator)
 
-The orchestrator separates concerns across three kinds of file. The stable join key everywhere is
+The orchestrator separates concerns across four kinds of file. The stable join key everywhere is
 the node `id` == the pipeline's Python function name (e.g. `snt_dhis2_extract`).
 
 | File                                                                             | Scope                                  | Holds                                                                     |
 | -------------------------------------------------------------------------------- | -------------------------------------- | ------------------------------------------------------------------------- |
 | `app/<variant>/pipeline_map.json`                                                | **per-variant, workspace-independent** | all nodes, grid position, type, mutex group, directed `edges` (deps)      |
+| `app/pipeline_descriptions.json`                                                 | **shared across every variant AND workspace** | hand-authored, Markdown-lite description per node, keyed by `id`   |
 | `workspaces/<ws>/<variant>/pipeline_cards.json`                                  | per-workspace, per-variant             | which pipelines exist + `uuid` + `parameters` (drives _active vs greyed_) |
-| `app/<variant>/index.html` + `app/<variant>/app.js` + `app/<variant>/styles.css` | per-variant app shell (multi-file)     | renders the UI, merges with cards, runs/polls pipelines                   |
+| `app/<variant>/index.html` + `app/<variant>/app.js` + `app/<variant>/styles.css` | per-variant app shell (multi-file)     | renders the UI, merges map + descriptions with cards, runs/polls pipelines |
 
 The **map is identical across all workspaces for a given variant** — every orchestrator shows
 the same full diagram. What differs per workspace is only which nodes are _active_: a node is
@@ -117,17 +130,19 @@ render greyed-out and unclickable. The map is **hand-authored** (validated again
 
 ### Generic vs workspace-specific (what to reuse)
 
-For a given variant, the deployed bundle is **5 files: 4 generic + 1 workspace-specific.** This
-is what makes the orchestrator portable — a new workspace reuses that variant's 4 generic files
-unchanged and only swaps in its own `pipeline_cards.json`.
+For a given variant, the deployed bundle is **6 files: 4 generic + 1 cross-variant shared + 1
+workspace-specific.** This is what makes the orchestrator portable — a new workspace reuses that
+variant's 4 generic files (plus the shared descriptions) unchanged and only swaps in its own
+`pipeline_cards.json`.
 
-| File                  | Generic / WS-specific     | Notes                                                                                                                                       |
-| --------------------- | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| `index.html`          | **Generic** (per variant) | Empty page shell — identical across workspaces for this variant.                                                                            |
-| `styles.css`          | **Generic** (per variant) | All styling — no workspace details.                                                                                                         |
-| `app.js`              | **Generic** (per variant) | All logic — **zero** hardcoded workspace specifics (see caveat below).                                                                      |
-| `pipeline_map.json`   | **Generic** (per variant) | The SNT process map for this variant — same in every workspace, but NOT shared with other variants.                                         |
-| `pipeline_cards.json` | **⚠️ WS-specific**        | The only file that changes per workspace (and is tracked separately per variant): which pipelines exist here + their `uuid` + `parameters`. |
+| File                        | Generic / Shared / WS-specific | Notes                                                                                                                                       |
+| --------------------------- | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `index.html`                | **Generic** (per variant)      | Empty page shell — identical across workspaces for this variant.                                                                            |
+| `styles.css`                | **Generic** (per variant)      | All styling — no workspace details.                                                                                                         |
+| `app.js`                    | **Generic** (per variant)      | All logic — **zero** hardcoded workspace specifics (see caveat below).                                                                      |
+| `pipeline_map.json`         | **Generic** (per variant)      | The SNT process map for this variant — same in every workspace, but NOT shared with other variants.                                         |
+| `pipeline_descriptions.json`| **🔁 Shared**                  | Node description text — one repo copy under `app/`, deployed identically into both variants' bundles (same content, deployed twice).         |
+| `pipeline_cards.json`       | **⚠️ WS-specific**             | The only file that changes per workspace (and is tracked separately per variant): which pipelines exist here + their `uuid` + `parameters`. |
 
 Webapp identity and scopes (`id`, slug, URL, allowed operations) are **not** stored in the repo —
 they're resolved live from the OpenHEXA API (`list_static_webapps` / `get_static_webapp`) at
@@ -136,7 +151,7 @@ deploy time, and are never fetched by the running app.
 The app **self-adapts at runtime**: OpenHEXA injects `window.OPENHEXA.workspaceSlug` at page
 load (so the same `app.js` queries _this_ workspace), and the generic map greys out any node
 whose `id` isn't in this workspace's `pipeline_cards.json`. → **New workspace (same variant) =
-same 4 generic files (`app/<variant>/`) + a new
+same 4 generic files (`app/<variant>/`) + `app/pipeline_descriptions.json` + a new
 `workspaces/<ws>/<variant>/pipeline_cards.json`** (proven in Phase 4 / tasks T4.1–T4.2).
 
 > **One caveat to the "fully generic" claim:** `app.js` hardcodes the SaaS front-end base
@@ -154,9 +169,10 @@ schemas/pipeline_cards.schema.json          ← schema + instructions for buildi
 workspaces/<ws>/<variant>/pipeline_cards.json   ← cached pipeline catalog: names, UUIDs, parameters (fetched at runtime)
         +
 app/<variant>/pipeline_map.json             ← hand-authored map for this variant: layout + dependency edges
+app/pipeline_descriptions.json              ← hand-authored node descriptions, shared across variants + workspaces
 app/<variant>/index.html + styles.css + app.js   ← this variant's app shell (shared by all workspaces)
         ↓
-deploy set = app/<variant>/*  +  workspaces/<ws>/<variant>/pipeline_cards.json
+deploy set = app/<variant>/*  +  app/pipeline_descriptions.json  +  workspaces/<ws>/<variant>/pipeline_cards.json
         ↓
 OpenHEXA static webapp   (webapp id/slug resolved live via list_static_webapps; variant told
                           apart live by webapp name — see "UI variants")
@@ -191,7 +207,7 @@ look up workspace/pipeline IDs and deploy webapps.
    - Find the workspace slug via `list_workspaces`
    - Resolve pipeline UUIDs via `list_pipelines` (webapp id/slug via `list_static_webapps` at deploy time)
    - Create `workspaces/<ws>/<variant>/pipeline_cards.json`
-   - Deploy the generic `app/<variant>/` bundle + that `pipeline_cards.json` to the workspace's webapp
+   - Deploy the generic `app/<variant>/` bundle + `app/pipeline_descriptions.json` + that `pipeline_cards.json` to the workspace's webapp
 4. Commit the new `workspaces/<ws>/<variant>/pipeline_cards.json`
 
 ---
@@ -203,7 +219,7 @@ look up workspace/pipeline IDs and deploy webapps.
    `workspaces/<ws>/<variant>/pipeline_cards.json`, the agent fetches the source from the
    [snt_development GitHub repo](https://github.com/BLSQ/snt_development) and extracts the
    `@parameter` decorators (see the type mapping and rules in `CLAUDE.md`)
-3. The agent redeploys the bundle (`app/<variant>/*` + `workspaces/<ws>/<variant>/pipeline_cards.json`)
+3. The agent redeploys the bundle (`app/<variant>/*` + `app/pipeline_descriptions.json` + `workspaces/<ws>/<variant>/pipeline_cards.json`)
 
 > `pipeline_cards.json` is a **cache, not live truth.** Each file carries a `generated_at` date;
 > a pipeline's parameters on GitHub can drift after that. Before deploying, the agent states the
@@ -217,8 +233,8 @@ Deploys go through the OpenHEXA MCP tool (`update_static_webapp`), which the age
 the file contents passed **inline** (the webapp `id` is resolved live via `list_static_webapps`).
 Partial deploys work — only the changed files need to be sent — and after every deploy the agent
 re-reads the live files with `get_static_webapp` and diffs them against the repo
-(`app/<variant>/` + `workspaces/<ws>/<variant>/pipeline_cards.json`) to confirm what's live
-matches the source.
+(`app/<variant>/` + `app/pipeline_descriptions.json` + `workspaces/<ws>/<variant>/pipeline_cards.json`)
+to confirm what's live matches the source.
 
 **Known friction (large files).** The deploy tool only accepts file _contents_, not a file
 _path_, and the agent can only load a file into its working context up to a size limit. The
