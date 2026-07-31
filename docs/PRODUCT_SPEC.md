@@ -1,7 +1,15 @@
 # SNT Pipelines Orchestrator — Product Specification
 
 > **Status:** Reworked · 2026-07-14 (functionality/UI-UX split + versioned roadmap) · amended
-> 2026-07-15 (PM feedback folded into v1 scope)
+> 2026-07-15 (PM feedback folded into v1 scope) · amended 2026-07-31 (**v1 build progress** —
+> several v1 items are now built in Cockpit; see the marker legend below)
+>
+> **⚠️ v1 is in progress.** Items below carry a build marker. These stay **v1 scope** — a built
+> v1 item is _not_ back-dated into v0, which remains the frozen 2026-07-14 baseline:
+>
+> - **✅ Built (Cockpit)** — implemented and deployed in the Cockpit variant.
+> - **🔨 In progress** — partially done.
+> - _(unmarked)_ — still to do.
 > **Purpose of this document:** give a single, shared definition of _what the product is_, _what
 > it does today_, and _what each version (v0 / v1 / v2) adds_ — so it can be discussed with the
 > PM to pin down concrete version scope instead of vague "v1 / v2" labels, and checked with the
@@ -90,11 +98,13 @@ The persona below is the agreed design target. **Design for the floor, not the c
   teach the process, not assume it.
 - **Leave and return.** The user will often **leave and return mid-process** and needs to see
   "where did I get to" — which makes **persistent, real status** (not session-only) essential (§6).
-- **Language:** initial builds are in **English**, but **French is confirmed as the main interface
+- **Language:** initial builds were **English**, and **French is confirmed as the main interface
   language for v1** (PM steer, 2026-07-15) — nearly all users are French-speaking, so French must
-  eventually come _first_ (see §9). _Idea to evaluate (Giulia):_ ship **one web app with a
-  language-switch button** (a single app offering two language options) rather than separate
-  per-language builds — feasibility to confirm.
+  eventually come _first_ (see §9). The "one web app with a **language-switch button**" idea
+  (rather than separate per-language builds) is **✅ built (Cockpit)** as of 2026-07-17: an EN/FR
+  toggle in the header, remembered per user, with `?lang=fr` deep-linking. Flowchart remains
+  English-only. ⚠️ The **French copy is draft, pending review** — the mechanism is done, the
+  wording is not signed off.
 
 ### 3.1 Autonomy & support (largely still open — see §10)
 
@@ -231,8 +241,12 @@ each — see §9.1), with the narrative layer reconsidered later as a possible v
   dependency model (F8/F9) to decide what comes next.
 - **Per-pipeline descriptions** (the v1 content investment): each step's one-liner is expanded to a
   **short paragraph** — what the pipeline is, what it produces, and how to read its result — aimed
-  at the Excel-level floor and the "partial mental model" persona (§3). The PM will draft the text
-  for a couple of pipelines as a template; Giulia completes the rest.
+  at the Excel-level floor and the "partial mental model" persona (§3). The PM drafts the text for a
+  couple of pipelines as a template; Giulia completes the rest.
+  **🔨 In progress — 2 of 18 expanded** (as of 2026-07-31): `snt_dhis2_extract` (A.1) and
+  `snt_dhis2_formatting` (A.2) now carry full paragraphs; the remaining 16 are still one-liners.
+  The delivery mechanism is done — text lives in `app/pipeline_descriptions.json` (one shared copy,
+  bilingual `{en, fr}`), so completing this is **content authoring, not development**.
 - Renders the full functionality set (F1–F10): status per step, parameter form + preview, run +
   poll, outputs/report links, mutual-exclusion notices, and lock/unlock state.
 - **Desktop only** (landscape). Not designed for mobile/tablet.
@@ -268,17 +282,24 @@ Target UX: `design/wireframes/orchestrator_wireframe.html` (⚠️ **to be updat
   warning** — users are not assumed to be anxious about "breaking something," and there are no
   per-run cost consequences to guard against. A **re-run can overwrite previous outputs**, and the
   app should make that consequence legible in its copy, without gating runs behind a modal.
-- **Dependencies section — condense (planned v1).** The panel's **Dependencies** block (the F8/F9
-  "Requires / Unlocks next / Uses if available" lists) takes too much vertical space today — worst
-  case **A.2 · DHIS2 Formatting**, which unlocks 10+ pipelines. v1 condenses it: make the section
-  **collapsible** and, when collapsed, show only a **count per dependency type** (e.g. _"Requires (2
-  pipelines)"_, _"Unlocks (11 pipelines)"_). The exact treatment — collapse the whole section vs
-  just the per-type lists, and whether to move it to the bottom of the panel — is a small open UI
-  choice (§10).
-- **Embed the HTML report (planned v1, feasibility to confirm).** Rather than only link out to the
-  run's HTML report (F6), render its **content in a box at the bottom of the pipeline card/panel** so
-  the user reads the result without leaving the app. Whether the report HTML can be safely embedded
-  in-app is a **technical point to explore with the devs** (§10).
+- **Dependencies section — condense (v1). ✅ Built (Cockpit).** The panel's **Dependencies** block
+  (the F8/F9 "Requires / Unlocks next / Uses if available" lists) took too much vertical space —
+  worst case **A.2 · DHIS2 Formatting**, which unlocks 10+ pipelines. **Treatment as built:** each
+  labelled section (**Dependencies**, _Choose a method_, _Parameters_, _Latest outputs_) became a
+  **collapsible box** with a keyboard-accessible header toggle; **Dependencies starts collapsed**
+  (it's the tallest) while the others start open. The description block is deliberately **not**
+  collapsible — it stays permanently visible. This settles the "whole section vs per-type lists"
+  choice in §10 in favour of collapsing the whole section.
+  ⚠️ **Not built:** the **per-type counts** in the collapsed header (_"Requires (2 pipelines)"_,
+  _"Unlocks (11 pipelines)"_) — the header reads just "Dependencies". Still open whether the counts
+  are wanted now that the block is collapsed by default. **Flowchart: not built** (still full lists).
+- **Embed the HTML report (v1). ✅ Built (Cockpit) — feasibility confirmed.** Rather than only link
+  out to the run's HTML report (F6), its **content renders in a box at the bottom of the step** so
+  the user reads the result without leaving the app. **The technical question is answered:** the
+  report's GCS signed URL sends no `X-Frame-Options` / restrictive `frame-ancestors`, so it is
+  safely frameable from the webapp origin — implemented as an `<iframe>` on a freshly-signed URL
+  (signed URLs expire, so the frame is re-signed on demand). Validated by the
+  `archive/snt-app-dev/report-embed/` spike first. **Flowchart: not built** (still links out).
 - **Documentation source — README drift (planned v1).** The detail panel links out to each
   pipeline's **README on GitHub `main`** (F3), which reflects the _latest_ pipeline version and may
   not match the (possibly older) version **installed** in the workspace. v1 resolves this. A
@@ -297,9 +318,13 @@ Target UX: `design/wireframes/orchestrator_wireframe.html` (⚠️ **to be updat
 for both variants — that shared baseline is _not_ repeated in the tables below. The tables track
 only the **deltas**: what each version _adds_ on top of the previous one. Definitions:
 
-- **v0 — current status (today, 2026-07-14).** What is built and deployed right now.
-- **v1 — first version exposed to real users.** The bar for putting the app in front of an actual
-  NMP team. **Cockpit is the v1 lead**; Flowchart's v1 is a later, parallel milestone.
+- **v0 — the frozen baseline (as of 2026-07-14).** What was built and deployed at the time this
+  roadmap was drawn. ⚠️ **v0 is a historical snapshot, not "whatever is built today."** Work
+  completed since then belongs to **v1** and stays in the v1 column with a build marker — do not
+  migrate finished v1 items back into v0.
+- **v1 — first version exposed to real users, and the version currently in progress.** The bar for
+  putting the app in front of an actual NMP team. **Cockpit is the v1 lead**; Flowchart's v1 is a
+  later, parallel milestone.
 - **v2 — longer-term view.** Bigger enhancements, several of them shaped by feedback from v1 users
   and by the platform's move toward scheduling/automation.
 
@@ -311,12 +336,12 @@ Items in _italics_ are open decisions (see §10) placed at their **recommended**
 | ---------------------------- | ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
 | **Functionality (F1–F10)**   | ✅ Full set built (§6)                                        | — (baseline carries forward)                                                                                              | —                                                                                           |
 | **Deployment scope**         | Deployed to `snt-app-dev`, `snt-testing` (dev/test only)      | Deployed to a **real country workspace** for a pilot NMP team                                                             | Rolled out to further country workspaces                                                     |
-| **Per-pipeline descriptions**| Placeholder / partial one-liners                              | **Short paragraph per pipeline** (what it is / produces / how to read it); **PM seeds a couple, Giulia completes the rest**| Richer per-step "how to read this" content                                                   |
+| **Per-pipeline descriptions**| Placeholder / partial one-liners                              | **Short paragraph per pipeline** (what it is / produces / how to read it); **PM seeds a couple, Giulia completes the rest** — 🔨 **2 of 18 done** (A.1, A.2) | Richer per-step "how to read this" content                                                   |
 | **Guidance / narrative**     | Guided one-step-at-a-time structure in place; minimal copy    | — (**full narrative layer parked** — see §7)                                                                              | _Full narrative layer_ — per-step plain-language walkthrough; onboarding "start here" tour   |
 | **Documentation source**     | README link out to GitHub `main` (F3)                         | **Resolve GitHub-README vs installed-version drift**; explore surfacing the template's **"Template Documentation"** in-app | —                                                                                           |
-| **Dependencies display**     | Full Requires/Unlocks/Uses lists in panel                     | **Collapsible dependencies with per-type counts** (condense; A.2 unlocks 10+)                                             | —                                                                                           |
-| **Report viewing**           | HTML report opens via signed-URL link-out (F6)                | **Embed report content in a box at the bottom of the card** (feasibility to confirm)                                      | —                                                                                           |
-| **Localization**             | English only                                                  | **French — confirmed main interface language**; evaluate a single-app **language switch**                                 | French-first; additional languages as needed                                                |
+| **Dependencies display**     | Full Requires/Unlocks/Uses lists in panel                     | ✅ **Built** — labelled sections collapsible; Dependencies starts collapsed. _Per-type counts not built_ (§8.1)            | —                                                                                           |
+| **Report viewing**           | HTML report opens via signed-URL link-out (F6)                | ✅ **Built** — report embedded in a box at the bottom of the step (iframe on signed URL; feasibility confirmed)             | —                                                                                           |
+| **Localization**             | English only                                                  | ✅ **Built** — single-app **EN/FR toggle** (persisted, `?lang=` deep-link). ⚠️ French copy is **draft, pending review**     | French-first; additional languages as needed                                                |
 | **Failure help**             | Link out to the OpenHEXA run on failure (F10)                 | —                                                                                                                         | _Plain-language failure summary in-app + deeper run Messages / log excerpts_ (recommended v2)|
 | **Guidance intelligence**    | Static dependency model drives order (F8/F9)                  | Static, pre-authored order only                                                                                          | _Active "recommend the next step to run"_ (recommended v2)                                   |
 | **Team & scheduling**        | Single shared status board (F1)                               | —                                                                                                                         | _"Who is running what" visibility_; surface **scheduled/automated** runs (v2)                |
@@ -329,11 +354,11 @@ Items in _italics_ are open decisions (see §10) placed at their **recommended**
 | **Functionality (F1–F10)**    | ✅ Full set built (§6)                                      | — (baseline carries forward)                                                       | —                                                                  |
 | **Deployment scope**          | Deployed to `snt-app-dev`, `snt-testing`, `cmr-snt-process` | Exposed to real users **if/when promoted** after Cockpit                           | Further workspaces as a power-user alternative                     |
 | **Map UX**                    | Pan/zoom 2D canvas + collapsible legend; card + side panel  | Polish (fit-to-screen defaults, legend clarity) for real-user readiness            | Larger-map ergonomics (mini-map / grouping) as the map grows       |
-| **Per-pipeline descriptions** | Placeholder / partial one-liners                            | **Short paragraph per pipeline** (shared with Cockpit — PM seeds, Giulia completes)| Richer descriptions                                                |
-| **Documentation source**      | README link out to GitHub `main` (F3)                       | **Resolve GitHub-README vs installed-version drift** (shared with Cockpit)         | —                                                                  |
-| **Dependencies display**      | Full Requires/Unlocks/Uses lists in panel                   | **Collapsible dependencies with per-type counts** (shared with Cockpit)            | —                                                                  |
-| **Report viewing**            | HTML report opens via signed-URL link-out (F6)              | **Embed report content in a box at the bottom of the card** (feasibility to confirm)| —                                                                  |
-| **Localization**              | English only                                                | **French — confirmed main interface language** (aligned with Cockpit)              | French-first; additional languages                                 |
+| **Per-pipeline descriptions** | Placeholder / partial one-liners                            | **Short paragraph per pipeline** — ✅ **inherited automatically** (shared `pipeline_descriptions.json`), so tracks Cockpit's 2-of-18 | Richer descriptions                          |
+| **Documentation source**      | README link out to GitHub `main` (F3)                       | **Resolve GitHub-README vs installed-version drift** (shared with Cockpit) — _not built_ | —                                                            |
+| **Dependencies display**      | Full Requires/Unlocks/Uses lists in panel                   | **Collapsible dependencies** (as built in Cockpit) — _not built, needs porting_    | —                                                                  |
+| **Report viewing**            | HTML report opens via signed-URL link-out (F6)              | **Embed report content in a box** — _not built, needs porting_ (feasibility now confirmed by Cockpit) | —                                            |
+| **Localization**              | English only                                                | **French — confirmed main interface language** (aligned with Cockpit) — _not built_; reads the `en` side of the shared bilingual data | French-first; additional languages |
 | **Failure help**              | Link out to the OpenHEXA run on failure (F10)               | —                                                                                  | _Plain-language failure summary in-app + deeper run Messages_ (recommended v2) |
 | **Guidance intelligence**     | Legend + type cues; static dependency model (F8/F9)         | Improved in-panel guidance/legend                                                  | _Active "recommend the next step"_ (recommended v2)                |
 | **Team & scheduling**         | Single shared status board (F1)                             | —                                                                                  | _"Who is running what"_; surface **scheduled/automated** runs (v2) |
@@ -343,10 +368,13 @@ Items in _italics_ are open decisions (see §10) placed at their **recommended**
 Each open point below is tagged with the version where it is **recommended** to land, so the PM can
 confirm or move it. Placing these is the main purpose of this document.
 
-1. **French localization — _v1 (decided)._** French is **confirmed as the main interface language
-   for v1** (PM, 2026-07-15), for both variants. **Sub-question to evaluate (Giulia):** can we ship
-   **one web app with a language-switch button** (two language options in a single app) rather than
-   separate per-language builds? — feasibility TBC.
+1. **French localization — _v1 (decided; ✅ built in Cockpit)._** French is **confirmed as the main
+   interface language for v1** (PM, 2026-07-15), for both variants. **Sub-question resolved:** yes —
+   **one web app with a language-switch button** works, and is built (Cockpit, 2026-07-17): an EN/FR
+   header toggle, choice persisted, `?lang=fr` deep-linkable. No separate per-language builds needed.
+   **Remaining for v1:** (a) **review/sign off the French copy** — currently draft; (b) decide whether
+   **parameter labels/help** (which come from the pipeline source, not the app) should also be
+   translated — today they stay English; (c) port to Flowchart if/when it goes user-facing.
 2. **In-app failure help — _moved to v2._** On a failed run, surface a **plain-language summary
    in-app** and (deeper) **run Messages / log excerpts** — both now targeted at **v2** (was v1
    light). v1 keeps the link-out to the OpenHEXA run (F10). _(Q24; PM re-prioritised 2026-07-15.)_
@@ -389,15 +417,21 @@ confirm or move it. Placing these is the main purpose of this document.
    README) that could be **extracted and shown in-app** (e.g. a popup) instead of linking out.
    **Question for the team (Giulia to ask):** how is the template pipeline's "Template Documentation"
    field linked to GitHub? _(New, 2026-07-15.)_
-9. **Condense the Dependencies section — _v1 (treatment TBD)._** The panel's Dependencies block is
-   too tall (A.2 · DHIS2 Formatting unlocks 10+). Agreed to condense in v1; the exact treatment is
-   open: **collapse the whole section** vs **collapse only the per-type lists** (showing a count like
-   _"Requires (2 pipelines)"_ / _"Unlocks (11 pipelines)"_), and whether to **move it to the bottom**
-   of the panel. _(New, PM 2026-07-15.)_
-10. **Embed the HTML report in-app — _v1, feasibility to confirm._** Show the run's HTML report
-    **content in a box at the bottom of the pipeline card**, instead of only linking to it (F6).
-    **Technical point to explore:** whether the report HTML can be safely embedded in-app. _(New,
-    2026-07-15.)_
+9. **Condense the Dependencies section — _v1 (✅ built in Cockpit; one sub-question left)._** The
+   panel's Dependencies block was too tall (A.2 · DHIS2 Formatting unlocks 10+). **Treatment
+   decided by implementation:** collapse the **whole section** — every panel section is now a
+   collapsible box, and Dependencies **starts collapsed**. It stays in place (not moved to the
+   bottom of the panel). **Still open:** are the **per-type counts** in the collapsed header
+   (_"Requires (2 pipelines)"_ / _"Unlocks (11 pipelines)"_) still wanted, now that the block is
+   collapsed by default? Not built. _(New, PM 2026-07-15; built same day.)_
+10. **Embed the HTML report in-app — _v1 (✅ built in Cockpit; feasibility confirmed)._** The run's
+    HTML report now renders **in a box at the bottom of the step**, not only as a link (F6).
+    **Technical point resolved:** the report **can** be safely embedded — its GCS signed URL sends
+    no `X-Frame-Options` / restrictive `frame-ancestors`, so an `<iframe>` from the webapp origin
+    works. Signed URLs expire, so the frame is mounted on a freshly-signed URL and re-signed on
+    demand. Proven by the `archive/snt-app-dev/report-embed/` spike, then implemented. **Remaining
+    for v1:** port to Flowchart if/when it goes user-facing. _(New, 2026-07-15; spiked and built
+    the same day.)_
 
 Resolved earlier (kept for traceability): missing-pipeline UX → greyed + clickable "how to
 install" panel with a templates deep link (Q49/Q70); persistent vs session-only status → must
