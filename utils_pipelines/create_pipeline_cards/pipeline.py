@@ -11,7 +11,7 @@ from openhexa.sdk.client import openhexa as hexa_client
 import config
 
 
-@pipeline("create_pipeline_cards")
+@pipeline(name="Create pipeline_cards.json") 
 @parameter(
     "webapp_name",
     name="Name of the webapp to deploy the pipeline cards to",
