@@ -44,7 +44,7 @@ NOTES = "Catalog for the SNT App Dev workspace (18 pipelines). All of the IDs ar
 PARAMETERS_SOURCE = "openhexa_deployed"
 EXPECTED_NUM_PIPELINES = 18
 PIPELINES_PER_PAGE = 50
-OUTPUT_DIR = "pipelines/create_pipeline_cards/pipeline_cards"
+OUTPUT_DIR = "utils_pipelines/create_pipeline_cards/pipeline_cards"
 WEBAPP_CARDS_PATH = "pipeline_cards.json"
 QUERY_WEBAPPS = """
     query listWebapps($workspaceSlug: String!, $page: Int, $perPage: Int) {
