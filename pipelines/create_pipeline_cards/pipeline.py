@@ -34,84 +34,10 @@ def create_pipeline_cards(webapp_name: str | None):
     pipeline_cards = add_parameters(workspace_slug, pipeline_cards)
     move_files_to_historical(Path(workspace.files_path) / config.OUTPUT_DIR)
     save_json(pipeline_cards, Path(workspace.files_path) / config.OUTPUT_DIR)
-    # update_webapp(pipeline_cards, webapp)
-
 
 # ---------------------------------------------------------------------------
 # Webapp helpers
 # ---------------------------------------------------------------------------
-
-
-def update_webapp(
-    pipeline_cards: dict[str, str | list[dict]],
-    webapp: dict | None,
-):
-    """Update the webapp with the pipeline cards.
-
-    Parameters
-    ----------
-    pipeline_cards : dict[str, str | list[dict]]
-        The pipeline cards containing the pipelines.
-    webapp : dict | None
-        The resolved webapp (``id``, ``name``, ``slug``). If None, the webapp will not be updated.
-    """
-    if webapp is None:
-        current_run.log_info("No webapp specified. Skipping webapp update.")
-        return
-
-    update_webapp_with_id(webapp["id"], webapp["name"], pipeline_cards)
-
-
-def update_webapp_with_id(
-    webapp_id: str,
-    webapp_name: str,
-    pipeline_cards: dict[str, str | list[dict]],
-):
-    """Update the webapp with the pipeline cards.
-
-    Parameters
-    ----------
-    webapp_id : str
-        The UUID of the webapp to deploy the pipeline cards to.
-    webapp_name : str
-        The name of the webapp to deploy the pipeline cards to.
-    pipeline_cards : dict[str, str | list[dict]]
-        The pipeline cards containing the pipelines.
-    """
-    response = _gql(
-        config.MUTATION_UPDATE_WEBAPP,
-        variables={
-            "input": {
-                "id": webapp_id,
-                "files": [
-                    {
-                        "path": config.WEBAPP_CARDS_PATH,
-                        "content": json.dumps(pipeline_cards, indent=4),
-                        "encoding": "TEXT",
-                    }
-                ],
-            }
-        },
-    ).get("updateWebapp")
-
-    if not response.get("success"):
-        errors = response.get("errors", [])
-        if "PERMISSION_DENIED" in errors:
-            current_run.log_error(
-                f"Permission denied when updating webapp '{webapp_name}'. "
-                "The pipeline token does not have write access to this webapp. "
-                "Please ensure the pipeline user has Editor (or Admin) permissions "
-                "on the workspace, or update the webapp manually using the JSON "
-                f"saved to {config.OUTPUT_DIR}."
-            )
-        else:
-            current_run.log_error(f"Failed to update webapp '{webapp_name}': {errors}")
-        return
-
-    current_run.log_info(
-        f"Webapp {webapp_name} updated with {config.WEBAPP_CARDS_PATH}."
-    )
-
 
 def resolve_webapp(workspace_slug: str, webapp_name: str | None) -> dict | None:
     """Resolve the webapp matching the given name.
