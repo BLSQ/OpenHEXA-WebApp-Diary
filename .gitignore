@@ -7,6 +7,7 @@
 # Personal scratch / learning notes (local only, not shared)
 ignore/
 
+
 # OS
 .DS_Store
 Thumbs.db
@@ -15,3 +16,6 @@ Thumbs.db
 .vscode/
 .idea/
 *.swp
+
+# Cache
+.cache/
