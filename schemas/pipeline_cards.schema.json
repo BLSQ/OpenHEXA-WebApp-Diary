@@ -8,7 +8,8 @@
     "4. Use the OpenHEXA display name from list_pipelines as `name`. If it is just the Python function name (no human-readable name), derive one from the standard SNT naming convention and confirm with the user before building a UI card.",
     "5. Save to workspaces/<ws>/<variant>/pipeline_cards.json (e.g. workspaces/snt-app-dev/flowchart/pipeline_cards.json).",
     "6. If a GitHub source returns 404, include the entry with an empty parameters array and set parameters_source to 'unavailable'.",
-    "7. If multiple instances of the same pipeline exist (duplicate Python function names), include all entries and use openhexa_code to distinguish them."
+    "7. If multiple instances of the same pipeline exist (duplicate Python function names), include all entries and use openhexa_code to distinguish them.",
+    "8. Curation — include a pipeline iff its `id` is a node in pipeline_map.json AND it exists live in the workspace. Live pipelines that are not map nodes are excluded (the webapp has no node to render them on); map nodes with no live pipeline are simply absent here and render greyed-out. No separate manifest is needed. The create_pipeline_cards pipeline applies this automatically by reading pipeline_map.json back from the target webapp, so the deployed map is the authority."
   ],
 
   "_type_mapping": {
@@ -31,7 +32,7 @@
         "name":              "string — human-readable display name for the UI card header",
         "uuid":              "string — workspace-specific pipeline UUID; NEVER copy across workspaces",
         "openhexa_code":     "string — OpenHEXA pipeline code/slug; useful when multiple instances of the same pipeline exist in one workspace",
-        "parameters_source": "string — 'github_main' or 'unavailable' (GitHub 404)",
+        "parameters_source": "string — 'github_main' (read from the snt_development main branch), 'openhexa_deployed' (read from the deployed pipeline version via the OpenHEXA API, which is what runPipeline validates against — this is what the create_pipeline_cards pipeline emits), or 'unavailable' (GitHub 404)",
         "parameters": [
           {
             "key":      "string — parameter key matching the @parameter decorator; used verbatim in the config object",
