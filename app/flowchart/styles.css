@@ -624,6 +624,30 @@ svg.edges {
   line-height: 1.5;
 }
 
+/* Fatal boot failure, rendered into #canvas when loadData() throws — most
+ * plausibly because this workspace has no pipeline catalog in its bucket yet
+ * (the create_pipeline_cards pipeline has never run here). */
+.map-error {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  max-width: 34rem;
+  padding: 1.25rem 1.5rem;
+  border: 1px solid #fecaca;
+  border-left: 4px solid #ef4444;
+  border-radius: 8px;
+  background: #fef2f2;
+  color: #7f1d1d;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  cursor: auto;
+}
+.map-error p {
+  margin: 0.5rem 0 0;
+  color: #991b1b;
+}
+
 /* Sticky header. */
 .sb-head {
   position: sticky;

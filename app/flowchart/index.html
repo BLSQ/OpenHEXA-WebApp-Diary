@@ -7,10 +7,12 @@
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
-    <!-- App shell: a scrollable canvas (the pipeline map) on the left,
-         a detail sidebar on the right. Both are empty at T1.1 — the grid,
-         arrows, and sidebar content arrive in later tasks (T1.2+). The only
-         job at this stage is the data plumbing in app.js. -->
+    <!-- App shell: a pan/zoom canvas (the pipeline map) on the left, a detail
+         sidebar on the right. Both are empty on load — app.js fetches the
+         bundled pipeline_map.json + pipeline_descriptions.json, reads this
+         workspace's pipeline_cards.json live from the workspace bucket (written
+         by the create_pipeline_cards pipeline, so config changes need no
+         redeploy), then renders the map, arrows, and sidebar. -->
     <header class="topbar">
       <h1 class="topbar-title">SNT Pipelines Orchestrator</h1>
       <span class="topbar-ws" id="workspaceLabel"></span>

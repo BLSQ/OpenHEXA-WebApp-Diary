@@ -6,9 +6,14 @@
  * (T1.2), arrows (T1.3), greying (T1.4), and status (T1.5) on top of it.
  *
  *   - pipeline_map.json   : the shared, workspace-independent map (all ~18 nodes,
- *                           their row/col, type, group, and edges).
+ *                           their row/col, type, group, and edges). Bundled,
+ *                           fetched same-origin alongside this file.
  *   - pipeline_cards.json : this workspace's catalog — which pipelines actually
- *                           exist here, with their UUID and parameters.
+ *                           exist here, with their UUID and parameters. NOT
+ *                           bundled: read live from the workspace bucket (see
+ *                           CARDS_OBJECT_KEY), where the companion
+ *                           `create_pipeline_cards` pipeline writes it. So a
+ *                           config change is a pipeline run, not a redeploy.
  *
  * The stable join key everywhere is the node `id` == the pipeline's Python
  * function name (e.g. "snt_dhis2_extract").
@@ -73,28 +78,78 @@ var CONNECTIONS_QUERY =
  * Data loading + merge
  * ------------------------------------------------------------------ */
 
-// Fetch both data files (same-origin, served alongside the app) in parallel.
+/* Where this workspace's pipeline catalog lives in the workspace bucket. Written
+ * by the companion `create_pipeline_cards` pipeline — this key must stay in
+ * lockstep with that pipeline's config.py (OUTPUT_DIR + WEBAPP_CARDS_PATH). It
+ * is deliberately NOT part of the deployed bundle: keeping it in the bucket
+ * means a config change is one pipeline run, not a redeploy.
+ *
+ * The same key serves both UI variants: the generator curates against the
+ * webapp's deployed pipeline_map.json, and both variants' maps declare the same
+ * node ids, so one generated catalog is valid for both. */
+var CARDS_OBJECT_KEY =
+  "utils_pipelines/create_pipeline_cards/pipeline_cards/pipeline_cards.json";
+
+async function fetchJson(url) {
+  var res = await fetch(url);
+  if (!res.ok)
+    throw new Error("Failed to load " + res.url + " (HTTP " + res.status + ")");
+  return await res.json();
+}
+
+/* Read the catalog out of the workspace bucket: prepareObjectDownload
+ * (FILES_READ) mints a signed GCS URL, which we then fetch cross-origin — the
+ * same mechanism as the report/output downloads below, and probe-confirmed
+ * CORS-open. There is no bundled fallback by design: a workspace where
+ * `create_pipeline_cards` has never run has no catalog, and that must surface as
+ * a boot error rather than silently serving a stale bundled copy. */
+async function loadCards() {
+  var slug =
+    window.OPENHEXA && window.OPENHEXA.workspaceSlug
+      ? window.OPENHEXA.workspaceSlug
+      : null;
+  if (!slug)
+    throw new Error(
+      "The workspace could not be resolved — open this app from inside OpenHEXA.",
+    );
+
+  var data = await gql(DOWNLOAD_MUTATION, {
+    input: {
+      workspaceSlug: slug,
+      objectKey: CARDS_OBJECT_KEY,
+      forceAttachment: false,
+    },
+  });
+  var r = data.prepareObjectDownload;
+  if (!r || !r.success || !r.downloadUrl)
+    throw new Error(
+      "No pipeline catalog was found in this workspace (" +
+        CARDS_OBJECT_KEY +
+        "). Run the “create_pipeline_cards” pipeline to generate it.",
+    );
+
+  var res = await fetch(r.downloadUrl);
+  if (!res.ok)
+    throw new Error(
+      "The pipeline catalog in this workspace could not be read (" +
+        CARDS_OBJECT_KEY +
+        " — HTTP " +
+        res.status +
+        "). If it has never been generated, run the " +
+        "“create_pipeline_cards” pipeline.",
+    );
+  return await res.json();
+}
+
+/* Load the two bundled data files (same-origin, served alongside the app) and
+ * the bucket-hosted catalog, all in parallel. */
 async function loadData() {
-  var responses = await Promise.all([
-    fetch("./pipeline_map.json"),
-    fetch("./pipeline_cards.json"),
-    fetch("./pipeline_descriptions.json"),
+  var results = await Promise.all([
+    fetchJson("./pipeline_map.json"),
+    fetchJson("./pipeline_descriptions.json"),
+    loadCards(),
   ]);
-  for (var i = 0; i < responses.length; i++) {
-    if (!responses[i].ok) {
-      throw new Error(
-        "Failed to load " +
-          responses[i].url +
-          " (HTTP " +
-          responses[i].status +
-          ")",
-      );
-    }
-  }
-  var map = await responses[0].json();
-  var cards = await responses[1].json();
-  var descriptions = await responses[2].json();
-  return { map: map, cards: cards, descriptions: descriptions };
+  return { map: results[0], descriptions: results[1], cards: results[2] };
 }
 
 /* Merge the map with the workspace's cards into one list of nodes.
@@ -2524,6 +2579,22 @@ async function init() {
     await loadConnections();
   } catch (err) {
     console.error("SNT Orchestrator — failed to load data:", err);
+    // The catalog now comes from the workspace bucket, so "never generated in
+    // this workspace" is a real, expected failure rather than a should-never-
+    // happen one. Surface it on the canvas — a blank map with a console-only
+    // error would look like a bug instead of a missing prerequisite.
+    var canvas = document.getElementById("canvas");
+    if (canvas) {
+      var box = document.createElement("div");
+      box.className = "map-error";
+      var head = document.createElement("strong");
+      head.textContent = "Couldn’t load the pipeline data.";
+      var detail = document.createElement("p");
+      detail.textContent = err && err.message ? err.message : "Unknown error";
+      box.appendChild(head);
+      box.appendChild(detail);
+      canvas.appendChild(box);
+    }
   }
 }
 
