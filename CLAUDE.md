@@ -800,6 +800,11 @@ workspace *now*: if pipelines have been installed or upgraded since `generated_a
 generator. **Do not** patch a parameter by hand to "fix" drift — that desynchronises the bucket
 file from the generator and the next run silently reverts it.
 
+Each card also records the deployed version it was built from (`version_name` / `version_number`,
+added 2026-08-04). Nothing reads them yet — they exist so a future drift check can compare them
+against the live `pipelineByCode.currentVersion` and surface a refresh prompt only on real change,
+rather than an always-visible "refresh" control that asks users to self-diagnose.
+
 ### Reference: how a pipeline's parameters are declared
 
 You should not normally need this — `create_pipeline_cards` extracts parameters from the deployed

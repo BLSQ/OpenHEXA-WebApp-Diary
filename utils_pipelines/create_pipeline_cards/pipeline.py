@@ -191,7 +191,12 @@ def add_ids(
 def add_parameters(
     workspace_slug: str, pipeline_cards: dict[str, str | list[dict]]
 ) -> dict[str, str | list[dict]]:
-    """Add parameters to the pipelines.
+    """Add each pipeline's parameters, and the deployed version they came from.
+
+    Both come out of the same ``currentVersion`` response. The version fields
+    record *which* deployed version the parameters were read from, so a consumer
+    can detect that the catalog has fallen behind the installed pipeline (its
+    parameters may have changed) without having to compare parameters itself.
 
     Parameters
     ----------
@@ -203,15 +208,21 @@ def add_parameters(
     Returns
     -------
     dict[str, str | list[dict]]
-        The pipeline cards with pipelines including parameters.
+        The pipeline cards with pipelines including their deployed version and
+        parameters.
     """
     for one_pipeline in pipeline_cards["pipelines"]:
         pipeline_code = one_pipeline["openhexa_code"]
         current_version = get_current_version(workspace_slug, pipeline_code)
+        one_pipeline["version_name"] = (current_version or {}).get("versionName")
+        one_pipeline["version_number"] = (current_version or {}).get("versionNumber")
         parameters = (current_version or {}).get("parameters") or []
         one_pipeline["parameters"] = format_parameters(parameters)
 
-        current_run.log_info(f"Parameters added to {pipeline_code}")
+        current_run.log_info(
+            f"Parameters added to {pipeline_code} (deployed version: "
+            f"{one_pipeline['version_name'] or 'unknown'})"
+        )
 
     return pipeline_cards
 

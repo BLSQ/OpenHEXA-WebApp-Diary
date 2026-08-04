@@ -335,6 +335,10 @@ greyed-out until you install them.
 > version in that workspace** — not from GitHub `main` — so they can't drift from what's actually
 > installed. What can be out of date is the catalog vs the workspace: if pipelines have been
 > installed or upgraded since that date, re-run the generator.
+>
+> Each entry also records the deployed version it was built from (`version_name` /
+> `version_number`), so the app can eventually notice that drift by itself rather than relying on
+> someone spotting it.
 
 ---
 

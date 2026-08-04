@@ -2,6 +2,8 @@ QUERY_PARAMS = """
     query getPipeline($workspaceSlug:String!, $pipelineCode:String!){
         pipelineByCode(workspaceSlug: $workspaceSlug, code: $pipelineCode) {
             currentVersion {
+                versionName
+                versionNumber
                 parameters {
                     code
                     name
