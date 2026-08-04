@@ -294,22 +294,26 @@ one of those, run it by hand.
 
 ## Adding a new workspace
 
-1. **Install `create_pipeline_cards`** in the workspace (from `utils_pipelines/create_pipeline_cards/`)
-   and **run it once**. Set its `webapp_name` parameter to the name of the orchestrator webapp in
-   that workspace, so it curates the catalog against the deployed map.
-2. Open Claude Code in this directory
-3. Say: _"Create the `<variant>` webapp for workspace `<workspace name>`"_ (specify which UI
+1. Open Claude Code in this directory
+2. Say: _"Create the `<variant>` webapp for workspace `<workspace name>`"_ (specify which UI
    variant — `flowchart` or `cockpit`)
-4. The agent will:
+3. The agent will:
    - Find the workspace slug via `list_workspaces`
    - Create the webapp with the four required scopes (`PIPELINES_READ`, `PIPELINES_RUN`,
      `FILES_READ`, `USER_READ`) — `FILES_READ` is what lets the app read its own catalog
    - Deploy the generic `app/<variant>/` bundle + `app/pipeline_descriptions.json` (5 files)
    - Check the catalog exists in the workspace's file storage
+4. **Install `create_pipeline_cards`** in the workspace (from `utils_pipelines/create_pipeline_cards/`)
+   and **run it once**. It takes no parameters — just Run.
 5. Nothing to commit — the bundle is unchanged and the catalog isn't a repo file.
 
-> Steps 1 and 3 can be done in either order, but the app will show a "run `create_pipeline_cards`"
-> error until step 1 is done.
+> **The webapp comes first.** `create_pipeline_cards` curates the catalog against the *deployed*
+> `pipeline_map.json` of the webapp named by its `config.WEBAPP_SLUG` — currently the Cockpit app,
+> `snt-pipelines-orchestrator-cockpit`. Until that webapp exists in the workspace, the generator
+> run **fails**. So if you are only adding the `flowchart` variant to a workspace, either deploy
+> Cockpit there too, or point `WEBAPP_SLUG` at `snt-pipelines-orchestrator` and redeploy the
+> generator. In the other direction, the app itself shows a "run `create_pipeline_cards`" error
+> until step 4 is done — so both halves are needed before the orchestrator works.
 
 ---
 

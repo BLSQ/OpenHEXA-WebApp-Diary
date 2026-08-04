@@ -189,8 +189,12 @@ Rules that follow from this:
 - ⚠️ **Every workspace must have `create_pipeline_cards` deployed and run before its orchestrator
   will boot.** Present in `snt-app-dev` and `snt-testing`. **Absent in `cmr-snt-process`** as of
   2026-08-04 — its live flowchart app keeps working on its already-deployed bundle, but a redeploy
-  there requires installing and running the generator first (and passing
-  `webapp_name="SNT Pipelines Orchestrator"`, since that workspace's webapp is not suffixed).
+  there requires installing and running the generator first. **The generator takes no parameters**
+  (just Run), but it curates against the deployed map of the webapp named by its
+  `config.WEBAPP_SLUG` — currently `snt-pipelines-orchestrator-cockpit`, the lead variant. So in
+  `cmr-snt-process` (Flowchart only, no Cockpit app yet) it will **fail** until the Cockpit app is
+  deployed there, or `WEBAPP_SLUG` is pointed at `snt-pipelines-orchestrator` and the generator
+  redeployed. Giulia is bringing that workspace's apps up to date manually.
 - **Parameters now come from the deployed pipeline version, not from GitHub.** The generator reads
   `pipelineByCode.currentVersion.parameters`, so the catalog matches what is actually installed in
   the workspace. This removes the old GitHub-source-scraping step and the drift it caused (see
@@ -959,9 +963,11 @@ Then:
    by webapp **slug** — see _UI variants_). Read the file with `read_file` only if you need its
    contents, not just its existence.
 3. If no — the orchestrator cannot boot in that workspace. Tell the user, and ask them to install
-   and run **`create_pipeline_cards`** there (source in `utils_pipelines/create_pipeline_cards/`;
-   pass `webapp_name` matching that workspace's webapp — the bare `SNT Pipelines Orchestrator` in
-   `cmr-snt-process`). Do not generate a catalog by hand and do not add one to the bundle.
+   and run **`create_pipeline_cards`** there (source in `utils_pipelines/create_pipeline_cards/`).
+   It takes **no parameters** — just Run. But check that the webapp named by its
+   `config.WEBAPP_SLUG` (currently the Cockpit app) is deployed in that workspace first, since its
+   map is the curation authority and the run fails without it. Do not generate a catalog by hand
+   and do not add one to the bundle.
 
 When about to **edit an existing webapp**, pull its live files with `mcp__claude_ai_OpenHEXA__get_static_webapp` first and diff them against the repo (`app/<variant>/` + `app/pipeline_descriptions.json`) — this catches drift (e.g. edits made directly in the OpenHEXA UI) before you overwrite it on the next deploy.
 
