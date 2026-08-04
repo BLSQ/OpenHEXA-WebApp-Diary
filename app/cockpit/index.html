@@ -14,9 +14,12 @@
          recommended order; mutually-exclusive alternative groups (A.3 outliers,
          A.4 reporting rate) appear as a single "choose one" step.
 
-         The shell is empty on load — app.js fetches pipeline_map.json +
-         pipeline_cards.json, merges them, then renders the rail and cockpit and
-         wires the live OpenHEXA calls (status, run, poll, outputs). -->
+         The shell is empty on load — app.js fetches the bundled
+         pipeline_map.json + pipeline_descriptions.json, reads this workspace's
+         pipeline_cards.json live from the workspace bucket (written by the
+         create_pipeline_cards pipeline, so config changes need no redeploy),
+         merges them, then renders the rail and cockpit and wires the live
+         OpenHEXA calls (status, run, poll, outputs). -->
     <header class="appbar">
       <h1>SNT Pipelines Orchestrator</h1>
       <div class="nav">
