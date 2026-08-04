@@ -115,6 +115,23 @@ var RUN_POLL_QUERY =
   "  }" +
   "}";
 
+// Used only when the catalog is missing, to work out *why* (see
+// diagnoseMissingCatalog): every pipeline in the workspace with its most recent
+// run, so we can find the generator and see whether it has ever run.
+var GENERATOR_QUERY =
+  "query ($ws: String!) {" +
+  "  pipelines(workspaceSlug: $ws, page: 1, perPage: 100) {" +
+  "    items {" +
+  "      id" +
+  "      code" +
+  "      name" +
+  "      runs(orderBy: EXECUTION_DATE_DESC, page: 1, perPage: 1) {" +
+  "        items { id status }" +
+  "      }" +
+  "    }" +
+  "  }" +
+  "}";
+
 /* ================================================================== *
  * Data loading + merge
  * ================================================================== */
@@ -144,7 +161,7 @@ async function loadCards() {
   if (!slug) throw new Error(t("boot.noWorkspace"));
 
   var url = await mintDownloadUrl(slug, CARDS_OBJECT_KEY);
-  if (!url) throw new Error(t("boot.cardsMissing", { key: CARDS_OBJECT_KEY }));
+  if (!url) throw await missingCatalogError(slug);
 
   var res = await fetch(url);
   if (!res.ok)
@@ -152,6 +169,144 @@ async function loadCards() {
       t("boot.cardsUnreadable", { key: CARDS_OBJECT_KEY, status: res.status }),
     );
   return await res.json();
+}
+
+/* --- Why is there no catalog? ---------------------------------------- *
+ * "No catalog" has several distinct causes, and they need opposite advice —
+ * install the generator vs. just run it vs. look at why its last run failed.
+ * Telling the user to install something that is already installed is worse
+ * than saying nothing, so on the failure path (only) we ask the workspace
+ * what state the generator is actually in. Costs one query, and only when
+ * the app is already failing to boot; needs PIPELINES_READ, which we have.
+ *
+ * The generator is matched tolerantly: its OpenHEXA `code`/`name` depend on
+ * how it got into the workspace — deployed from source it is
+ * `create-pipeline-cards` / `create_pipeline_cards`, while installing from
+ * the template names it "Create pipeline_cards.json". Normalising away
+ * punctuation and looking for "pipelinecards" covers all of those without
+ * hardcoding a code (which is workspace-specific anyway). */
+var GENERATOR_TEMPLATE_NAME = "Create pipeline_cards.json";
+var GENERATOR_KEY_MATCH = /pipelinecards/;
+var RUN_ACTIVE_STATUSES = ["queued", "running", "terminating"];
+
+function looksLikeGenerator(p) {
+  function norm(s) {
+    return String(s == null ? "" : s)
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, "");
+  }
+  return (
+    GENERATOR_KEY_MATCH.test(norm(p && p.code)) ||
+    GENERATOR_KEY_MATCH.test(norm(p && p.name))
+  );
+}
+
+/* Resolve the generator's state. Returns one of:
+ *   {state:"notInstalled"}
+ *   {state:"neverRun",      code}
+ *   {state:"inProgress",    code, runId}
+ *   {state:"lastRunFailed", code, runId, status}
+ *   {state:"unknown"}  — the probe itself failed, so stay generic rather than
+ *                        assert something that might be wrong. */
+async function diagnoseMissingCatalog(slug) {
+  var found = null;
+  try {
+    var data = await gql(GENERATOR_QUERY, { ws: slug });
+    var items = (data && data.pipelines && data.pipelines.items) || [];
+    for (var i = 0; i < items.length; i++) {
+      if (looksLikeGenerator(items[i])) {
+        found = items[i];
+        break;
+      }
+    }
+  } catch (e) {
+    return { state: "unknown" };
+  }
+
+  if (!found) return { state: "notInstalled" };
+
+  var last = (found.runs && found.runs.items && found.runs.items[0]) || null;
+  if (!last) return { state: "neverRun", code: found.code };
+  if (RUN_ACTIVE_STATUSES.indexOf(String(last.status).toLowerCase()) !== -1)
+    return { state: "inProgress", code: found.code, runId: last.id };
+  // Includes status "success": a successful run with no catalog still leaves
+  // the app unbootable, and the run log is where the answer is.
+  return {
+    state: "lastRunFailed",
+    code: found.code,
+    runId: last.id,
+    status: last.status,
+  };
+}
+
+function generatorTemplateUrl(slug) {
+  return (
+    appBaseUrl() +
+    "/workspaces/" +
+    encodeURIComponent(slug) +
+    "/templates/" +
+    encodeURIComponent(GENERATOR_TEMPLATE_NAME)
+  );
+}
+
+function generatorPipelineUrl(slug, code) {
+  return (
+    appBaseUrl() +
+    "/workspaces/" +
+    encodeURIComponent(slug) +
+    "/pipelines/" +
+    encodeURIComponent(code) +
+    "/"
+  );
+}
+
+function generatorRunUrl(slug, code, runId) {
+  return (
+    generatorPipelineUrl(slug, code) + "runs/" + encodeURIComponent(runId) + "/"
+  );
+}
+
+/* Build the boot error for "this workspace has no catalog", with a link
+ * pointing at whatever the user actually has to do next. The Error carries a
+ * plain `message` (for the console) plus an `htmlMessage` that the boot panel
+ * renders, because the guidance needs a real anchor element. */
+async function missingCatalogError(slug) {
+  var d = await diagnoseMissingCatalog(slug);
+  var text;
+  var href = null;
+  var linkLabel = null;
+
+  if (d.state === "notInstalled") {
+    text = t("boot.generatorNotInstalled");
+    href = generatorTemplateUrl(slug);
+    linkLabel = t("link.installGenerator");
+  } else if (d.state === "neverRun") {
+    text = t("boot.generatorNeverRun");
+    href = generatorPipelineUrl(slug, d.code);
+    linkLabel = t("link.runGenerator");
+  } else if (d.state === "inProgress") {
+    text = t("boot.generatorInProgress");
+    href = generatorRunUrl(slug, d.code, d.runId);
+    linkLabel = t("link.openGeneratorRun");
+  } else if (d.state === "lastRunFailed") {
+    text = t("boot.generatorLastRunFailed", { status: d.status });
+    href = generatorRunUrl(slug, d.code, d.runId);
+    linkLabel = t("link.openGeneratorRun");
+  } else {
+    text = t("boot.cardsMissing", { key: CARDS_OBJECT_KEY });
+  }
+
+  var err = new Error(text);
+  err.htmlMessage =
+    escapeHtml(text) +
+    (href
+      ? '<br><a href="' +
+        escapeHtml(href) +
+        '" target="_blank" rel="noopener">' +
+        escapeHtml(linkLabel) +
+        "</a>"
+      : "");
+  return err;
 }
 
 async function loadData() {
@@ -513,6 +668,18 @@ var I18N = {
       "No pipeline catalogue was found in this workspace ({key}). Run the “create_pipeline_cards” pipeline to generate it.",
     "boot.cardsUnreadable":
       "The pipeline catalogue in this workspace couldn’t be read ({key} — HTTP {status}). If it has never been generated, run the “create_pipeline_cards” pipeline.",
+    // boot / no catalogue — one per diagnosed cause (diagnoseMissingCatalog)
+    "boot.generatorNotInstalled":
+      "This workspace has no pipeline catalogue yet, and the “create_pipeline_cards” pipeline that generates it isn’t installed here.",
+    "boot.generatorNeverRun":
+      "The “create_pipeline_cards” pipeline is installed in this workspace but has never run, so there is no catalogue yet.",
+    "boot.generatorInProgress":
+      "The “create_pipeline_cards” pipeline is running right now. Reload this page once it has finished.",
+    "boot.generatorLastRunFailed":
+      "The most recent “create_pipeline_cards” run ({status}) didn’t produce a catalogue.",
+    "link.installGenerator": "Install it from the pipeline templates ↗",
+    "link.runGenerator": "Open the pipeline and run it ↗",
+    "link.openGeneratorRun": "Open the run ↗",
   },
   fr: {
     // static shell
@@ -668,6 +835,18 @@ var I18N = {
       "Aucun catalogue de pipelines n’a été trouvé dans cet espace de travail ({key}). Exécutez le pipeline « create_pipeline_cards » pour le générer.",
     "boot.cardsUnreadable":
       "Le catalogue de pipelines de cet espace de travail n’a pas pu être lu ({key} — HTTP {status}). S’il n’a jamais été généré, exécutez le pipeline « create_pipeline_cards ».",
+    // boot / pas de catalogue — un message par cause diagnostiquée
+    "boot.generatorNotInstalled":
+      "Cet espace de travail n’a pas encore de catalogue de pipelines, et le pipeline « create_pipeline_cards » qui le génère n’y est pas installé.",
+    "boot.generatorNeverRun":
+      "Le pipeline « create_pipeline_cards » est installé dans cet espace de travail mais n’a jamais été exécuté : il n’y a donc pas encore de catalogue.",
+    "boot.generatorInProgress":
+      "Le pipeline « create_pipeline_cards » est en cours d’exécution. Rechargez cette page une fois qu’il aura terminé.",
+    "boot.generatorLastRunFailed":
+      "La dernière exécution de « create_pipeline_cards » ({status}) n’a pas produit de catalogue.",
+    "link.installGenerator": "L’installer depuis les modèles de pipelines ↗",
+    "link.runGenerator": "Ouvrir le pipeline et l’exécuter ↗",
+    "link.openGeneratorRun": "Ouvrir l’exécution ↗",
   },
 };
 
@@ -2747,7 +2926,14 @@ async function init() {
         '<div class="ck-boot">' +
         escapeHtml(t("boot.failed")) +
         "<br>" +
-        escapeHtml(err && err.message ? err.message : t("boot.unknownError")) +
+        // A diagnosed missing-catalogue error carries prebuilt (already
+        // escaped) HTML so it can include an actionable link; anything else is
+        // plain text and gets escaped here.
+        (err && err.htmlMessage
+          ? err.htmlMessage
+          : escapeHtml(
+              err && err.message ? err.message : t("boot.unknownError"),
+            )) +
         "</div>";
   }
 }
