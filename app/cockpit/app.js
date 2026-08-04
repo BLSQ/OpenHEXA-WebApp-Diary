@@ -16,12 +16,18 @@
  * app.js so behaviour stays identical; only the presentation layer differs
  * (rail + focused panel instead of a 2D map + sidebar).
  *
- * Data (fetched same-origin, alongside this bundle):
- *   - pipeline_map.json   : the shared map (nodes, stage `row`, `track`,
- *                           `group`, dependency `edges`).
- *   - pipeline_cards.json : this workspace's catalog (which pipelines exist,
- *                           their UUID + parameters). Join key everywhere is the
- *                           node `id` == the pipeline's Python function name.
+ * Data, from two different places (join key everywhere is the node `id` ==
+ * the pipeline's Python function name):
+ *   - bundled, fetched same-origin alongside this file:
+ *       pipeline_map.json          : the map (nodes, stage `row`, `track`,
+ *                                    `group`, dependency `edges`)
+ *       pipeline_descriptions.json : hand-authored node description text
+ *   - read live from the workspace bucket (NOT bundled — see CARDS_OBJECT_KEY):
+ *       pipeline_cards.json        : this workspace's catalog (which pipelines
+ *                                    exist, their UUID + parameters), written by
+ *                                    the companion `create_pipeline_cards`
+ *                                    pipeline. Re-running that pipeline updates
+ *                                    this app's config with no redeploy.
  */
 
 /* ================================================================== *
@@ -112,27 +118,49 @@ var RUN_POLL_QUERY =
 /* ================================================================== *
  * Data loading + merge
  * ================================================================== */
+/* Where this workspace's pipeline catalog lives in the workspace bucket. Written
+ * by the companion `create_pipeline_cards` pipeline — this key must stay in
+ * lockstep with that pipeline's config.py (OUTPUT_DIR + WEBAPP_CARDS_PATH). It
+ * is deliberately NOT part of the deployed bundle: keeping it in the bucket
+ * means a config change is one pipeline run, not a redeploy. */
+var CARDS_OBJECT_KEY =
+  "utils_pipelines/create_pipeline_cards/pipeline_cards/pipeline_cards.json";
+
+async function fetchJson(url) {
+  var res = await fetch(url);
+  if (!res.ok)
+    throw new Error("Failed to load " + res.url + " (HTTP " + res.status + ")");
+  return await res.json();
+}
+
+/* Read the catalog out of the workspace bucket: prepareObjectDownload
+ * (FILES_READ) mints a signed GCS URL, which we then fetch cross-origin — the
+ * same mechanism as the report embeds below, and probe-confirmed CORS-open.
+ * There is no bundled fallback by design: a workspace where
+ * `create_pipeline_cards` has never run has no catalog, and that must surface as
+ * a boot error rather than silently serving a stale bundled copy. */
+async function loadCards() {
+  var slug = workspaceSlug();
+  if (!slug) throw new Error(t("boot.noWorkspace"));
+
+  var url = await mintDownloadUrl(slug, CARDS_OBJECT_KEY);
+  if (!url) throw new Error(t("boot.cardsMissing", { key: CARDS_OBJECT_KEY }));
+
+  var res = await fetch(url);
+  if (!res.ok)
+    throw new Error(
+      t("boot.cardsUnreadable", { key: CARDS_OBJECT_KEY, status: res.status }),
+    );
+  return await res.json();
+}
+
 async function loadData() {
-  var responses = await Promise.all([
-    fetch("./pipeline_map.json"),
-    fetch("./pipeline_cards.json"),
-    fetch("./pipeline_descriptions.json"),
+  var results = await Promise.all([
+    fetchJson("./pipeline_map.json"),
+    fetchJson("./pipeline_descriptions.json"),
+    loadCards(),
   ]);
-  for (var i = 0; i < responses.length; i++) {
-    if (!responses[i].ok) {
-      throw new Error(
-        "Failed to load " +
-          responses[i].url +
-          " (HTTP " +
-          responses[i].status +
-          ")",
-      );
-    }
-  }
-  var map = await responses[0].json();
-  var cards = await responses[1].json();
-  var descriptions = await responses[2].json();
-  return { map: map, cards: cards, descriptions: descriptions };
+  return { map: results[0], descriptions: results[1], cards: results[2] };
 }
 
 /* Merge the shared map with this workspace's cards. Every map node is kept; a
@@ -479,6 +507,12 @@ var I18N = {
     "boot.failed": "Couldn’t load the pipeline data.",
     "boot.unknownError": "Unknown error",
     "boot.noSteps": "No steps to show.",
+    "boot.noWorkspace":
+      "The workspace couldn’t be resolved — open this app from inside OpenHEXA.",
+    "boot.cardsMissing":
+      "No pipeline catalogue was found in this workspace ({key}). Run the “create_pipeline_cards” pipeline to generate it.",
+    "boot.cardsUnreadable":
+      "The pipeline catalogue in this workspace couldn’t be read ({key} — HTTP {status}). If it has never been generated, run the “create_pipeline_cards” pipeline.",
   },
   fr: {
     // static shell
@@ -628,6 +662,12 @@ var I18N = {
     "boot.failed": "Impossible de charger les données des pipelines.",
     "boot.unknownError": "Erreur inconnue",
     "boot.noSteps": "Aucune étape à afficher.",
+    "boot.noWorkspace":
+      "L’espace de travail n’a pas pu être identifié — ouvrez cette application depuis OpenHEXA.",
+    "boot.cardsMissing":
+      "Aucun catalogue de pipelines n’a été trouvé dans cet espace de travail ({key}). Exécutez le pipeline « create_pipeline_cards » pour le générer.",
+    "boot.cardsUnreadable":
+      "Le catalogue de pipelines de cet espace de travail n’a pas pu être lu ({key} — HTTP {status}). S’il n’a jamais été généré, exécutez le pipeline « create_pipeline_cards ».",
   },
 };
 
