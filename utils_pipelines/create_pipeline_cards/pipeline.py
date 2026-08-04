@@ -5,27 +5,18 @@ import re
 from collections import Counter
 from typing import cast
 
-from openhexa.sdk import current_run, parameter, pipeline, workspace
+from openhexa.sdk import current_run, pipeline, workspace
 from openhexa.sdk.client import openhexa as hexa_client
 
 import config
 
 
 @pipeline("create_pipeline_cards")
-@parameter(
-    "webapp_name",
-    name="Name of the webapp to deploy the pipeline cards to",
-    help="if empty, the webapp will not be updated. The JSON will still be saved",
-    type=str,
-    required=False,
-    default="SNT Pipelines Orchestrator - Cockpit",
-)
-def create_pipeline_cards(webapp_name: str | None):
+def create_pipeline_cards():
     workspace_slug = workspace.slug
     current_run.log_info(f"Workspace: {workspace_slug}")
 
-    webapp = resolve_webapp(workspace_slug, webapp_name)
-    map_node_ids = get_map_node_ids(workspace_slug, webapp)
+    map_node_ids = get_map_node_ids(workspace_slug)
     pipeline_cards = initialize_pipeline_cards(workspace_slug)
     pipeline_cards = get_pipelines(workspace_slug, pipeline_cards)
     pipeline_cards = format_pipelines(pipeline_cards)
@@ -39,102 +30,59 @@ def create_pipeline_cards(webapp_name: str | None):
 # Webapp helpers
 # ---------------------------------------------------------------------------
 
-def resolve_webapp(workspace_slug: str, webapp_name: str | None) -> dict | None:
-    """Resolve the webapp matching the given name.
+def get_map_node_ids(workspace_slug: str) -> set[str]:
+    """Read the node ids of the orchestrator webapp's deployed pipeline map.
+
+    The map is read from the webapp identified by ``config.WEBAPP_SLUG``, so
+    the *deployed* map, not this repo's copy, is the authority for curation.
 
     Parameters
     ----------
     workspace_slug : str
         The workspace slug.
-    webapp_name : str | None
-        The name of the webapp to resolve. If empty, no webapp is resolved.
 
     Returns
     -------
-    dict | None
-        The matching webapp (``id``, ``name``, ``slug``), or None if no name was given.
-    """
-    if not webapp_name:
-        return None
+    set[str]
+        The map's node ids.
 
-    webapps = []
-    pages = (
-        _gql(config.QUERY_WEBAPPS, variables={"workspaceSlug": workspace_slug})
-        .get("webapps")
-        .get("totalPages")
+    Raises
+    ------
+    ValueError
+        If the map cannot be read (e.g. the webapp is not deployed in this
+        workspace), or if it declares no nodes.
+    """
+    response = (
+        _gql(
+            config.QUERY_WEBAPP_FILE,
+            variables={
+                "workspaceSlug": workspace_slug,
+                "webappSlug": config.WEBAPP_SLUG,
+                "path": config.WEBAPP_MAP_PATH,
+            },
+        ).get("readWebappFile")
+        or {}
     )
-    for page in range(1, pages + 1):
-        items = (
-            _gql(
-                config.QUERY_WEBAPPS,
-                variables={"workspaceSlug": workspace_slug, "page": page},
-            )
-            .get("webapps")
-            .get("items")
-        )
-        webapps.extend(items)
-
-    matches = [webapp for webapp in webapps if webapp["name"] == webapp_name]
-    if len(matches) == 0:
-        raise ValueError(
-            f"No webapp named '{webapp_name}' found in workspace {workspace_slug}"
-        )
-    if len(matches) > 1:
-        raise ValueError(
-            f"Multiple webapps named '{webapp_name}' found in workspace {workspace_slug}"
-        )
-
-    current_run.log_info(f"Webapp {webapp_name} found")
-    return matches[0]
-
-
-def get_map_node_ids(workspace_slug: str, webapp: dict | None) -> set[str] | None:
-    """Read the node ids of the webapp's deployed ``pipeline_map.json``.
-
-    Parameters
-    ----------
-    workspace_slug : str
-        The workspace slug.
-    webapp : dict | None
-        The resolved webapp (``id``, ``name``, ``slug``), or None if no webapp was given.
-
-    Returns
-    -------
-    set[str] | None
-        The map's node ids, or None if the map could not be read (curation is then skipped).
-    """
-    if webapp is None:
-        current_run.log_warning(
-            "No webapp specified, so the deployed pipeline map cannot be read: "
-            "all workspace pipelines will be included without curation"
-        )
-        return None
-
-    response = _gql(
-        config.QUERY_WEBAPP_FILE,
-        variables={
-            "workspaceSlug": workspace_slug,
-            "webappSlug": webapp["slug"],
-            "path": config.WEBAPP_MAP_PATH,
-        },
-    ).get("readWebappFile")
 
     errors = response.get("errors")
     content = response.get("content")
     if errors or not content:
         raise ValueError(
-            f"Failed to read {config.WEBAPP_MAP_PATH} from webapp {webapp['name']}: "
-            f"{errors or 'empty content'}"
+            f"Failed to read {config.WEBAPP_MAP_PATH} from webapp "
+            f"'{config.WEBAPP_SLUG}' in workspace {workspace_slug}: "
+            f"{errors or 'webapp not found, or file empty'}"
         )
 
     node_ids = {node["id"] for node in json.loads(content).get("nodes", [])}
     if not node_ids:
         raise ValueError(
-            f"{config.WEBAPP_MAP_PATH} in webapp {webapp['name']} declares no nodes"
+            f"{config.WEBAPP_MAP_PATH} in webapp '{config.WEBAPP_SLUG}' "
+            "declares no nodes"
         )
 
     current_run.log_info(
-        f"{len(node_ids)} nodes read from {config.WEBAPP_MAP_PATH} in webapp {webapp['name']}"
+        f"{len(node_ids)} nodes read from {config.WEBAPP_MAP_PATH} in webapp "
+        f"'{config.WEBAPP_SLUG}'"
     )
     return node_ids
 
@@ -409,7 +357,7 @@ def _gql(query: str, variables: dict | None = None) -> dict:
 
 
 def curate_pipelines(
-    pipeline_cards: dict[str, str | list[dict]], map_node_ids: set[str] | None
+    pipeline_cards: dict[str, str | list[dict]], map_node_ids: set[str]
 ) -> dict[str, str | list[dict]]:
     """Keep only the pipelines that are nodes of the deployed pipeline map.
 
@@ -417,17 +365,14 @@ def curate_pipelines(
     ----------
     pipeline_cards : dict[str, str | list[dict]]
         The pipeline cards containing the pipelines.
-    map_node_ids : set[str] | None
-        The node ids of the deployed map. If None, curation is skipped.
+    map_node_ids : set[str]
+        The node ids of the deployed map.
 
     Returns
     -------
     dict[str, str | list[dict]]
         The pipeline cards with only the curated pipelines.
     """
-    if map_node_ids is None:
-        return pipeline_cards
-
     pipelines = cast(list[dict], pipeline_cards["pipelines"])
 
     id_counts = Counter(p["id"] for p in pipelines if p["id"] is not None)
