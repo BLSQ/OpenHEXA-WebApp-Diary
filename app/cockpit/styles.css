@@ -1058,6 +1058,15 @@ select.finput {
   color: var(--faint);
   font-size: 13px;
 }
+/* Actionable link inside the boot panel (e.g. "install the generator"). The
+   panel text is deliberately faint, so the link has to lift out of it. */
+.ck-boot a {
+  display: inline-block;
+  margin-top: 10px;
+  color: var(--ink);
+  font-weight: 600;
+  text-decoration: underline;
+}
 
 /* ---------- responsive ---------- */
 @media (max-width: 820px) {

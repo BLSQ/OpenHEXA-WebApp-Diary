@@ -74,6 +74,23 @@ var CONNECTIONS_QUERY =
   "  }" +
   "}";
 
+/* Used only when the catalog is missing, to work out *why* (see
+ * diagnoseMissingCatalog): every pipeline in the workspace with its most recent
+ * run, so we can find the generator and see whether it has ever run. */
+var GENERATOR_QUERY =
+  "query ($ws: String!) {" +
+  "  pipelines(workspaceSlug: $ws, page: 1, perPage: 100) {" +
+  "    items {" +
+  "      id" +
+  "      code" +
+  "      name" +
+  "      runs(orderBy: EXECUTION_DATE_DESC, page: 1, perPage: 1) {" +
+  "        items { id status }" +
+  "      }" +
+  "    }" +
+  "  }" +
+  "}";
+
 /* ------------------------------------------------------------------ *
  * Data loading + merge
  * ------------------------------------------------------------------ */
@@ -121,12 +138,7 @@ async function loadCards() {
     },
   });
   var r = data.prepareObjectDownload;
-  if (!r || !r.success || !r.downloadUrl)
-    throw new Error(
-      "No pipeline catalog was found in this workspace (" +
-        CARDS_OBJECT_KEY +
-        "). Run the “create_pipeline_cards” pipeline to generate it.",
-    );
+  if (!r || !r.success || !r.downloadUrl) throw await missingCatalogError(slug);
 
   var res = await fetch(r.downloadUrl);
   if (!res.ok)
@@ -139,6 +151,149 @@ async function loadCards() {
         "“create_pipeline_cards” pipeline.",
     );
   return await res.json();
+}
+
+/* --- Why is there no catalog? ---------------------------------------- *
+ * "No catalog" has several distinct causes, and they need opposite advice —
+ * install the generator vs. just run it vs. look at why its last run failed.
+ * Telling the user to install something that is already installed is worse
+ * than saying nothing, so on the failure path (only) we ask the workspace what
+ * state the generator is actually in. Costs one query, and only when the app
+ * is already failing to boot; needs PIPELINES_READ, which we have.
+ *
+ * The generator is matched tolerantly: its OpenHEXA `code`/`name` depend on how
+ * it got into the workspace — deployed from source it is
+ * `create-pipeline-cards` / `create_pipeline_cards`, while installing from the
+ * template names it "Create pipeline_cards.json". Normalising away punctuation
+ * and looking for "pipelinecards" covers all of those without hardcoding a
+ * code (which is workspace-specific anyway). */
+var GENERATOR_TEMPLATE_NAME = "Create pipeline_cards.json";
+var GENERATOR_KEY_MATCH = /pipelinecards/;
+var RUN_ACTIVE_STATUSES = ["queued", "running", "terminating"];
+
+function looksLikeGenerator(p) {
+  function norm(s) {
+    return String(s == null ? "" : s)
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, "");
+  }
+  return (
+    GENERATOR_KEY_MATCH.test(norm(p && p.code)) ||
+    GENERATOR_KEY_MATCH.test(norm(p && p.name))
+  );
+}
+
+/* Resolve the generator's state. Returns one of:
+ *   {state:"notInstalled"}
+ *   {state:"neverRun",      code}
+ *   {state:"inProgress",    code, runId}
+ *   {state:"lastRunFailed", code, runId, status}
+ *   {state:"unknown"}  — the probe itself failed, so stay generic rather than
+ *                        assert something that might be wrong. */
+async function diagnoseMissingCatalog(slug) {
+  var found = null;
+  try {
+    var data = await gql(GENERATOR_QUERY, { ws: slug });
+    var items = (data && data.pipelines && data.pipelines.items) || [];
+    for (var i = 0; i < items.length; i++) {
+      if (looksLikeGenerator(items[i])) {
+        found = items[i];
+        break;
+      }
+    }
+  } catch (e) {
+    return { state: "unknown" };
+  }
+
+  if (!found) return { state: "notInstalled" };
+
+  var last = (found.runs && found.runs.items && found.runs.items[0]) || null;
+  if (!last) return { state: "neverRun", code: found.code };
+  if (RUN_ACTIVE_STATUSES.indexOf(String(last.status).toLowerCase()) !== -1)
+    return { state: "inProgress", code: found.code, runId: last.id };
+  // Includes status "success": a successful run with no catalog still leaves
+  // the app unbootable, and the run log is where the answer is.
+  return {
+    state: "lastRunFailed",
+    code: found.code,
+    runId: last.id,
+    status: last.status,
+  };
+}
+
+function generatorTemplateUrl(slug) {
+  return (
+    appBaseUrl() +
+    "/workspaces/" +
+    encodeURIComponent(slug) +
+    "/templates/" +
+    encodeURIComponent(GENERATOR_TEMPLATE_NAME)
+  );
+}
+
+function generatorPipelineUrl(slug, code) {
+  return (
+    appBaseUrl() +
+    "/workspaces/" +
+    encodeURIComponent(slug) +
+    "/pipelines/" +
+    encodeURIComponent(code) +
+    "/"
+  );
+}
+
+function generatorRunUrl(slug, code, runId) {
+  return (
+    generatorPipelineUrl(slug, code) + "runs/" + encodeURIComponent(runId) + "/"
+  );
+}
+
+/* Build the boot error for "this workspace has no catalog", with a link
+ * pointing at whatever the user actually has to do next. The Error carries a
+ * plain `message` plus an optional `helpLink` that the error box on the canvas
+ * renders as a real anchor (its text is set via textContent, so a link cannot
+ * be embedded in the message itself). */
+async function missingCatalogError(slug) {
+  var d = await diagnoseMissingCatalog(slug);
+  var text;
+  var href = null;
+  var linkLabel = null;
+
+  if (d.state === "notInstalled") {
+    text =
+      "This workspace has no pipeline catalog yet, and the " +
+      "“create_pipeline_cards” pipeline that generates it isn’t installed here.";
+    href = generatorTemplateUrl(slug);
+    linkLabel = "Install it from the pipeline templates ↗";
+  } else if (d.state === "neverRun") {
+    text =
+      "The “create_pipeline_cards” pipeline is installed in this workspace " +
+      "but has never run, so there is no catalog yet.";
+    href = generatorPipelineUrl(slug, d.code);
+    linkLabel = "Open the pipeline and run it ↗";
+  } else if (d.state === "inProgress") {
+    text =
+      "The “create_pipeline_cards” pipeline is running right now. Reload this " +
+      "page once it has finished.";
+    href = generatorRunUrl(slug, d.code, d.runId);
+    linkLabel = "Open the run ↗";
+  } else if (d.state === "lastRunFailed") {
+    text =
+      "The most recent “create_pipeline_cards” run (" +
+      d.status +
+      ") didn’t produce a catalog.";
+    href = generatorRunUrl(slug, d.code, d.runId);
+    linkLabel = "Open the run ↗";
+  } else {
+    text =
+      "No pipeline catalog was found in this workspace (" +
+      CARDS_OBJECT_KEY +
+      "). Run the “create_pipeline_cards” pipeline to generate it.";
+  }
+
+  var err = new Error(text);
+  if (href) err.helpLink = { href: href, label: linkLabel };
+  return err;
 }
 
 /* Load the two bundled data files (same-origin, served alongside the app) and
@@ -2593,6 +2748,15 @@ async function init() {
       detail.textContent = err && err.message ? err.message : "Unknown error";
       box.appendChild(head);
       box.appendChild(detail);
+      // A diagnosed missing-catalog error also says where to go next.
+      if (err && err.helpLink) {
+        var a = document.createElement("a");
+        a.href = err.helpLink.href;
+        a.target = "_blank";
+        a.rel = "noopener";
+        a.textContent = err.helpLink.label;
+        box.appendChild(a);
+      }
       canvas.appendChild(box);
     }
   }

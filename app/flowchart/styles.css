@@ -647,6 +647,14 @@ svg.edges {
   margin: 0.5rem 0 0;
   color: #991b1b;
 }
+/* Actionable link in the error box (e.g. "install the generator"). */
+.map-error a {
+  display: inline-block;
+  margin-top: 0.75rem;
+  color: #7f1d1d;
+  font-weight: 600;
+  text-decoration: underline;
+}
 
 /* Sticky header. */
 .sb-head {
