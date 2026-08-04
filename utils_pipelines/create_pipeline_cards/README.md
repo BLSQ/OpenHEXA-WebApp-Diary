@@ -23,7 +23,8 @@ For the workspace it runs in, it:
    orchestrator).
 4. Fetches each kept pipeline's current parameters and formats them to the shape the orchestrator
    webapp expects (parameter `type` values are mapped from OpenHEXA's connection types, e.g.
-   `dhis2` → `DHIS2Connection`).
+   `dhis2` → `DHIS2Connection`), and records **which deployed version** they were read from
+   (`version_name` / `version_number`).
 5. Archives any previously generated file into a `historical/` subfolder (timestamped), then
    writes the new `pipeline_cards.json` to the pipeline's output directory in the workspace's
    file storage.
@@ -32,6 +33,11 @@ The output matches the contract in `schemas/pipeline_cards.schema.json`. **It is
 both orchestrator UI variants fetch it straight out of the workspace's file storage at page load, so
 running this pipeline is all that's needed to update a workspace's configuration — nothing to copy,
 commit, or redeploy. See the repo root `CLAUDE.md` / `README.md` for the full picture.
+
+Each card also records the **deployed version** its parameters were read from (`version_name`,
+`version_number`). Nothing consumes these yet — they exist so the orchestrator can later compare
+the catalog against the live pipelines and prompt for a refresh only when something has actually
+changed, rather than showing an always-on "refresh" control that asks users to self-diagnose.
 
 ## Parameters
 
