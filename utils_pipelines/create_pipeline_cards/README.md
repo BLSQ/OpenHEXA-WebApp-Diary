@@ -27,9 +27,10 @@ For the workspace it runs in, it:
    writes the new `pipeline_cards.json` to the pipeline's output directory in the workspace's
    file storage.
 
-The output matches the contract in `schemas/pipeline_cards.schema.json` and is meant to be
-copied into `workspaces/<ws>/<variant>/pipeline_cards.json` in this repo (see the repo root
-`CLAUDE.md` / `README.md` for the full deploy workflow).
+The output matches the contract in `schemas/pipeline_cards.schema.json`. **It is consumed in place:**
+both orchestrator UI variants fetch it straight out of the workspace's file storage at page load, so
+running this pipeline is all that's needed to update a workspace's configuration — nothing to copy,
+commit, or redeploy. See the repo root `CLAUDE.md` / `README.md` for the full picture.
 
 ## Parameters
 
@@ -51,9 +52,19 @@ Written to `<workspace files>/utils_pipelines/create_pipeline_cards/pipeline_car
 `historical/` subfolder first (e.g. `pipeline_cards_20260803_101500.json`) so nothing is
 overwritten silently.
 
-The generated file still needs to be **downloaded and committed** to this repo at
-`workspaces/<ws>/<variant>/pipeline_cards.json` — this pipeline only produces the file inside the
-OpenHEXA workspace's file storage, it does not push to the repo or deploy the webapp itself.
+**This path is a contract with the webapp.** Both variants hardcode it as `CARDS_OBJECT_KEY` in
+`app/<variant>/app.js` and read the file via `prepareObjectDownload` → `fetch(signedUrl)` (needing
+the webapp's `FILES_READ` scope). Changing `OUTPUT_DIR` or `WEBAPP_CARDS_PATH` therefore means
+changing `CARDS_OBJECT_KEY` in **both** variants and redeploying them — otherwise every orchestrator
+in every workspace stops booting.
+
+Nothing needs to be downloaded, committed, or redeployed after a run: the app reads the new file on
+its next page load. The pipeline does not push to the repo or touch the webapp bundle.
+
+**One catalog serves both variants.** Curation is against the deployed map, and both variants'
+`pipeline_map.json` files declare the same node ids — so a single generated file is valid for
+Flowchart and Cockpit alike, and `webapp_name` only decides *which* deployed map is used as the
+authority. (If the two maps ever diverge in node ids, that stops being true.)
 
 ## Files
 

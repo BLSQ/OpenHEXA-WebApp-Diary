@@ -30,7 +30,7 @@ This includes:
 - Looking up URLs / paths / IDs in the OpenHEXA UI.
 - Checking the browser DevTools **Console** / Network tab when a deployed webapp misbehaves.
 - Reading a value off a dashboard, or visually confirming something in a running app.
-- **Uploading webapp files (wholesale rewrites / new bundles)** — For a full bundle upload or a wholesale rewrite of a large file, offer the user the option to drag-and-drop changed files directly into the OpenHEXA UI from `app/<variant>/` (generic files for that UI variant) or `workspaces/<ws>/<variant>/pipeline_cards.json` (the workspace-specific file) instead of having the agent assemble and deploy via MCP. This avoids reading large files into context and is often faster. Mention it as: *"You can also drag the changed file(s) from `app/<variant>/` (or `workspaces/<ws>/<variant>/pipeline_cards.json`) straight into the OpenHEXA webapp settings — no size limit and no agent token cost. Want to do that instead, or shall I deploy via the API?"* Small, targeted edits to an existing file don't need this offer — `mcp__claude_ai_OpenHEXA__edit_static_webapp_file` (see _MCP deployment_) handles those directly without hitting the Read cap.
+- **Uploading webapp files (wholesale rewrites / new bundles)** — For a full bundle upload or a wholesale rewrite of a large file, offer the user the option to drag-and-drop changed files directly into the OpenHEXA UI from `app/<variant>/` (the variant's bundle) or `app/pipeline_descriptions.json` (shared across variants) instead of having the agent assemble and deploy via MCP. This avoids reading large files into context and is often faster. Mention it as: *"You can also drag the changed file(s) from `app/<variant>/` (or `app/pipeline_descriptions.json`) straight into the OpenHEXA webapp settings — no size limit and no agent token cost. Want to do that instead, or shall I deploy via the API?"* Small, targeted edits to an existing file don't need this offer — `mcp__claude_ai_OpenHEXA__edit_static_webapp_file` (see _MCP deployment_) handles those directly without hitting the Read cap.
 
 Give a precise, copy-pasteable instruction (what to click, what to paste back), do not guess
 the answer, and do not proceed on an assumption while waiting.
@@ -103,7 +103,8 @@ The orchestrator can exist as more than one independently-deployable **UI varian
 underlying pipeline data, different layout/UX. Each variant is a fully self-contained bundle
 under `app/<variant>/`, and does **not** share files with any other variant — including
 `pipeline_map.json`, which is duplicated per variant (not a single shared file) so each UI can
-drift independently. Per-workspace data mirrors this: `workspaces/<ws>/<variant>/pipeline_cards.json`.
+drift independently. There is **no per-workspace repo data any more**: the workspace's pipeline
+catalog is read live from the workspace bucket at runtime (see _Data architecture_).
 
 - **`flowchart`** — an interactive 2D node/edge map with a config/run sidebar. Deployed to
   `snt-app-dev`, `snt-testing`, `cmr-snt-process`. **English-only** (see _Bilingual UI_).
@@ -113,9 +114,10 @@ drift independently. Per-workspace data mirrors this: `workspaces/<ws>/<variant>
   `snt-testing` (not to `cmr-snt-process`). **Bilingual EN / FR** and carries the in-app HTML
   report embed — two features the flowchart variant does not have.
 
-Deploying a given (workspace, variant) pair is **6 files** — 4 generic (`app/<variant>/*`) + 1
-cross-variant shared file (`app/pipeline_descriptions.json`) + 1 workspace-specific
-(`workspaces/<ws>/<variant>/pipeline_cards.json`).
+Deploying a given (workspace, variant) pair is **5 files** — 4 generic (`app/<variant>/*`) + 1
+cross-variant shared file (`app/pipeline_descriptions.json`). **The deployed bundle is now fully
+workspace-independent**: nothing in it differs per workspace. The workspace's pipeline catalog is
+_not_ deployed — it is read live from the workspace bucket (see _The pipeline catalog_).
 
 **Telling variants apart on the live platform.** Webapp identity isn't stored in the repo, so
 resolve it live with `list_static_webapps`. Prefer the **webapp `slug`** — it is consistent
@@ -137,12 +139,62 @@ correctly as `flowchart`. Match on slug; treat the name as a human label only.
 The orchestrator separates concerns across four kinds of file. The stable join key everywhere
 is the node `id` == the pipeline's Python function name (e.g. `snt_dhis2_extract`).
 
+⚠️ **Only the first, second and fourth rows live in this repo.** `pipeline_cards.json` is **not a
+repo file** — it lives in each OpenHEXA workspace's own bucket and is read at runtime (see _The
+pipeline catalog_ immediately below). The old `workspaces/<ws>/<variant>/` tree was deleted on
+2026-08-04; do not recreate it.
+
 | File                                   | Scope                                                  | Holds                                                                                          |
 | -------------------------------------- | ------------------------------------------------------ | ---------------------------------------------------------------------------------------------- |
 | `app/<variant>/pipeline_map.json`      | per-variant, workspace-independent (see _UI variants_) | all nodes, `code`, `label` (bilingual in cockpit), `ohName`, grid position (`row`/`col`), `track`, `type`, mutex `group`, directed `edges` (dependencies) |
 | `app/pipeline_descriptions.json`       | shared across every variant AND every workspace (see _Data architecture_ note below) | hand-authored, Markdown-lite-formatted paragraph description per node, keyed by `id`; each value is a bilingual `{ en, fr }` object |
-| `workspaces/<ws>/<variant>/pipeline_cards.json` | per-workspace, per-variant                    | which pipelines exist + `uuid` + `parameters` (drives _active vs greyed_)                      |
+| `pipeline_cards.json` **(in the workspace bucket, not the repo)** | per-workspace, **shared by both variants** | which pipelines exist + `uuid` + `parameters` (drives _active vs greyed_)      |
 | `app/<variant>/index.html` + `app/<variant>/app.js` + `app/<variant>/styles.css` | per-variant app shell (multi-file) | renders the UI, merges the map + descriptions with the workspace cards, runs/polls pipelines |
+
+#### The pipeline catalog (`pipeline_cards.json`) — bucket-hosted, read at runtime
+
+Since 2026-08-04 the catalog is **not bundled and not kept in the repo**. It lives in the
+workspace's own file storage at the fixed key
+
+```
+utils_pipelines/create_pipeline_cards/pipeline_cards/pipeline_cards.json
+```
+
+and is written there by the companion **`create_pipeline_cards`** pipeline, whose source is in this
+repo under `utils_pipelines/create_pipeline_cards/` (see its own `README.md`). **Why:** a config
+change (a new pipeline installed, a parameter renamed) is then just a pipeline run — no webapp
+redeploy, no repo commit.
+
+How the app reads it (identical in both variants, `loadCards()` in each `app/<variant>/app.js`):
+
+1. `prepareObjectDownload(input: {workspaceSlug, objectKey: CARDS_OBJECT_KEY, forceAttachment: false})`
+   through the same-origin `/graphql/` proxy → a signed GCS URL. Needs **`FILES_READ`**.
+2. `fetch(signedUrl)` → `.json()`. Works because those signed URLs are CORS-open (the same
+   property the report embed relies on — see _Embedding an HTML report in-app_).
+
+Rules that follow from this:
+
+- **`CARDS_OBJECT_KEY`** is a hardcoded constant at the top of each variant's `app.js`. It must
+  stay in lockstep with `utils_pipelines/create_pipeline_cards/config.py` (`OUTPUT_DIR` +
+  `WEBAPP_CARDS_PATH`). Changing the output location means changing three places.
+- **One catalog serves both variants.** The generator curates against the webapp's *deployed*
+  `pipeline_map.json`, and both variants' maps declare the same node ids (verified 2026-08-04), so
+  there is no per-variant catalog. If the two maps ever diverge in node ids, that assumption
+  breaks and each variant would need its own generated file.
+- **There is no fallback, by design.** If the object is missing the app **fails at boot** with an
+  actionable message ("Run the `create_pipeline_cards` pipeline") rather than silently serving a
+  stale bundled copy. Cockpit surfaces it in its `boot.failed` panel (i18n keys
+  `boot.cardsMissing` / `boot.cardsUnreadable` / `boot.noWorkspace`); flowchart renders a
+  `.map-error` box onto the canvas.
+- ⚠️ **Every workspace must have `create_pipeline_cards` deployed and run before its orchestrator
+  will boot.** Present in `snt-app-dev` and `snt-testing`. **Absent in `cmr-snt-process`** as of
+  2026-08-04 — its live flowchart app keeps working on its already-deployed bundle, but a redeploy
+  there requires installing and running the generator first (and passing
+  `webapp_name="SNT Pipelines Orchestrator"`, since that workspace's webapp is not suffixed).
+- **Parameters now come from the deployed pipeline version, not from GitHub.** The generator reads
+  `pipelineByCode.currentVersion.parameters`, so the catalog matches what is actually installed in
+  the workspace. This removes the old GitHub-source-scraping step and the drift it caused (see
+  _SNT Pipeline Definitions_).
 
 `app/pipeline_descriptions.json` is the one exception to "each variant owns its files": it sits
 directly under `app/` (not inside any `app/<variant>/` subfolder) because the same hand-authored
@@ -157,23 +209,22 @@ time — same content, deployed twice.
 the same Markdown-lite prose. **Editing a description means editing both languages.** A plain
 string is still accepted and treated as `en` (backward compatibility). See _Bilingual UI_ below.
 
-**Generic vs workspace-specific:** for a given variant, the deployed bundle is **6 files — 4
-variant-generic + 1 cross-variant shared + 1 workspace-specific.** Variant-generic (reused
-unchanged across every workspace for that variant, all under `app/<variant>/`): `index.html`,
-`styles.css`, `app.js`, `pipeline_map.json`. Cross-variant shared (same content in both variants'
-bundles): `app/pipeline_descriptions.json`. Workspace-specific (the only file that changes per
-workspace, per variant): the workspace's `workspaces/<ws>/<variant>/pipeline_cards.json`. The app
-self-adapts at runtime via `window.OPENHEXA.workspaceSlug` + cards-driven greying, so the only
-non-per-workspace assumption baked into `app.js` is the hardcoded SaaS base
-`https://app.openhexa.org`. → **new workspace = same 4 generic files + `pipeline_descriptions.json`
-for the variant (`app/<variant>/` + `app/pipeline_descriptions.json`) + a new
-`workspaces/<ws>/<variant>/pipeline_cards.json`.** (See README's "Generic vs workspace-specific"
-for the human-facing version.)
+**Generic vs workspace-specific:** for a given variant, the deployed bundle is **5 files — 4
+variant-generic + 1 cross-variant shared — and nothing workspace-specific at all.**
+Variant-generic (reused unchanged across every workspace for that variant, all under
+`app/<variant>/`): `index.html`, `styles.css`, `app.js`, `pipeline_map.json`. Cross-variant shared
+(same content in both variants' bundles): `app/pipeline_descriptions.json`. The app self-adapts at
+runtime via `window.OPENHEXA.workspaceSlug` — which now also drives the catalog read — plus
+cards-driven greying, so the only non-per-workspace assumption baked into `app.js` is the
+hardcoded SaaS base `https://app.openhexa.org`. → **new workspace = deploy the same 5 files,
+then run `create_pipeline_cards` in that workspace.** (See README's "Generic vs
+workspace-specific" for the human-facing version.)
 
 Webapp metadata (id, slug, URL, allowed scopes) is **not** stored in the repo — it is resolved
 live at deploy time via `list_static_webapps` / `get_static_webapp` (see _Build / deploy
-workflow_). The `app/<variant>/` bundle plus `workspaces/<ws>/<variant>/pipeline_cards.json` is
-the repo's source of truth for what to deploy.
+workflow_). The `app/<variant>/` bundle plus `app/pipeline_descriptions.json` is the repo's
+complete source of truth for what to deploy; the per-workspace half of the picture lives in the
+workspace bucket and is produced by running a pipeline, not by committing a file.
 
 `schemas/pipeline_map.schema.json` documents the structure of each variant's
 `app/<variant>/pipeline_map.json` — read it when authoring or interpreting the map (its
@@ -187,8 +238,10 @@ is **hand-authored** (a separate task); it is not generated from the GraphQL API
 The webapp computes three independent state axes per node:
 
 - **available vs greyed** — _static_: a node is available iff its `id` is present in the
-  workspace's `pipeline_cards.json` (with a `uuid`). Otherwise it renders greyed-out and is
-  unclickable. This is how the same full map adapts to each workspace.
+  workspace's bucket-hosted `pipeline_cards.json` (with a `uuid`). Otherwise it renders greyed-out
+  and is unclickable. This is how the same full map adapts to each workspace — and, since the
+  catalog is regenerated by running `create_pipeline_cards`, how a newly-installed pipeline
+  becomes clickable without touching the webapp.
 - **locked vs unlocked** — _dynamic_: derived from `edges`. A node unlocks once every **hard**
   upstream prerequisite (each `type: "solid"` edge whose `to` equals this node) has a completed
   run in the current session. `type: "optional"` edges are **soft, non-gating** — they draw an
@@ -242,7 +295,7 @@ Where each kind of text comes from, and how it's resolved:
 | App chrome (buttons, statuses, section titles) | the `I18N` table inside `app/cockpit/app.js`         | `t("key", {params})`                   |
 | Node / step titles                            | `app/cockpit/pipeline_map.json` → `label`            | `pickLang(label)`                      |
 | Node descriptions                             | `app/pipeline_descriptions.json` → `{ en, fr }`      | `pickLang(desc)`                       |
-| **Parameter labels / help / choices**          | `workspaces/<ws>/cockpit/pipeline_cards.json`        | **not translated — English for now**   |
+| **Parameter labels / help / choices**          | the workspace's bucket-hosted `pipeline_cards.json`  | **not translated — English for now**   |
 
 Key rules when touching cockpit text:
 
@@ -284,47 +337,52 @@ These **four files live together under `app/<variant>/`** (see _UI variants_) �
 - `app.js` — render the UI, merge map + descriptions with cards, run + poll pipelines
 - `pipeline_map.json` — this variant's map, fetched at runtime
 
-Two more files are deployed **into the same flat webapp root** but live elsewhere in the repo,
-because their scope differs (see _Data architecture_):
+One more file is deployed **into the same flat webapp root** but lives elsewhere in the repo,
+because its scope differs (see _Data architecture_):
 
 - `pipeline_descriptions.json` — from `app/pipeline_descriptions.json` (shared across variants)
-- `pipeline_cards.json` — from `workspaces/<ws>/<variant>/pipeline_cards.json` (per workspace)
 
-That is the **6-file bundle**. Note the deployed paths are flat — `app.js` fetches all three JSON
-files as same-origin siblings (`fetch("./pipeline_map.json")`, `./pipeline_cards.json`,
+That is the **5-file bundle**. Note the deployed paths are flat — `app.js` fetches the two bundled
+JSON files as same-origin siblings (`fetch("./pipeline_map.json")`,
 `./pipeline_descriptions.json`), so the repo's folder nesting is a **source-tree** convention that
-is flattened at deploy time. All the shared runtime patterns below (the `gql` helper, status
-polling, `prepareObjectDownload`, prefixed element handling) still apply — they just live in
-`app.js` rather than inline.
+is flattened at deploy time. The third JSON the app needs, `pipeline_cards.json`, is **not a
+sibling and not in the bundle** — it is fetched from the workspace bucket via a signed URL (see
+_The pipeline catalog_). All the shared runtime patterns below (the `gql` helper, status polling,
+`prepareObjectDownload`, prefixed element handling) still apply — they just live in `app.js`
+rather than inline.
 
 ### Build / deploy workflow
 
-- First settle **which variant** you're deploying (`flowchart` or `cockpit`) — it determines
-  which `app/<variant>/` folder and which `workspaces/<ws>/<variant>/pipeline_cards.json` you
-  read from.
+- First settle **which variant** you're deploying (`flowchart` or `cockpit`) — it determines which
+  `app/<variant>/` folder you read from. (It no longer determines which catalog: there is one
+  bucket-hosted catalog per workspace, shared by both variants.)
 - Resolve the target webapp's `id`/`slug` **live** via `list_static_webapps` (there is no
   `workspace_config.json` any more; distinguish variants live by webapp **slug** — see the table
   in _UI variants_, and note names are inconsistent in `cmr-snt-process`). For a full bundle
   deploy, use `mcp__claude_ai_OpenHEXA__update_static_webapp` with
   that `id` and `files_json` as the multi-file array: one `{path, content}` object per file in
   the bundle above. The files to send are `app/<variant>/*` (generic to that variant) +
-  `app/pipeline_descriptions.json` (shared, same content for every variant) + that workspace's
-  `workspaces/<ws>/<variant>/pipeline_cards.json`. For a small, targeted change to
-  one already-deployed file, use `mcp__claude_ai_OpenHEXA__edit_static_webapp_file` instead —
-  see _MCP deployment_ below.
+  `app/pipeline_descriptions.json` (shared, same content for every variant) — **5 files, and never
+  a `pipeline_cards.json`.** For a small, targeted change to one already-deployed file, use
+  `mcp__claude_ai_OpenHEXA__edit_static_webapp_file` instead — see _MCP deployment_ below.
+- **Confirm the workspace has a catalog before calling the deploy done.** The bundle alone is not
+  a working app: check the object exists with
+  `list_files(workspace_slug, prefix="utils_pipelines/create_pipeline_cards/pipeline_cards/")`. If
+  it is missing, the app will hard-error at boot — the fix is to install and run
+  `create_pipeline_cards` in that workspace, not to add a file to the bundle.
 - `allowed_operations`: at minimum `PIPELINES_READ, PIPELINES_RUN, FILES_READ`. Add
   `USER_READ` if the app queries workspace connections at runtime (to populate
-  `DHIS2Connection` dropdowns).
-- **The repo is the source of truth**, not a per-workspace mirror: each variant's bundle lives
-  once under `app/<variant>/`, and each workspace contributes only
-  `workspaces/<ws>/<variant>/pipeline_cards.json`. After a deploy, keep those files in sync (e.g.
-  if you regenerated a workspace's cards, save them back to
-  `workspaces/<ws>/<variant>/pipeline_cards.json`; if you changed the app, it's already committed
-  under `app/<variant>/`). **Partial deploys work** — `files_json` may carry only the files that
-  changed (the others are left intact); you do **not** have to resend the whole bundle every time
-  (see _MCP deployment_ below for the confirmation + caveats). You can read the live files back
-  with `get_static_webapp_file` (single file) or `get_static_webapp` (full bundle) to verify the
-  deploy or to diff against the repo.
+  `DHIS2Connection` dropdowns). Note **`FILES_READ` is now load-bearing at boot**, not just for
+  report/output downloads — without it the catalog read fails and the app shows nothing.
+- **The repo is the source of truth for the app**, and the workspace bucket is the source of truth
+  for the catalog. Each variant's bundle lives once under `app/<variant>/`; no workspace
+  contributes any repo file. After a deploy there are no cards to "save back" — regenerating a
+  catalog means re-running `create_pipeline_cards`, and nothing needs committing. **Partial
+  deploys work** — `files_json` may carry only the files that changed (the others are left
+  intact); you do **not** have to resend the whole bundle every time (see _MCP deployment_ below
+  for the confirmation + caveats). You can read the live files back with `get_static_webapp_file`
+  (single file) or `get_static_webapp` (full bundle) to verify the deploy or to diff against the
+  repo.
 
 ---
 
@@ -378,7 +436,10 @@ The proxy enforces a whitelist of permitted GraphQL operations. Set via `update_
 If a query fails with a permission error in the webapp, a scope is missing. The SNT pipeline webapp requires at minimum `PIPELINES_READ, PIPELINES_RUN, FILES_READ`.
 
 **The orchestrator requires four scopes: `PIPELINES_READ, PIPELINES_RUN, FILES_READ, USER_READ`.**
-`USER_READ` is the one most easily forgotten — it's needed for the `workspace { connections }`
+⚠️ **`FILES_READ` became boot-critical on 2026-08-04**: besides signing report/output downloads, it
+is what lets the app read its own `pipeline_cards.json` out of the workspace bucket (see _The
+pipeline catalog_). Without it the app now fails to load entirely, rather than merely losing its
+download links. `USER_READ` is the one most easily forgotten — it's needed for the `workspace { connections }`
 query that powers the **DHIS2-connection dropdown** in the parameter form. Without it the
 proxy rejects that query with `Operations not allowed: workspace` and the form silently falls
 back to a plain text slug input (the connection dropdown just never appears — the app doesn't
@@ -390,9 +451,9 @@ drift is caught by inspecting the live webapp rather than a stored config file.
 **Scopes are webapp metadata, not part of the deployed bundle.** They live on the platform's
 webapp object, set **once per webapp at create/update time** — not re-sent with every file
 deploy, and not derivable from the files. So porting the orchestrator to a new workspace is:
-(1) create the webapp **with the four scopes**, then (2) deploy the 4 generic files +
-`pipeline_descriptions.json` + that workspace's `pipeline_cards.json`. Three ways to set the
-scopes:
+(1) create the webapp **with the four scopes**, (2) deploy the 5-file bundle (4 generic +
+`pipeline_descriptions.json`), then (3) install and run `create_pipeline_cards` in that workspace
+so the catalog exists in its bucket. Three ways to set the scopes:
 
 - **OpenHEXA UI** — the webapp settings page has an **"Allowed operations"** checklist (confirmed
   2026-06-23 — Giulia can tick the four by hand; no agent/API needed).
@@ -519,6 +580,12 @@ mutation ($input: PrepareObjectDownloadInput!) {
 
 Input fields: `workspaceSlug`, `objectKey` (from the BucketObject), `forceAttachment: false`.
 
+**This mutation is not limited to run outputs** — `objectKey` may be *any* key in the workspace
+bucket. That is what lets the app read its own configuration at boot: the orchestrator signs
+`utils_pipelines/create_pipeline_cards/pipeline_cards/pipeline_cards.json` and `fetch`es it as JSON
+(see _The pipeline catalog_). The signed URLs are CORS-open, so `fetch` works cross-origin — not
+just `<iframe>`.
+
 ### Embedding an HTML report in-app (iframe)
 
 **Confirmed feasible and shipped in the `cockpit` variant** (spike `archive/snt-app-dev/report-embed/`
@@ -607,7 +674,7 @@ files are left untouched, _not_ deleted. Verified by deploying `app.js` alone to
 and reading back with `get_static_webapp`: all other files (CSS, HTML, both JSON) survived
 intact. Caveats: (1) confirmed on the SaaS; (2) **always re-verify after a partial deploy** (see
 below); (3) keep the full bundle reproducible from the repo (`app/<variant>/` +
-`workspaces/<ws>/<variant>/pipeline_cards.json`) so a full re-deploy is always possible.
+`app/pipeline_descriptions.json`) so a full re-deploy is always possible.
 
 To **read back** the currently-deployed files:
 
@@ -643,9 +710,8 @@ single Read.
 
 **Manual UI upload (fallback for wholesale rewrites).** If a wholesale rewrite is needed and the
 escape/chunk dance below feels like overkill, offer the user the option to drag the changed
-file(s) from `app/<variant>/` (generic to that variant) or
-`workspaces/<ws>/<variant>/pipeline_cards.json` (the canonical local copies) straight into the
-OpenHEXA UI — no agent Read, no token cost, no size limit.
+file(s) from `app/<variant>/` or `app/pipeline_descriptions.json` (the canonical local copies)
+straight into the OpenHEXA UI — no agent Read, no token cost, no size limit.
 
 **If a wholesale rewrite must go through the API** (confirmed 2026-06-22): write the escaped
 string to a temp file, then read it back in slices with the Bash tool (`cut -c1-20000 file`,
@@ -687,35 +753,56 @@ ConvertTo-Json -InputObject $arr -Depth 5 -Compress | Out-File -Encoding utf8 "$
 
 ### Pipeline IDs are workspace-specific
 
-Pipeline **UUIDs** and **codes/slugs** both differ across workspaces for the same pipeline. The only stable identifier is the **Python function name** (e.g. `snt_dhis2_extract`) — this is used as the key in `schemas/pipeline_cards.schema.json` and as the `id` in each variant's `app/<variant>/pipeline_map.json`. The app gets pipeline UUIDs at runtime from `pipeline_cards.json` (which is fetched alongside the app bundle). Never copy UUIDs from another workspace's `pipeline_cards.json` — nor between variants, even for the same workspace.
+Pipeline **UUIDs** and **codes/slugs** both differ across workspaces for the same pipeline. The only stable identifier is the **Python function name** (e.g. `snt_dhis2_extract`) — this is used as the key in `schemas/pipeline_cards.schema.json` and as the `id` in each variant's `app/<variant>/pipeline_map.json`. The app gets pipeline UUIDs at runtime from that workspace's own bucket-hosted `pipeline_cards.json`, so **UUIDs can no longer leak across workspaces**: each workspace's catalog is generated in place by running `create_pipeline_cards` there, and is never copied between workspaces. (The old failure mode — hand-copying a `pipeline_cards.json` from one workspace to another — is structurally impossible now.)
 
 ---
 
 ## SNT Pipeline Definitions
 
-`schemas/pipeline_cards.schema.json` documents the expected structure for workspace-and-variant-specific `pipeline_cards.json` files — field definitions, type mapping, and generation instructions. Read it when generating or interpreting pipeline data.
+`schemas/pipeline_cards.schema.json` documents the expected structure of a `pipeline_cards.json`
+— field definitions and type mapping. Read it when interpreting pipeline data.
 
-Each workspace has a `workspaces/<ws>/<variant>/pipeline_cards.json` per UI variant — a cached catalog of every pipeline available in that workspace, with display names, UUIDs, and full parameter definitions fetched from GitHub.
+**The catalog is generated by a pipeline, not by the agent.** Each workspace has exactly one
+`pipeline_cards.json`, in its own bucket at
+`utils_pipelines/create_pipeline_cards/pipeline_cards/pipeline_cards.json`, produced by the
+`create_pipeline_cards` pipeline (source: `utils_pipelines/create_pipeline_cards/`, docs: its
+`README.md`). It is shared by both UI variants. See _The pipeline catalog_ above for how the app
+reads it.
 
-**At session start, check whether `workspaces/<ws>/<variant>/pipeline_cards.json` exists:**
+**Regenerating it is the answer to almost every catalog question** — a pipeline was installed,
+removed, or had a parameter renamed; the app greys out something that should be live; a run fails
+with `The provided config contains invalid key(s): …`. In all of those cases the fix is **run
+`create_pipeline_cards` in that workspace** (via the OpenHEXA UI, or `run_pipeline` if the user
+asks), not to hand-edit anything. The webapp picks the new catalog up on its next page load — no
+redeploy.
 
-- **If yes** — use it as the pipeline catalog. No need to call `list_pipelines` or fetch GitHub sources.
-- **If no** — generate it following the `_generation_instructions` in `schemas/pipeline_cards.schema.json`, save it to `workspaces/<ws>/<variant>/pipeline_cards.json`, then proceed.
+**To inspect a workspace's current catalog** (e.g. to check whether a pipeline is present, or what
+parameters it exposes):
 
-`pipeline_cards.json` is the primary source for: which pipelines exist in the workspace (with UUIDs) and what parameters each pipeline accepts (for building UI cards).
+- `list_files(workspace_slug, prefix="utils_pipelines/create_pipeline_cards/pipeline_cards/")` —
+  cheap existence + `updatedAt` check. Do this before assuming a workspace has a catalog at all.
+- `read_file(workspace_slug, "utils_pipelines/create_pipeline_cards/pipeline_cards/pipeline_cards.json")`
+  — the full contents. ⚠️ These files are ~45–60 KB; prefer the `list_files` check, or ask the user
+  to read a value off the OpenHEXA UI, when you only need one fact.
+- Previous versions are archived by the pipeline itself under `…/pipeline_cards/historical/` with a
+  timestamp suffix — useful for diffing what changed between runs.
 
-**It is a cache, not live truth — confirm before deploy.** Each file carries a `generated_at`
-date; a pipeline's `@parameter` decorators on GitHub can change after that (a renamed/added/
-removed param makes runs fail with `The provided config contains invalid key(s): …`). So
-before building or deploying any webapp, state the cards' `generated_at` date and ask the user
-whether to re-fetch params for **only the pipeline(s) that app will run** (not the whole
-catalog) from `…/snt_development/main/{pipeline_id}/pipeline.py`. If they confirm, re-extract
-the decorators, patch any drift into both `pipeline_cards.json` (bump `generated_at`) and the
-app's `PIPELINE_CONFIG`/form, then deploy.
+**Staleness works differently now.** The catalog still carries a `generated_at` date, but its
+parameters are read from each pipeline's **deployed current version** in that workspace
+(`pipelineByCode.currentVersion.parameters`, recorded as `parameters_source:
+"openhexa_deployed"`) — not scraped from GitHub `main`. So it reflects what is actually installed,
+and the old GitHub-vs-installed drift class is gone. What can still be stale is the catalog vs the
+workspace *now*: if pipelines have been installed or upgraded since `generated_at`, re-run the
+generator. **Do not** patch a parameter by hand to "fix" drift — that desynchronises the bucket
+file from the generator and the next run silently reverts it.
 
-### How to add or update a pipeline definition
+### Reference: how a pipeline's parameters are declared
 
-The user will specify which pipelines to include. For each one, fetch its source code from GitHub and extract the parameter definitions directly from the `@parameter` decorators.
+You should not normally need this — `create_pipeline_cards` extracts parameters from the deployed
+pipeline version automatically. Keep it for reading pipeline source on GitHub, for understanding
+where the catalog's fields come from, and for the rare case of diagnosing a pipeline whose
+deployed version cannot be resolved (the generator leaves those with `id: null` and excludes them;
+see the caveats in the pipeline's `README.md`).
 
 **GitHub repository:** `https://github.com/BLSQ/snt_development`
 
@@ -767,12 +854,20 @@ Do **not** look inside a `pipelines/` folder — it does not contain the correct
 - The card `name` (display title) and `description` (subtitle) are **not** in the Python source. Get the display name from `list_pipelines` in OpenHEXA or ask the user. Do not invent them.
 - The `id` field is the Python function name — the first argument to `@pipeline(...)`, which is also the pipeline's folder name in the `snt_development` repo and the node `id` in each variant's `app/<variant>/pipeline_map.json`.
 
+⚠️ **Reference only — do not hand-build a catalog from this.** The connection type names above are
+the SDK's Python classes; `create_pipeline_cards` sees OpenHEXA's own lowercase codes instead
+(`dhis2`, `custom`, `iaso`, `postgresql`, `gcs`, `s3`, `file`) and maps them to these same JSON
+values via `PARAMETER_TYPE_MAP` in its `config.py`. If a new connection type ever appears in a
+pipeline, that map is the place to extend — the webapp's form then needs a matching branch in
+`fieldControlHtml`, or the parameter falls back to a plain text input.
+
 ---
 
 ## Workspace-Specific Configuration
 
-The repo keeps **generic**, **per-variant**, and **workspace-specific** artifacts physically
-separate:
+**The repo now holds no workspace-specific artifacts at all.** Everything committed here is either
+generic or per-variant; the only per-workspace data lives in each OpenHEXA workspace's own bucket
+(see _The pipeline catalog_).
 
 - **`app/<variant>/`** — one generic orchestrator bundle per UI variant (`index.html`,
   `styles.css`, `app.js`, `pipeline_map.json`), shared by every workspace for that variant.
@@ -782,14 +877,18 @@ separate:
   `<variant>/` subfolder: hand-authored node description text, shared unchanged across every
   variant and every workspace. Single source of truth; must be copied into both variants' deploy
   bundles (see _Data architecture_).
-- **`workspaces/<ws>/<variant>/pipeline_cards.json`** — the **only** per-workspace-per-variant
-  file: that workspace's cached pipeline catalog (names, UUIDs, parameters) for that variant.
-  `<ws>` is the workspace slug with hyphens (e.g. `snt-app-dev`). Never copy UUIDs from another
-  workspace's cards, nor between variants.
+- **`utils_pipelines/`** — OpenHEXA pipelines that support the webapp itself (as opposed to the
+  ~18 SNT process pipelines the orchestrator *runs*, which live in the separate `snt_development`
+  repo). Currently just `create_pipeline_cards/`, which generates each workspace's catalog.
 - **`schemas/`**, **`docs/`**, **`design/`** — contracts, consolidated docs, and WIP/design
   explorations respectively.
 - **`archive/`** — retired spikes and pre-orchestrator single-file webapps, kept for reference
   only (not deployed, not maintained).
+
+⚠️ **There is no `workspaces/` folder.** It held `workspaces/<ws>/<variant>/pipeline_cards.json`
+and was deleted on 2026-08-04 when both variants moved to reading the catalog from the bucket. If
+you find yourself wanting to create it, you are about to reintroduce the redeploy-per-config-change
+problem that change removed. Old copies remain in git history if ever needed.
 
 Webapp identity and scopes (`id`, `slug`, `url`, `allowedOperations`) are **not** stored in the
 repo — resolve them live via `list_static_webapps` / `get_static_webapp` whenever you deploy or
@@ -804,8 +903,8 @@ path)` (added 2026-07-07) reads a single file (with optional `start_line`/`end_l
 a cheap single-file check. Use the **slug** (from `list_static_webapps`), not the UUID, for
 both. This means:
 
-- **The live app is an inspectable source of truth, not a black box.** Before editing an existing webapp, pull the deployed files and diff them against the repo (`app/<variant>/` + `workspaces/<ws>/<variant>/pipeline_cards.json`) to catch drift (e.g. edits made directly in the OpenHEXA UI).
-- To build a workspace's deploy set for a given variant, combine `app/<variant>/*` with that workspace's `workspaces/<ws>/<variant>/pipeline_cards.json` — there is no per-app mirror folder to assemble.
+- **The live app is an inspectable source of truth, not a black box.** Before editing an existing webapp, pull the deployed files and diff them against the repo (`app/<variant>/` + `app/pipeline_descriptions.json`) to catch drift (e.g. edits made directly in the OpenHEXA UI). A live `pipeline_cards.json` still present in a webapp is a **leftover from before 2026-08-04** — nothing fetches it; it can be dropped with `files_to_delete_json`.
+- A variant's deploy set is just `app/<variant>/*` + `app/pipeline_descriptions.json` — the same 5 files for every workspace, with no per-workspace assembly step at all.
 - After a deploy, **verify** by reading the changed file(s) back (`get_static_webapp_file` for one file, `get_static_webapp` for the whole bundle) and diffing against the repo.
 - ✅ For small, targeted edits prefer `mcp__claude_ai_OpenHEXA__edit_static_webapp_file`
   (find/replace on one file, added 2026-07-07) over `update_static_webapp` — it never needs the
@@ -816,35 +915,33 @@ both. This means:
 
 ### How to build or update the webapp for a workspace
 
-The agent's job is to keep each variant's `app/<variant>/` bundle correct and each workspace's
-`workspaces/<ws>/<variant>/pipeline_cards.json` accurate, then deploy. The primary source files
-are:
+The agent's job is to keep each variant's `app/<variant>/` bundle correct, then deploy. Keeping the
+per-workspace catalog accurate is **no longer an agent task** — it is a pipeline run (see _The
+pipeline catalog_). The primary source files are:
 
-- **`schemas/pipeline_cards.schema.json`** — canonical pipeline definitions: which parameters to expose, their types, defaults, and help text.
-- **`workspaces/<ws>/<variant>/pipeline_cards.json`** — workspace-and-variant-specific catalog with pipeline UUIDs and parameter definitions. Fetched at runtime by the app.
+- **`schemas/pipeline_cards.schema.json`** — the contract for the generated catalog: field definitions and type mapping.
 - **`app/<variant>/pipeline_map.json`** (+ `schemas/pipeline_map.schema.json`) — that variant's map and its contract.
 - **`app/pipeline_descriptions.json`** (+ `schemas/pipeline_descriptions.schema.json`) — the single, hand-authored source of each node's description text, shared across every variant and workspace.
+- **`utils_pipelines/create_pipeline_cards/`** — the generator that produces each workspace's catalog in its bucket.
 
 When building or updating the orchestrator for a workspace:
 
 1. Settle which variant (`flowchart` or `cockpit`) you're working on.
-2. Use `schemas/pipeline_cards.schema.json` and `workspaces/<ws>/<variant>/pipeline_cards.json` to determine which pipelines exist and what UI to build.
-3. Edit the variant's app under `app/<variant>/` (shared by all workspaces for that variant); edit `app/pipeline_descriptions.json` for description-text changes (shared across variants); edit only `workspaces/<ws>/<variant>/pipeline_cards.json` for per-workspace changes.
+2. Confirm the workspace has a catalog — `list_files(workspace_slug, prefix="utils_pipelines/create_pipeline_cards/pipeline_cards/")`. If it's missing, the app cannot boot there; installing + running `create_pipeline_cards` comes first. Read it with `read_file` only if you actually need its contents.
+3. Edit the variant's app under `app/<variant>/` (shared by all workspaces for that variant); edit `app/pipeline_descriptions.json` for description-text changes (shared across variants). There is nothing per-workspace to edit in the repo.
 4. Follow the runtime patterns above (prefixed IDs, shared functions, `allowed_operations`, etc.).
 5. Resolve the webapp `id` via `list_static_webapps` (distinguish variants by webapp **slug** —
    see _UI variants_), then deploy: for a new workspace or a full-bundle refresh use
    `mcp__claude_ai_OpenHEXA__update_static_webapp` with `app/<variant>/*` +
-   `app/pipeline_descriptions.json` + `workspaces/<ws>/<variant>/pipeline_cards.json`; for a small
-   edit to one already-deployed file use `mcp__claude_ai_OpenHEXA__edit_static_webapp_file` instead
-   (see _MCP deployment_).
-6. Keep the repo in sync (save any regenerated cards back to `workspaces/<ws>/<variant>/pipeline_cards.json`).
+   `app/pipeline_descriptions.json` (5 files); for a small edit to one already-deployed file use
+   `mcp__claude_ai_OpenHEXA__edit_static_webapp_file` instead (see _MCP deployment_).
+6. Nothing to sync back — the repo has no per-workspace files to update after a deploy.
 
 > For the **SNT Pipelines Orchestrator** specifically, follow the multi-file architecture in
 > _SNT Pipelines Orchestrator (end goal)_ above: the map (`app/<variant>/pipeline_map.json`,
 > validated against `schemas/pipeline_map.schema.json`) supplies layout and dependencies, the
-> workspace's `workspaces/<ws>/<variant>/pipeline_cards.json` supplies which nodes are active
-> plus their params/UUIDs, and the app is deployed as a bundle rather than a single inlined
-> `index.html`.
+> workspace's bucket-hosted `pipeline_cards.json` supplies which nodes are active plus their
+> params/UUIDs, and the app is deployed as a bundle rather than a single inlined `index.html`.
 
 ### Session start workflow
 
@@ -854,11 +951,19 @@ before doing anything else.**
 
 Then:
 
-1. Check whether `workspaces/<ws>/<variant>/pipeline_cards.json` already exists (`<ws>` = the workspace slug, hyphens; `<variant>` = `flowchart` or `cockpit`).
-2. If yes — use it as the pipeline catalog; resolve the webapp `id`/`slug` live via `list_static_webapps` when you need to deploy or inspect (match the variant by webapp **slug** — see _UI variants_).
-3. If no — use `mcp__claude_ai_OpenHEXA__list_workspaces` to find the workspace slug, `mcp__claude_ai_OpenHEXA__list_pipelines` to resolve pipeline UUIDs, generate `workspaces/<ws>/<variant>/pipeline_cards.json` (per the schema's `_generation_instructions`), and use `mcp__claude_ai_OpenHEXA__list_static_webapps` to find the webapp when deploying.
+1. Check whether the workspace has a catalog in its bucket:
+   `list_files(workspace_slug, prefix="utils_pipelines/create_pipeline_cards/pipeline_cards/")`
+   (`<ws>` = the workspace slug, hyphens). Note the `updatedAt` — that is the catalog's real age.
+2. If yes — that is the pipeline catalog; the app reads it itself at runtime. Resolve the webapp
+   `id`/`slug` live via `list_static_webapps` when you need to deploy or inspect (match the variant
+   by webapp **slug** — see _UI variants_). Read the file with `read_file` only if you need its
+   contents, not just its existence.
+3. If no — the orchestrator cannot boot in that workspace. Tell the user, and ask them to install
+   and run **`create_pipeline_cards`** there (source in `utils_pipelines/create_pipeline_cards/`;
+   pass `webapp_name` matching that workspace's webapp — the bare `SNT Pipelines Orchestrator` in
+   `cmr-snt-process`). Do not generate a catalog by hand and do not add one to the bundle.
 
-When about to **edit an existing webapp**, pull its live files with `mcp__claude_ai_OpenHEXA__get_static_webapp` first and diff them against the repo (`app/<variant>/` + `workspaces/<ws>/<variant>/pipeline_cards.json`) — this catches drift (e.g. edits made directly in the OpenHEXA UI) before you overwrite it on the next deploy.
+When about to **edit an existing webapp**, pull its live files with `mcp__claude_ai_OpenHEXA__get_static_webapp` first and diff them against the repo (`app/<variant>/` + `app/pipeline_descriptions.json`) — this catches drift (e.g. edits made directly in the OpenHEXA UI) before you overwrite it on the next deploy.
 
 Resolving workspace / app identifiers (all **live** — nothing stored in the repo):
 

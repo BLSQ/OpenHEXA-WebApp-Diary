@@ -2,7 +2,9 @@
 
 > **Status:** Reworked · 2026-07-14 (functionality/UI-UX split + versioned roadmap) · amended
 > 2026-07-15 (PM feedback folded into v1 scope) · amended 2026-07-31 (**v1 build progress** —
-> several v1 items are now built in Cockpit; see the marker legend below)
+> several v1 items are now built in Cockpit; see the marker legend below) · amended 2026-08-04
+> (pipeline catalog moved out of the deployed bundle — §6 supporting infrastructure; no change to
+> product scope)
 >
 > **⚠️ v1 is in progress.** Items below carry a build marker. These stay **v1 scope** — a built
 > v1 item is _not_ back-dated into v0, which remains the frozen 2026-07-14 baseline:
@@ -202,7 +204,7 @@ live.
 | ID  | Capability                          | What it means for the user                                                                                                                                                                   | Technical basis                                                                                                                           | Status |
 | --- | ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- | ------ |
 | F1  | **Live, persistent status board**   | On every load, each pipeline shows its real last-run status; true for the whole team, across reloads and days.                                                                               | `pipelines(workspaceSlug:)` → `runs(orderBy: EXECUTION_DATE_DESC, perPage:1)`, permitted through the proxy under `PIPELINES_READ`.        | ✅     |
-| F2  | **Missing-pipeline detection**      | Pipelines not installed here are greyed; a panel explains they're standard and deep-links to the templates page to install.                                                                  | A node is available iff its `id` is in the workspace's `pipeline_cards.json` (with a `uuid`); otherwise greyed. Link is client-side.      | ✅     |
+| F2  | **Missing-pipeline detection**      | Pipelines not installed here are greyed; a panel explains they're standard and deep-links to the templates page to install. Once installed, the node goes live as soon as the catalog is regenerated — no redeploy. | A node is available iff its `id` is in the workspace's `pipeline_cards.json` (with a `uuid`); otherwise greyed. Link is client-side.      | ✅     |
 | F3  | **Pipeline detail panel**           | Name/code/type, a description of what the pipeline does, and a link to its GitHub README.                                                                                                    | Static content from the map/cards + `github.com/BLSQ/snt_development/tree/main/<pipeline_id>`.                                            | ✅     |
 | F4  | **Parameter form + config preview** | A typed input per parameter (checkbox, number, dropdown, multi-select, **connection dropdown**), help text, sensible defaults; a "preview config" toggle shows the exact package to be sent. | Form generated from `pipeline_cards.json`; connection dropdown from `workspace { connections }` — needs `USER_READ` (else text fallback). | ✅     |
 | F5  | **Run + poll**                      | A Run button launches the pipeline and polls it to completion, live-updating the card + panel.                                                                                               | `runPipeline` mutation, params as a `config` object (`DHIS2Connection` passed as connection **slug**). Needs `PIPELINES_RUN`.             | ✅     |
@@ -215,7 +217,24 @@ live.
 Supporting infrastructure (not user-facing capabilities): the app is served as a **multi-file
 bundle** (only `index.html` is HTML-injected; CSS/JS/JSON served as-is; partial/incremental deploys
 work), and requires the scopes **`PIPELINES_READ, PIPELINES_RUN, FILES_READ, USER_READ`**
-(`USER_READ` powers F4's connection dropdown and is the one most easily forgotten).
+(`USER_READ` powers F4's connection dropdown and is the one most easily forgotten; `FILES_READ`
+covers both F6's downloads and the catalog read described next).
+
+**Where the per-workspace catalog comes from (changed 2026-08-04).** The `pipeline_cards.json` that
+drives F2 and F4 is **no longer part of the deployed bundle**. It is generated in each workspace by
+a companion pipeline (`create_pipeline_cards`), stored in that workspace's own file storage, and
+read by the app at page load via a signed URL. Three consequences worth knowing at product level:
+
+- **Configuration changes no longer need a deploy.** Installing a pipeline, or a parameter changing
+  in a pipeline's newer version, is picked up by re-running the generator and refreshing the page.
+  This removes the developer from the loop for the most common kind of change.
+- **The parameter form matches the version actually installed** in the workspace (parameters are
+  read from its deployed pipeline version, not from GitHub `main`) — closing a real drift risk
+  where a form could offer parameters the installed pipeline didn't accept. Note this is a
+  _different_ problem from the README drift in §8.1, which is about documentation and is still open.
+- **A workspace must have the generator run once before its orchestrator works** — otherwise the app
+  shows a "run `create_pipeline_cards`" message instead of the map. One extra setup step per
+  workspace, in exchange for the two benefits above.
 
 ---
 
