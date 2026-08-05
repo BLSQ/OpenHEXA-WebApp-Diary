@@ -110,9 +110,9 @@ catalog is read live from the workspace bucket at runtime (see _Data architectur
   `snt-app-dev`, `snt-testing`, `cmr-snt-process`. **English-only** (see _Bilingual UI_).
 - **`cockpit`** — a focused, one-step-at-a-time guided walkthrough, and the **v1 lead variant**
   (where new functionality lands first). Target UX is
-  `design/wireframes/orchestrator_wireframe_cockpit.html`. Deployed to `snt-app-dev` and
-  `snt-testing` (not to `cmr-snt-process`). **Bilingual EN / FR** and carries the in-app HTML
-  report embed — two features the flowchart variant does not have.
+  `design/wireframes/orchestrator_wireframe_cockpit.html`. Deployed to `snt-app-dev`,
+  `snt-testing`, `cmr-snt-process` (the last added 2026-08-05). **Bilingual EN / FR** and carries
+  the in-app HTML report embed — two features the flowchart variant does not have.
 
 Deploying a given (workspace, variant) pair is **5 files** — 4 generic (`app/<variant>/*`) + 1
 cross-variant shared file (`app/pipeline_descriptions.json`). **The deployed bundle is now fully
@@ -187,18 +187,63 @@ Rules that follow from this:
   `boot.cardsMissing` / `boot.cardsUnreadable` / `boot.noWorkspace`); flowchart renders a
   `.map-error` box onto the canvas.
 - ⚠️ **Every workspace must have `create_pipeline_cards` deployed and run before its orchestrator
-  will boot.** Present in `snt-app-dev` and `snt-testing`. **Absent in `cmr-snt-process`** as of
-  2026-08-04 — its live flowchart app keeps working on its already-deployed bundle, but a redeploy
-  there requires installing and running the generator first. **The generator takes no parameters**
-  (just Run), but it curates against the deployed map of the webapp named by its
-  `config.WEBAPP_SLUG` — currently `snt-pipelines-orchestrator-cockpit`, the lead variant. So in
-  `cmr-snt-process` (Flowchart only, no Cockpit app yet) it will **fail** until the Cockpit app is
-  deployed there, or `WEBAPP_SLUG` is pointed at `snt-pipelines-orchestrator` and the generator
-  redeployed. Giulia is bringing that workspace's apps up to date manually.
+  will boot.** Present in all three workspaces — `snt-app-dev`, `snt-testing`, `cmr-snt-process`
+  (the last brought up to date 2026-08-05). **The generator takes no parameters** (just Run), but it
+  curates against the deployed map of the webapp named by its `config.WEBAPP_SLUG` — currently
+  `snt-pipelines-orchestrator-cockpit`, the lead variant. **So the Cockpit app must exist in a
+  workspace before the generator can succeed there**: a Flowchart-only workspace makes it **fail**
+  until Cockpit is deployed too, or `WEBAPP_SLUG` is pointed at `snt-pipelines-orchestrator` and the
+  generator redeployed. Both variants are now deployed in all three workspaces, so this ordering
+  constraint only bites when standing up a **new** workspace — deploy Cockpit first, then run the
+  generator.
+- **When the catalog is unreadable the app diagnoses _why_ and links to the fix**, rather than
+  showing one generic message — see _Diagnosing a missing catalog from inside the app_ below.
 - **Parameters now come from the deployed pipeline version, not from GitHub.** The generator reads
   `pipelineByCode.currentVersion.parameters`, so the catalog matches what is actually installed in
   the workspace. This removes the old GitHub-source-scraping step and the drift it caused (see
   _SNT Pipeline Definitions_).
+
+##### Diagnosing a missing catalog from inside the app
+
+Added 2026-08-05. When `loadCards()` can't read the catalog, the app runs **one extra
+`pipelines(workspaceSlug:)` query** — the same query as _Reading last-run status_, so it needs **no
+scope beyond `PIPELINES_READ`** — works out which of these situations the workspace is in, and shows
+the matching message with a deep link:
+
+| Diagnosis       | What the app tells the user                                        |
+| --------------- | ------------------------------------------------------------------ |
+| `notInstalled`  | install the generator → link to its **template** page              |
+| `neverRun`      | open the pipeline page and press Run                               |
+| `inProgress`    | a run is `queued` / `running` / `terminating` — wait; link to it    |
+| `lastRunFailed` | link straight to the failed run's logs                             |
+| `unknown`       | fallback to the generic "run `create_pipeline_cards`" text         |
+
+Implementation, mirrored in both variants near the top of each `app/<variant>/app.js`:
+`GENERATOR_QUERY`, `looksLikeGenerator`, `diagnoseMissingCatalog`, `generatorTemplateUrl` /
+`generatorPipelineUrl` / `generatorRunUrl`, `missingCatalogError` — `app/cockpit/app.js:121` +
+`:188-300`, `app/flowchart/app.js:80` + `:170-280`. (`diagnoseMissingCatalog` is also reused by the
+run-error drift hint — see _Running a pipeline_ — so it resolves the generator's state generally,
+despite the name.)
+
+Three things to know before touching it:
+
+- **The generator's `code` and `name` vary by how it was installed** — seen in the wild as
+  `create-pipeline-cards` (source deploy), `create_pipeline_cards`, and `Create pipeline_cards.json`
+  (template install). So **never hardcode its code**: `looksLikeGenerator` lowercases `code`/`name`,
+  strips non-alphanumerics, and tests for `pipelinecards` (`GENERATOR_KEY_MATCH`). Links are then
+  built from whatever `code` the query actually returned.
+- **The template deep link** (verified live 2026-08-05) is
+  `https://app.openhexa.org/workspaces/<ws>/templates/Create%20pipeline_cards.json` — i.e.
+  `/templates/` + the URL-encoded template **display name**, not a slug. That name is
+  `GENERATOR_TEMPLATE_NAME` in both `app.js`.
+- ⚠️ **The two variants take different DOM routes for these messages** — respect the seam when
+  adding markup. Cockpit's boot panel and run-status lines are set via **`innerHTML` with
+  caller-side escaping** (build a pre-escaped HTML string; `missingCatalogError` attaches it as
+  `err.htmlMessage`, and any dynamic value passed through `t()` must already be escaped). Flowchart's
+  `.map-error` box is **`textContent`-based**, so a link must be a real appended `<a>` element
+  (`missingCatalogError` attaches `err.helpLink = {href, label}` and the `init` catch builds the
+  anchor). Handing HTML to flowchart renders visible tags; handing unescaped data to cockpit is an
+  injection.
 
 `app/pipeline_descriptions.json` is the one exception to "each variant owns its files": it sits
 directly under `app/` (not inside any `app/<variant>/` subfolder) because the same hand-authored
@@ -539,6 +584,40 @@ mutation ($input: RunPipelineInput!) {
 
 For parameters of type `DHIS2Connection`, pass the **connection slug** (e.g. `"dhis2-nmdr-drc"`), not the UUID. List available connections with `mcp__claude_ai_OpenHEXA__list_connections`.
 
+#### `errors` is an enum, not a message (⚠️ easy to get wrong)
+
+`RunPipelineResult.errors` is **`[PipelineError!]!` — a GraphQL enum**, so it carries codes, never
+prose. **Do not string-match it, and never render it raw** (the orchestrator used to show users a
+literal `Couldn't start the run: INVALID_CONFIG`). Compare exact values. The full enum
+(`schemas/schema.generated.graphql`, `enum PipelineError`):
+
+`CANNOT_UPDATE_NOTEBOOK_PIPELINE`, `DUPLICATE_PIPELINE_VERSION_NAME`, `FILE_NOT_FOUND`,
+`INVALID_CONFIG`, `INVALID_TIMEOUT_VALUE`, `INVALID_VERSION_FILES`, `PERMISSION_DENIED`,
+`PIPELINE_ALREADY_COMPLETED`, `PIPELINE_ALREADY_STOPPED`, `PIPELINE_CODE_PARSING_ERROR`,
+`PIPELINE_DOES_NOT_SUPPORT_PARAMETERS`, `PIPELINE_NOT_FOUND`, `PIPELINE_RUNS_LIMIT_REACHED`,
+`PIPELINE_VERSION_NOT_FOUND`, `TABLE_NOT_FOUND`, `WORKSPACE_NOT_FOUND`.
+
+Both variants translate them in **`runErrorInfo(errors)`** → `{text, drift}`
+(`app/cockpit/app.js:2587`, `app/flowchart/app.js:2022`), falling through to a generic branch that
+still prints the codes so nothing is swallowed. **Four values mean the catalog no longer matches the
+installed pipeline** and are flagged `drift: true` — `INVALID_CONFIG`,
+`PIPELINE_DOES_NOT_SUPPORT_PARAMETERS`, `PIPELINE_NOT_FOUND`, `PIPELINE_VERSION_NOT_FOUND`. For
+those, the caller appends a "refresh the catalogue" line linking to the generator, via
+`catalogueRefreshHintHtml` (cockpit) / `catalogRefreshHintHtml` (flowchart), which reuse
+`diagnoseMissingCatalog` (see _Diagnosing a missing catalog from inside the app_).
+
+Implementation details worth preserving:
+
+- **The hint renders in a second pass.** `runNode` paints the error text immediately, then re-renders
+  with the hint appended once the extra `pipelines(...)` query resolves — so the error is never
+  delayed by the lookup. This is safe because `setRunStatusLine` no-ops when
+  `APP.selectedId !== nodeId`, so a slow lookup can't paint onto a different node.
+- ⚠️ **`.sb-runstatus` is `display: flex; flex-wrap: wrap`** — a `<br>` inside it becomes a flex item
+  and does **not** break the line. The hint is a `<span class="rs-hint">` with `flex: 0 0 100%`
+  (styled in both `app/<variant>/styles.css`). Same trap applies to any future second line there.
+- Any new mapping must be added in **both** variants, and cockpit's strings in **both** `I18N.en` and
+  `I18N.fr` (keys `runerr.*`, `link.refreshCatalogue`).
+
 ### Polling a run for status and outputs
 
 ```graphql
@@ -774,8 +853,9 @@ Pipeline **UUIDs** and **codes/slugs** both differ across workspaces for the sam
 reads it.
 
 **Regenerating it is the answer to almost every catalog question** — a pipeline was installed,
-removed, or had a parameter renamed; the app greys out something that should be live; a run fails
-with `The provided config contains invalid key(s): …`. In all of those cases the fix is **run
+removed, or had a parameter renamed; the app greys out something that should be live; a run is
+rejected with `INVALID_CONFIG` or another of the drift-flagged `PipelineError` codes (see
+_`errors` is an enum, not a message_). In all of those cases the fix is **run
 `create_pipeline_cards` in that workspace** (via the OpenHEXA UI, or `run_pipeline` if the user
 asks), not to hand-edit anything. The webapp picks the new catalog up on its next page load — no
 redeploy.
