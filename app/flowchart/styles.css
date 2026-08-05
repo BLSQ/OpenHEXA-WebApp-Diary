@@ -1082,6 +1082,18 @@ select.finput {
   gap: 0.35rem;
   line-height: 1.4;
 }
+/* Follow-up guidance under a run error (e.g. "refresh the catalog"). Its own
+   full-width flex item so it sits on its own line, in a lighter weight than the
+   error itself. */
+.sb-runstatus .rs-hint {
+  flex: 0 0 100%;
+  font-weight: 400;
+}
+.sb-runstatus .rs-hint a {
+  color: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+}
 .sb-runstatus .rs-glyph {
   font-weight: 700;
 }

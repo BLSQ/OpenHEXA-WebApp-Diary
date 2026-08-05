@@ -2013,6 +2013,88 @@ function setRunBtnBusy(nodeId, busy) {
 /* Trigger a run for the selected node: validate the form, call runPipeline,
  * then poll. Guards against a double-trigger (APP.activeRun) and against running
  * outside OpenHEXA / a node with no UUID. */
+/* Map runPipeline's rejection to something the user can act on. `errors` is a
+ * list of PipelineError *enum* values, not free text, so this is an exact match
+ * rather than message-sniffing — it won't quietly stop working if OpenHEXA
+ * rewords something. `drift: true` marks the causes that mean this workspace's
+ * catalog no longer matches the installed pipeline, which is exactly what
+ * re-running the generator fixes. */
+function runErrorInfo(errors) {
+  var codes = (errors || []).map(function (e) {
+    return String(e);
+  });
+  function has(code) {
+    return codes.indexOf(code) !== -1;
+  }
+
+  if (has("INVALID_CONFIG"))
+    return {
+      text:
+        "OpenHEXA rejected these settings. This pipeline’s parameters have " +
+        "most likely changed since this workspace’s catalog was built.",
+      drift: true,
+    };
+  if (has("PIPELINE_DOES_NOT_SUPPORT_PARAMETERS"))
+    return {
+      text:
+        "this pipeline doesn’t accept parameters, but the form sent some — " +
+        "the catalog is out of step with what’s installed.",
+      drift: true,
+    };
+  if (has("PIPELINE_NOT_FOUND"))
+    return {
+      text:
+        "OpenHEXA no longer recognises this pipeline. It may have been removed " +
+        "or re-created since the catalog was built.",
+      drift: true,
+    };
+  if (has("PIPELINE_VERSION_NOT_FOUND"))
+    return {
+      text:
+        "this pipeline has no deployed version in this workspace, so there is " +
+        "nothing to run.",
+      drift: true,
+    };
+  if (has("PERMISSION_DENIED"))
+    return {
+      text: "you don’t have permission to run this pipeline.",
+      drift: false,
+    };
+  if (has("PIPELINE_RUNS_LIMIT_REACHED"))
+    return {
+      text: "this workspace has reached its limit for pipeline runs.",
+      drift: false,
+    };
+  if (codes.length)
+    return { text: "OpenHEXA refused it (" + codes.join(", ") + ").", drift: false };
+  return { text: "the run was not accepted.", drift: false };
+}
+
+/* The "this workspace's catalog is stale — refresh it" tail for a run-status
+ * line, with a link to the generator as it actually exists here (or to the
+ * template if it isn't installed at all). Best-effort: if it can't be resolved,
+ * keep the instruction and drop the link. */
+async function catalogRefreshHintHtml(slug) {
+  var href = null;
+  var d = await diagnoseMissingCatalog(slug);
+  if (d && d.code) href = generatorPipelineUrl(slug, d.code);
+  else if (d && d.state === "notInstalled") href = generatorTemplateUrl(slug);
+  // state "unknown" -> no link; the instruction alone still says what to do.
+
+  // The status line is a flex row, so the hint is its own full-width flex item
+  // rather than a <br> (which wouldn't break the line inside a flex container).
+  return (
+    '<span class="rs-hint">Re-run “create_pipeline_cards” to refresh the ' +
+    "catalog, then reload this page." +
+    (href
+      ? ' <a href="' +
+        escapeHtml(href) +
+        '" target="_blank" rel="noopener">Open create_pipeline_cards ↗</a>'
+      : "") +
+    "</span>"
+  );
+}
+
 async function runNode(node) {
   if (APP.activeRun[node.id]) return; // a run for this node is already in flight
 
@@ -2108,18 +2190,22 @@ async function runNode(node) {
 
   var rp = data && data.runPipeline;
   if (!rp || !rp.success || !rp.run || !rp.run.id) {
-    var msg =
-      rp && rp.errors && rp.errors.length
-        ? rp.errors.join(", ")
-        : "the run was not accepted.";
+    var info = runErrorInfo(rp && rp.errors);
     delete APP.activeRun[node.id];
     setRunBtnBusy(node.id, false);
-    setRunStatusLine(
-      node.id,
+    var baseHtml =
       '<span class="rs-glyph">⚠</span> Couldn’t start the run: ' +
-        escapeHtml(msg),
-      "rs-err",
-    );
+      escapeHtml(info.text);
+    setRunStatusLine(node.id, baseHtml, "rs-err");
+    // A stale catalog is fixable, and the fix is a pipeline run — so point at
+    // it. Added in a second pass so the error itself never waits on another
+    // round trip.
+    if (info.drift)
+      setRunStatusLine(
+        node.id,
+        baseHtml + (await catalogRefreshHintHtml(slug)),
+        "rs-err",
+      );
     return;
   }
 
