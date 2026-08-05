@@ -622,6 +622,22 @@ var I18N = {
     "msg.startingRun": "Starting run…",
     "msg.couldntStart": "Couldn’t start the run: ",
     "msg.runNotAccepted": "the run was not accepted.",
+    // runPipeline rejection — one message per PipelineError enum cause. The
+    // first four mean the catalogue no longer matches what's installed.
+    "runerr.invalidConfig":
+      "OpenHEXA rejected these settings. This pipeline’s parameters have most likely changed since this workspace’s catalogue was built.",
+    "runerr.noParameters":
+      "this pipeline doesn’t accept parameters, but the form sent some — the catalogue is out of step with what’s installed.",
+    "runerr.pipelineNotFound":
+      "OpenHEXA no longer recognises this pipeline. It may have been removed or re-created since the catalogue was built.",
+    "runerr.versionNotFound":
+      "this pipeline has no deployed version in this workspace, so there is nothing to run.",
+    "runerr.permissionDenied": "you don’t have permission to run this pipeline.",
+    "runerr.runsLimit": "this workspace has reached its limit for pipeline runs.",
+    "runerr.generic": "OpenHEXA refused it ({codes}).",
+    "runerr.refreshHint":
+      "Re-run “create_pipeline_cards” to refresh the catalogue, then reload this page.",
+    "link.refreshCatalogue": "Open create_pipeline_cards ↗",
     "msg.unknownError": "unknown error",
     "msg.lostTrack": "Lost track of the run — check it in OpenHEXA.",
     "msg.stoppedWatchingStillRunning":
@@ -788,6 +804,24 @@ var I18N = {
     "msg.startingRun": "Démarrage de l’exécution…",
     "msg.couldntStart": "Impossible de démarrer l’exécution : ",
     "msg.runNotAccepted": "l’exécution n’a pas été acceptée.",
+    // rejet de runPipeline — un message par cause (enum PipelineError). Les
+    // quatre premières signifient que le catalogue ne correspond plus.
+    "runerr.invalidConfig":
+      "OpenHEXA a rejeté ces paramètres. Les paramètres de ce pipeline ont très probablement changé depuis la génération du catalogue de cet espace de travail.",
+    "runerr.noParameters":
+      "ce pipeline n’accepte pas de paramètres, mais le formulaire en a envoyé — le catalogue ne correspond plus à ce qui est installé.",
+    "runerr.pipelineNotFound":
+      "OpenHEXA ne reconnaît plus ce pipeline. Il a peut-être été supprimé ou recréé depuis la génération du catalogue.",
+    "runerr.versionNotFound":
+      "ce pipeline n’a aucune version déployée dans cet espace de travail : il n’y a rien à exécuter.",
+    "runerr.permissionDenied":
+      "vous n’avez pas la permission d’exécuter ce pipeline.",
+    "runerr.runsLimit":
+      "cet espace de travail a atteint sa limite d’exécutions de pipelines.",
+    "runerr.generic": "OpenHEXA l’a refusée ({codes}).",
+    "runerr.refreshHint":
+      "Réexécutez « create_pipeline_cards » pour actualiser le catalogue, puis rechargez cette page.",
+    "link.refreshCatalogue": "Ouvrir create_pipeline_cards ↗",
     "msg.unknownError": "erreur inconnue",
     "msg.lostTrack": "Exécution perdue de vue — vérifiez-la dans OpenHEXA.",
     "msg.stoppedWatchingStillRunning":
@@ -2544,6 +2578,67 @@ function setRunBtnBusy(nodeId, busy) {
   btn.classList.toggle("is-busy", busy);
 }
 
+/* Map runPipeline's rejection to something the user can act on. `errors` is a
+ * list of PipelineError *enum* values, not free text, so this is an exact match
+ * rather than message-sniffing — it won't quietly stop working if OpenHEXA
+ * rewords something. `drift: true` marks the causes that mean this workspace's
+ * catalogue no longer matches the installed pipeline, which is exactly what
+ * re-running the generator fixes. */
+function runErrorInfo(errors) {
+  var codes = (errors || []).map(function (e) {
+    return String(e);
+  });
+  function has(code) {
+    return codes.indexOf(code) !== -1;
+  }
+
+  if (has("INVALID_CONFIG"))
+    return { text: t("runerr.invalidConfig"), drift: true };
+  if (has("PIPELINE_DOES_NOT_SUPPORT_PARAMETERS"))
+    return { text: t("runerr.noParameters"), drift: true };
+  if (has("PIPELINE_NOT_FOUND"))
+    return { text: t("runerr.pipelineNotFound"), drift: true };
+  if (has("PIPELINE_VERSION_NOT_FOUND"))
+    return { text: t("runerr.versionNotFound"), drift: true };
+  if (has("PERMISSION_DENIED"))
+    return { text: t("runerr.permissionDenied"), drift: false };
+  if (has("PIPELINE_RUNS_LIMIT_REACHED"))
+    return { text: t("runerr.runsLimit"), drift: false };
+  if (codes.length)
+    return {
+      text: t("runerr.generic", { codes: codes.join(", ") }),
+      drift: false,
+    };
+  return { text: t("msg.runNotAccepted"), drift: false };
+}
+
+/* The "this workspace's catalogue is stale — refresh it" tail for a run-status
+ * line, with a link to the generator as it actually exists here (or to the
+ * template if it isn't installed at all). Best-effort: if it can't be resolved,
+ * keep the instruction and drop the link. */
+async function catalogueRefreshHintHtml(slug) {
+  var href = null;
+  var d = await diagnoseMissingCatalog(slug);
+  if (d && d.code) href = generatorPipelineUrl(slug, d.code);
+  else if (d && d.state === "notInstalled") href = generatorTemplateUrl(slug);
+  // state "unknown" -> no link; the instruction alone still says what to do.
+
+  // The status line is a flex row, so the hint is its own full-width flex item
+  // rather than a <br> (which wouldn't break the line inside a flex container).
+  return (
+    '<span class="rs-hint">' +
+    escapeHtml(t("runerr.refreshHint")) +
+    (href
+      ? ' <a href="' +
+        escapeHtml(href) +
+        '" target="_blank" rel="noopener">' +
+        escapeHtml(t("link.refreshCatalogue")) +
+        "</a>"
+      : "") +
+    "</span>"
+  );
+}
+
 async function runNode(node) {
   if (APP.activeRun[node.id]) return;
 
@@ -2616,18 +2711,22 @@ async function runNode(node) {
 
   var rp = data && data.runPipeline;
   if (!rp || !rp.success || !rp.run || !rp.run.id) {
-    var msg =
-      rp && rp.errors && rp.errors.length
-        ? rp.errors.join(", ")
-        : t("msg.runNotAccepted");
+    var info = runErrorInfo(rp && rp.errors);
     delete APP.activeRun[node.id];
     setRunBtnBusy(node.id, false);
-    setRunStatusLine(
-      node.id,
+    var baseHtml =
       '<span class="rs-glyph">⚠</span> ' +
-        escapeHtml(t("msg.couldntStart") + msg),
-      "rs-err",
-    );
+      escapeHtml(t("msg.couldntStart") + info.text);
+    setRunStatusLine(node.id, baseHtml, "rs-err");
+    // A stale catalogue is fixable, and the fix is a pipeline run — so point at
+    // it. Added in a second pass so the error itself never waits on another
+    // round trip (setRunStatusLine no-ops if another node is selected by then).
+    if (info.drift)
+      setRunStatusLine(
+        node.id,
+        baseHtml + (await catalogueRefreshHintHtml(slug)),
+        "rs-err",
+      );
     return;
   }
 
