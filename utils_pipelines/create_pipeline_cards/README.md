@@ -60,8 +60,12 @@ WEBAPP_SLUG = "snt-pipelines-orchestrator-cockpit"
   pipeline_map.json from webapp '…'`. There is no longer an uncurated fallback — a run either
   curates against a real deployed map or stops. This is deliberate: silently emitting every
   pipeline in the workspace is worse than a clear failure.
-- To curate against a different webapp (e.g. a workspace where only Flowchart —
-  `snt-pipelines-orchestrator` — is deployed), edit `WEBAPP_SLUG` and redeploy the pipeline.
+- To curate against a different webapp (e.g. a workspace where only Flowchart is deployed), edit
+  `WEBAPP_SLUG` and redeploy the pipeline. ⚠️ **Look the slug up live** with
+  `list_static_webapps` — the Flowchart slug is **not** uniform across workspaces
+  (`snt-pipelines-orchestrator` in `snt-app-dev` / `snt-testing`, but
+  `snt-pipelines-orchestrator-flowchart` in `cmr-snt-process` since 2026-08-24). The **Cockpit**
+  slug is consistent everywhere, which is why the current default is safe as a constant.
 
 ## Output
 
@@ -100,9 +104,10 @@ slug starts to matter.)
   listing (e.g. notebook-based pipelines), or a missing/malformed decorator will have `id: null`
   and be excluded by curation.
 - The run **fails** if the webapp named by `config.WEBAPP_SLUG` isn't deployed in the workspace,
-  since its map is the curation authority. As of 2026-08-04 that means the Cockpit app must be
-  deployed there first — it is present in `snt-app-dev` and `snt-testing`, but **not yet in
-  `cmr-snt-process`**, which is still on Flowchart only.
+  since its map is the curation authority — so the Cockpit app must be deployed there first. It is
+  now present in **all three** workspaces (`snt-app-dev`, `snt-testing`, `cmr-snt-process` —
+  verified live 2026-08-24), so this only bites when standing up a **new** workspace: deploy
+  Cockpit, then run the generator.
 - Duplicate `@pipeline` ids across workspace pipelines are logged as warnings but not resolved
   automatically — deprecated duplicates should be cleaned up in the workspace.
 - `config.EXPECTED_NUM_PIPELINES` (currently `18`) is only used to log a warning if the curated

@@ -112,7 +112,7 @@ evolve independently).
 | Variant     | Status                                          | What it is                                                                                                        |
 | ----------- | ----------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
 | `flowchart` | **Production** — 3 workspaces                   | Interactive 2D node/edge map + config/run sidebar. **English only**; links out to HTML reports                     |
-| `cockpit`   | **Production** — 2 workspaces; **v1 lead**      | Focused, one-step-at-a-time guided walkthrough. **Bilingual EN\|FR**, and embeds HTML reports in-app. Target UX: `design/wireframes/orchestrator_wireframe_cockpit.html` |
+| `cockpit`   | **Production** — 3 workspaces; **v1 lead**      | Focused, one-step-at-a-time guided walkthrough. **Bilingual EN\|FR**, and embeds HTML reports in-app. Target UX: `design/wireframes/orchestrator_wireframe_cockpit.html` |
 
 New functionality generally lands in `cockpit` first (it's the v1 lead variant), so the two
 variants are deliberately **not** feature-equal — see the feature notes above.
@@ -122,11 +122,14 @@ Deploying a given workspace + variant combination is 5 files — 4 generic (`app
 There is no workspace-specific file: the bundle is byte-identical in every workspace, and the
 per-workspace pipeline catalog is read at runtime from the workspace's own file storage.
 
-Since webapp identity isn't stored in the repo, live webapps are told apart by **slug** —
-`snt-pipelines-orchestrator` (flowchart) vs `snt-pipelines-orchestrator-cockpit` (cockpit).
-Slugs are consistent everywhere; **names are not** — `snt-app-dev` and `snt-testing` use the
-`SNT Pipelines Orchestrator - Flowchart` / `- Cockpit` convention, but `cmr-snt-process` is
-still named the bare `SNT Pipelines Orchestrator`.
+Since webapp identity isn't stored in the repo, live webapps are told apart by **slug** — but as
+of 2026-08-24 the flowchart slug is no longer uniform. Cockpit is always
+`snt-pipelines-orchestrator-cockpit`; flowchart is `snt-pipelines-orchestrator` in `snt-app-dev`
+and `snt-testing`, but **`snt-pipelines-orchestrator-flowchart` in `cmr-snt-process`** (it was
+re-slugged, and its name was fixed to the `- Flowchart` convention at the same time). So names are
+now the consistent half and slugs are not — the opposite of what this README used to say. The
+working rule: exact-match cockpit, treat any other `snt-pipelines-orchestrator*` as flowchart, and
+always resolve live via `list_static_webapps`.
 
 ---
 
@@ -173,8 +176,7 @@ Why it's set up this way:
 - **It fails loudly if absent.** A workspace where the generator has never run shows a clear
   "run `create_pipeline_cards`" message instead of a half-working app. ⚠️ That means **every
   workspace needs the generator installed and run once** before its orchestrator works. Done in
-  `snt-app-dev` and `snt-testing`; **not yet in `cmr-snt-process`**, whose already-deployed
-  flowchart app keeps running but would need it before the next redeploy.
+  all three — `snt-app-dev`, `snt-testing` and `cmr-snt-process` (verified live 2026-08-24).
 - Each run archives the previous catalog under `…/pipeline_cards/historical/` with a timestamp, so
   you can see what changed.
 
@@ -372,7 +374,15 @@ edit/settings**), you can drag the changed file(s) straight from `app/<variant>/
 that variant) or `app/pipeline_descriptions.json` into the UI — the repo copy is
 always the up-to-date source, so this is safe. (The OpenHEXA
 **CLI** can deploy _pipelines_ from local files but **not** static webapps today, so there's no
-command-line shortcut yet — a request to add one has been raised with the OpenHEXA team.)
+command-line shortcut yet — a request to add one has been raised with the OpenHEXA team. The
+Python SDK isn't a shortcut either: its webapp support is read-only, with no method to write
+webapp files. Re-checked 2026-08-24.)
+
+**Coming, maybe: local development.** OpenHEXA now documents a way to develop a webapp on your own
+machine while reading **real** workspace data — one `<script>` tag and a Connect button, no deploy
+needed. That would remove this whole friction. It **isn't live yet** (the script URL 404s as of
+2026-08-24), so it changes nothing today; `CLAUDE.md` records the details and tells the agent to
+re-check before relying on it.
 
 ---
 
@@ -392,8 +402,8 @@ The active product is the **SNT Pipelines Orchestrator**, deployed per variant a
 generic `app/<variant>/` bundle (plus the shared descriptions) — the same 5 files everywhere, with
 each workspace's catalog supplied from its own file storage:
 
-Each (workspace, variant) pair is its **own** webapp with its own URL — five in total
-(verified live 2026-07-31):
+Each (workspace, variant) pair is its **own** webapp with its own URL — **six** in total
+(verified live 2026-08-24):
 
 | Workspace       | Slug              | Variant     | URL                                                                 |
 | --------------- | ----------------- | ----------- | ------------------------------------------------------------------- |
@@ -401,11 +411,12 @@ Each (workspace, variant) pair is its **own** webapp with its own URL — five i
 | SNT App Dev     | `snt-app-dev`     | `cockpit`   | https://snt-pipelines-orchestrator-cockpit.openhexa.io/             |
 | SNT Testing     | `snt-testing`     | `flowchart` | https://snt-testing-snt-pipelines-orchestrator.openhexa.io/         |
 | SNT Testing     | `snt-testing`     | `cockpit`   | https://snt-testing-snt-pipelines-orchestrator-cockpit.openhexa.io/ |
-| CMR SNT Process | `cmr-snt-process` | `flowchart` | https://cmr-snt-process-snt-pipelines-orchestrator.openhexa.io/     |
+| CMR SNT Process | `cmr-snt-process` | `flowchart` | https://snt-pipelines-orchestrator-flowchart.openhexa.io/           |
+| CMR SNT Process | `cmr-snt-process` | `cockpit`   | https://cmr-snt-process-snt-pipelines-orchestrator-cockpit.openhexa.io/ |
 
-`cockpit` is not deployed to `cmr-snt-process`. Note `cmr-snt-process`'s webapp is still named the
-bare `SNT Pipelines Orchestrator`, while the other two workspaces use the
-`… - Flowchart` / `… - Cockpit` naming — match on **slug**, not name (see "UI variants").
+Both variants are now live in all three workspaces. Note `cmr-snt-process`'s flowchart app was
+**re-slugged** to `snt-pipelines-orchestrator-flowchart`, which also changed its URL — see
+"UI variants" for how to identify variants now that flowchart slugs vary.
 
 URLs and IDs are resolved **live** from the OpenHEXA API (`list_static_webapps`) — that, not this
 table, is the source of truth.
@@ -419,5 +430,5 @@ table, is the source of truth.
 
 > The **SNT Pipelines Orchestrator** is built in the dedicated **`snt-app-dev`** workspace (all
 > ~18 pipelines installed — the primary build target) and also deployed to **`snt-testing`** (a
-> subset installed, so it demos the greyed-out state). The `flowchart` variant additionally
-> reaches **`cmr-snt-process`**; `cockpit` is live in `snt-app-dev` and `snt-testing` only.
+> subset installed, so it demos the greyed-out state) and **`cmr-snt-process`**. Both variants are
+> live in all three.
