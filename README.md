@@ -65,6 +65,12 @@ page load. **So changing the configuration means running a pipeline, not redeplo
 │
 ├── docs/                            # Consolidated knowledge (stable)
 │   ├── PRODUCT_SPEC.md              #   Product spec: functionality, UI variants, v0/v1/v2 roadmap
+│   ├── agent/                       #   Deep reference, loaded on demand (see CLAUDE.md's trigger table)
+│   │   ├── orchestrator-app.md      #     Variants, map format, node states, bilingual UI, the two-variant seam
+│   │   ├── openhexa-runtime.md      #     Proxy, scopes, every GraphQL query, run/poll, signed URLs, report embed
+│   │   ├── deploy.md                #     Which deploy tool, partial deploys, Read-cap fallbacks
+│   │   ├── catalog.md               #     Which pipelines exist, UUIDs, parameters, greyed-out nodes
+│   │   └── settled-questions.md     #     Dead ends & corrected notes — check before re-investigating anything
 │   └── personas/                    #   UX persona / discovery questionnaires
 │
 ├── design/                          # WIP / design explorations (not contracts)
@@ -269,9 +275,11 @@ IN THE WORKSPACE — generated per workspace, never deployed
 
 ## Using with an AI agent (Claude Code)
 
-Open this directory in Claude Code. The agent reads `CLAUDE.md` for full instructions
-automatically. For orchestrator work it also reads `docs/PRODUCT_SPEC.md` (product scope +
-v0/v1/v2 roadmap) at session start. Then just describe what you want:
+Open this directory in Claude Code. The agent reads `CLAUDE.md` automatically — that's the short
+guardrails-and-invariants file, with a table telling it which deeper doc to load for the task at
+hand: `docs/PRODUCT_SPEC.md` for scope, and one of `docs/agent/*.md` for app internals, the
+OpenHEXA runtime, deploys, the catalog, or already-settled questions. Then just describe what you
+want:
 
 - **Change the app itself:** "Make the Run button in the cockpit do X" — the agent edits
   `app/<variant>/` and redeploys the bundle
@@ -362,7 +370,7 @@ the whole bundle) and diffs them against the repo (`app/<variant>/` +
 
 **Known friction (large files).** The `update_static_webapp` path only accepts file _contents_,
 not a file _path_, and the agent can only load a file into its context up to a size limit. Each
-`app.js` is now ~90 KB — well past that — so a **wholesale rewrite** of one means reading it back
+`app.js` is now ~100 KB — well past that — so a **wholesale rewrite** of one means reading it back
 in slices and reassembling it. Targeted edits avoid this entirely (see above), so this only bites
 on a full rewrite. It's verified each time (the live file is diffed against the local copy), so
 it's a speed bump, not a risk.
@@ -378,11 +386,14 @@ command-line shortcut yet — a request to add one has been raised with the Open
 Python SDK isn't a shortcut either: its webapp support is read-only, with no method to write
 webapp files. Re-checked 2026-08-24.)
 
-**Coming, maybe: local development.** OpenHEXA now documents a way to develop a webapp on your own
+**Possible way out: local development.** OpenHEXA documents a way to develop a webapp on your own
 machine while reading **real** workspace data — one `<script>` tag and a Connect button, no deploy
-needed. That would remove this whole friction. It **isn't live yet** (the script URL 404s as of
-2026-08-24), so it changes nothing today; `CLAUDE.md` records the details and tells the agent to
-re-check before relying on it.
+needed. That would remove this whole friction. The shim **is live**, at
+`https://api.openhexa.org/webapps/dev.js` — an earlier "404, not deployed yet" reading here was a
+false negative from probing `app.openhexa.org` (the front-end host) instead of `api.` — but only
+"the script loads and matches the docs" is confirmed; the full connect-and-authenticate flow in a
+real browser is still untried. See
+[`docs/agent/openhexa-runtime.md`](docs/agent/openhexa-runtime.md#local-development-against-a-live-workspace-devjs).
 
 ---
 
