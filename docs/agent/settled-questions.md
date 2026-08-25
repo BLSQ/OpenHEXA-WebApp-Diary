@@ -36,7 +36,6 @@ session can leave behind. Mention it to the user when you do — they may want i
 
 | Question | Answer | Verified |
 | --- | --- | --- |
-| Can we develop locally against a live workspace via `dev.js`? | **No, not yet.** `https://app.openhexa.org/webapps/dev.js` returns a hard **404** (probed directly — not an auth redirect), despite being documented upstream. Worth re-probing: it would remove the deploy-to-test loop. Details in [`openhexa-runtime.md`](openhexa-runtime.md#local-development-against-a-live-workspace-devjs--documented-upstream-not-live-yet). | 2026-08-24 |
 | Can the OpenHEXA **SDK** deploy a webapp? | **No.** The `sdk` and `toolbox-hexa` doc summaries both list "webapps" among what `OpenHexaClient` covers, which looks promising but isn't: the whole webapp surface is read-only — `workspace.get_webapp(slug)` and `client.get_webapp_by_slug(workspace_slug, webapp_slug)`, returning `name`, `url`, `description`, `icon`, `is_favorite`, `created_by`, `permissions`. There is **no** method to create or update webapp files. | 2026-08-24 |
 | Can the OpenHEXA **CLI** deploy a webapp? | **No** — it deploys pipelines only. A feature request to the OH devs is in flight. | — |
 | So how *do* we deploy? | **MCP (`edit_static_webapp_file` / `update_static_webapp`) or the OpenHEXA UI. Those are the only two paths.** See [`deploy.md`](deploy.md). | — |
@@ -64,6 +63,7 @@ These were true once. They are not now; the current answer is the one below.
 | Partial deploys | ✅ **Work** — `files_json` may carry only changed files; omitted files survive. The tool description used to say "replace all files," contradicting observed behaviour; it now agrees. | confirmed 2026-06-19 |
 | `docs/PLAN.md`, `docs/JIRA_ITEMS.md` | **Retired.** The roadmap lives in `docs/PRODUCT_SPEC.md` Part C; task tracking lives in Jira. | — |
 | `workspaces/<ws>/<variant>/` tree | **Deleted.** The catalog moved to the workspace bucket. Do not recreate it — see [`catalog.md`](catalog.md). | 2026-08-04 |
+| Is `dev.js` live? | **Yes — the earlier "404, not deployed yet" conclusion was a false negative caused by probing the wrong host.** It was checked at `app.openhexa.org` (the front-end UI subdomain); the actual host is **`api.openhexa.org`**. Re-fetched at the correct URL, it returns real JS whose own internal constant is `OPENHEXA_BASE = "https://api.openhexa.org"` — also confirmed by inspecting a live template webapp's injected code in the OH UI. **Still unverified: the full connect-and-authenticate flow in a real browser** — only "the script loads and matches the documented shim" is confirmed. Details in [`openhexa-runtime.md`](openhexa-runtime.md#local-development-against-a-live-workspace-devjs). | 2026-08-25 |
 
 ## Roads not taken — considered, rejected, recorded
 

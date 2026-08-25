@@ -375,22 +375,27 @@ When a single webapp hosts cards for multiple pipelines:
   argument
 - Cards run completely independently — triggering one does not affect the other's state
 
-## Local development against a live workspace (`dev.js`) — documented upstream, NOT live yet
+## Local development against a live workspace (`dev.js`)
 
-⚠️ **Status as of 2026-08-24: documented but not deployed.**
-`https://app.openhexa.org/webapps/dev.js` returns a hard **404** (probed directly — not an auth
-redirect). So this cannot be used today. It is recorded here because it would remove this project's
-single biggest friction — the deploy-to-test loop — and because a future agent finding the upstream
-doc should not waste a session concluding it's broken.
+⚠️ **The correct host is `api.openhexa.org`, not `app.openhexa.org`.** An earlier version of this
+note probed `https://app.openhexa.org/webapps/dev.js`, got a hard 404, and concluded the feature
+wasn't deployed yet. That conclusion was **wrong** — it was probing the wrong subdomain. Confirmed
+2026-08-25 two ways: (1) Giulia inspected the injected code of a live template webapp in the OpenHEXA
+UI and found it references `api.openhexa.org`; (2)
+`https://api.openhexa.org/webapps/dev.js` was re-fetched directly and **returns real JavaScript** — a
+self-executing auth shim whose own internal constant is `var OPENHEXA_BASE = "https://api.openhexa.org"`.
+So **the script is live**, on the API subdomain, not the app subdomain — don't confuse it with
+`app.openhexa.org`, which is the front-end UI host used elsewhere in this doc (see
+_Constructing OpenHEXA front-end URLs_).
 
-What the doc describes: add one script tag to `index.html` and a local page (opened over `file://` or
+What the script does: add one script tag to `index.html` and a local page (opened over `file://` or
 any local static server) can call the **real** `/graphql/` proxy against a real workspace, under that
 webapp's actual scopes.
 
 ```html
-<script src="https://app.openhexa.org/webapps/dev.js"></script>
+<script src="https://api.openhexa.org/webapps/dev.js"></script>
 <!-- optionally skip the picker: -->
-<script src="https://app.openhexa.org/webapps/dev.js"
+<script src="https://api.openhexa.org/webapps/dev.js"
         data-workspace-slug="snt-app-dev"
         data-webapp-slug="snt-pipelines-orchestrator-cockpit"></script>
 ```
@@ -400,7 +405,11 @@ reloads with `window.OPENHEXA` populated, and `fetch("/graphql/")` returns real 
 the tag is **inert once deployed** (it only activates on `file://` and `localhost`), so it is safe to
 leave in `index.html`, and that local calls respect the deployed `allowed_operations` exactly.
 
-**Before relying on it:** re-probe the URL. If it 200s, this is worth adopting deliberately — the
-whole orchestrator could then be iterated locally against `snt-app-dev`, with deploys reserved for
-finished work. Treat adding the tag to both variants' `index.html` as its own reviewed change, not a
-drive-by: it puts a third-party script tag in a production bundle.
+⚠️ **Not yet verified end-to-end.** Confirmed so far: the script loads and its code matches the
+documented shim. **Not yet confirmed:** that the full connect flow (popup auth → `window.OPENHEXA`
+populated → a real `/graphql/` call succeeding) actually works against a live workspace — that needs
+a real browser and a webapp to point it at, so it's a hand-to-the-user check (per this repo's
+guardrails), not something to assume from the script existing. If it works, this would remove this
+project's single biggest friction — the deploy-to-test loop — so it's worth Giulia trying deliberately
+rather than an agent guessing at it. Treat adding the tag to both variants' `index.html` as its own
+reviewed change, not a drive-by: it puts a third-party script tag in a production bundle.
