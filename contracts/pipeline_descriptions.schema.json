@@ -1,5 +1,5 @@
 {
-  "_description": "Schema reference for app/pipeline_descriptions.json — the single, hand-authored source of pipeline description text. Shared across every UI variant (flowchart, cockpit) and every workspace: unlike pipeline_map.json (per-variant) and pipeline_cards.json (per-workspace-per-variant), this file has exactly ONE copy in the repo, sitting directly under app/ (not inside any app/<variant>/ subfolder) since it belongs to no single variant.",
+  "_description": "Schema reference for webapps/orchestrator/pipeline_descriptions.json — the single, hand-authored source of pipeline description text, identical for every workspace (unlike pipeline_cards.json, which is per-workspace and lives in the workspace bucket). It is part of the flat webapp bundle and is fetched by app.js as a same-origin sibling (fetch('./pipeline_descriptions.json')).",
 
   "_generation_instructions": [
     "1. This file is hand-authored by a human (Giulia), not AI-generated — agents should not invent or rewrite description text here without being asked to.",
@@ -17,12 +17,11 @@
 
   "_i18n": [
     "Bilingual (English / French). Each description value is a { \"en\": ..., \"fr\": ... } object; both hold the same Markdown-lite prose, one per language.",
-    "The cockpit variant resolves the active language via pickLang() and falls back to `en` (then to \"\"). The flowchart variant is English-only for now and reads `en` via its descText() helper — so both variants keep working after the upgrade to the nested shape.",
+    "The app resolves the active language via pickLang() and falls back to `en` (then to \"\").",
     "Backward compatible: a plain string value is still accepted and treated as `en`. New/edited entries should use the { en, fr } object form.",
     "When adding a pipeline, provide BOTH `en` and `fr`. French drafts are authored/reviewed by Giulia (agents translate on request, per CLAUDE.md — do not invent description prose unprompted)."
   ],
 
-  "_deploy_note": "Each UI variant is deployed as its own OpenHEXA static webapp (separate origin), so app.js can only same-origin fetch('./pipeline_descriptions.json'). This repo file (app/pipeline_descriptions.json) is the single source, but it must be copied into BOTH app/flowchart/ and app/cockpit/'s deploy bundle (files_json) at deploy time — same content, deployed twice, alongside the variant's other 4 generic files. Never hand-edit the deployed copies independently; always edit app/pipeline_descriptions.json and redeploy both variants.",
 
   "_schema": {
     "version": "string — date (YYYY-MM-DD), bumped when descriptions change",

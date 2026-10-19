@@ -6,7 +6,7 @@ Orchestrator, straight from live data — no manual GitHub scraping needed.
 This is a **utility pipeline that supports the orchestrator webapp**, not one of the ~18 SNT
 process pipelines the orchestrator lets users run (those live in the separate
 [`snt_development`](https://github.com/BLSQ/snt_development) repo). It belongs in
-`utils_pipelines/` alongside any future pipelines that support the webapp itself.
+`pipelines/` alongside any future pipelines that support the webapp itself.
 
 ## What it does
 
@@ -15,7 +15,7 @@ For the workspace it runs in, it:
 1. Lists every pipeline currently deployed in the workspace (`hexa_client.pipelines`).
 2. For each one, resolves its current version and reads its deployed `pipeline.py` source to
    extract the `@pipeline("...")` id — the stable Python function name used as the node `id` in
-   `app/<variant>/pipeline_map.json`.
+   `webapps/orchestrator/pipeline_map.json`.
 3. Curates the list down to only the pipelines that are actual nodes of the orchestrator
    webapp's deployed `pipeline_map.json` (which webapp: see `config.WEBAPP_SLUG` below).
    Pipelines with no resolvable id, or not present in the map, are excluded and logged; map
@@ -29,8 +29,8 @@ For the workspace it runs in, it:
    writes the new `pipeline_cards.json` to the pipeline's output directory in the workspace's
    file storage.
 
-The output matches the contract in `schemas/pipeline_cards.schema.json`. **It is consumed in place:**
-both orchestrator UI variants fetch it straight out of the workspace's file storage at page load, so
+The output matches the contract in `contracts/pipeline_cards.schema.json`. **It is consumed in place:**
+the orchestrator webapp fetches it straight out of the workspace's file storage at page load, so
 running this pipeline is all that's needed to update a workspace's configuration — nothing to copy,
 commit, or redeploy. See the repo root `CLAUDE.md` / `README.md` for the full picture.
 
@@ -60,12 +60,8 @@ WEBAPP_SLUG = "snt-pipelines-orchestrator-cockpit"
   pipeline_map.json from webapp '…'`. There is no longer an uncurated fallback — a run either
   curates against a real deployed map or stops. This is deliberate: silently emitting every
   pipeline in the workspace is worse than a clear failure.
-- To curate against a different webapp (e.g. a workspace where only Flowchart is deployed), edit
-  `WEBAPP_SLUG` and redeploy the pipeline. ⚠️ **Look the slug up live** with
-  `list_static_webapps` — the Flowchart slug is **not** uniform across workspaces
-  (`snt-pipelines-orchestrator` in `snt-app-dev` / `snt-testing`, but
-  `snt-pipelines-orchestrator-flowchart` in `cmr-snt-process` since 2026-08-24). The **Cockpit**
-  slug is consistent everywhere, which is why the current default is safe as a constant.
+- To curate against a different webapp, edit `WEBAPP_SLUG` and redeploy the pipeline. **Look
+  the slug up live** with `list_static_webapps` — webapp slugs are editable per workspace.
 
 ## Output
 
@@ -74,20 +70,15 @@ Written to `<workspace files>/utils_pipelines/create_pipeline_cards/pipeline_car
 `historical/` subfolder first (e.g. `pipeline_cards_20260803_101500.json`) so nothing is
 overwritten silently.
 
-**This path is a contract with the webapp.** Both variants hardcode it as `CARDS_OBJECT_KEY` in
-`app/<variant>/app.js` and read the file via `prepareObjectDownload` → `fetch(signedUrl)` (needing
+**This path is a contract with the webapp** — a bucket key, not a repo path (it does not follow
+where this folder lives in the repo). The webapp hardcodes it as `CARDS_OBJECT_KEY` in
+`webapps/orchestrator/app.js` and read the file via `prepareObjectDownload` → `fetch(signedUrl)` (needing
 the webapp's `FILES_READ` scope). Changing `OUTPUT_DIR` or `WEBAPP_CARDS_PATH` therefore means
-changing `CARDS_OBJECT_KEY` in **both** variants and redeploying them — otherwise every orchestrator
+changing `CARDS_OBJECT_KEY` and redeploying the webapp — otherwise every orchestrator
 in every workspace stops booting.
 
 Nothing needs to be downloaded, committed, or redeployed after a run: the app reads the new file on
 its next page load. The pipeline does not push to the repo or touch the webapp bundle.
-
-**One catalog serves both variants.** Curation is against the deployed map, and both variants'
-`pipeline_map.json` files declare the same node ids — so a single generated file is valid for
-Flowchart and Cockpit alike, and `config.WEBAPP_SLUG` only decides *which* deployed map is used as
-the authority. (If the two maps ever diverge in node ids, that stops being true, and the choice of
-slug starts to matter.)
 
 ## Files
 
