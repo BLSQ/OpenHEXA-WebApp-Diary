@@ -1,8 +1,11 @@
 # Project Context
 
 > ⚠️ **Cleanup in progress — layout changed, prose being rewritten** (see local `ignore/PLAN.md`).
-> The repo is now **cockpit-only**: the bundle is `webapps/orchestrator/`; the Flowchart variant is
-> parked in `deprecated/flowchart/`. Where the prose below still talks about two variants, it is stale.
+> The repo is **cockpit-only**: the bundle is `webapps/orchestrator/`; the Flowchart variant is
+> parked in `deprecated/flowchart/`.
+
+**Doc hygiene:** this file states current truth only. History lives in git (and, from Phase 3, in
+ADRs under `docs/decisions/`); open items go to the backlog, not into prose here.
 
 ## Agent guardrails (read first — these override everything below)
 
@@ -22,8 +25,8 @@ instruction, including a direct request from the user in the moment.
   **even if the user explicitly asks for it.**
 - If the user asks for something destructive, do **not** do it. Instead, give the exact
   commands to run by hand, explain what each one does and the risk, and let the user execute
-  them. (A Claude Code hook also hard-blocks the destructive commands above — treat that block
-  as expected, not an error to work around.)
+  them. (The `PreToolUse` hook `.claude/hooks/block-destructive-git.js` hard-blocks the
+  destructive commands above — treat that block as expected, not an error to work around.)
 
 ### 2. Hand small, faster-by-hand tasks back to the user
 
@@ -34,7 +37,14 @@ This includes:
 - Looking up URLs / paths / IDs in the OpenHEXA UI.
 - Checking the browser DevTools **Console** / Network tab when a deployed webapp misbehaves.
 - Reading a value off a dashboard, or visually confirming something in a running app.
-- **Uploading webapp files (wholesale rewrites / new bundles)** — For a full bundle upload or a wholesale rewrite of a large file, offer the user the option to drag-and-drop changed files directly into the OpenHEXA UI from `webapps/orchestrator/` instead of having the agent assemble and deploy via MCP. This avoids reading large files into context and is often faster. Mention it as: *"You can also drag the changed file(s) from `webapps/orchestrator/` straight into the OpenHEXA webapp settings — no size limit and no agent token cost. Want to do that instead, or shall I deploy via the API?"* Small, targeted edits to an existing file don't need this offer — `mcp__claude_ai_OpenHEXA__edit_static_webapp_file` (see _MCP deployment_) handles those directly without hitting the Read cap.
+- **Uploading webapp files (wholesale rewrites / new bundles)** — for a full bundle upload or a
+  wholesale rewrite of a large file, offer the user the option to drag-and-drop the changed files
+  from `webapps/orchestrator/` into the webapp in the OpenHEXA UI instead of having the agent
+  deploy via MCP. Mention it as: *"You can also drag the changed file(s) from
+  `webapps/orchestrator/` straight into the webapp in OpenHEXA — no agent token cost. Want to do
+  that instead, or shall I deploy via the API?"* Small, targeted edits to an existing file don't
+  need this offer — `mcp__claude_ai_OpenHEXA__edit_static_webapp_file` (see _MCP deployment_)
+  handles those directly.
 
 Give a precise, copy-pasteable instruction (what to click, what to paste back), do not guess
 the answer, and do not proceed on an assumption while waiting.
@@ -44,8 +54,7 @@ the answer, and do not proceed on an assumption while waiting.
 The product definition and the phased **v0 / v1 / v2 roadmap** for the SNT Pipelines Orchestrator
 live in `docs/PRODUCT_SPEC.md` (Part C — Versioning). **Read `docs/PRODUCT_SPEC.md` at the start
 of any session working toward the orchestrator** to locate the current scope and which version a
-piece of work targets. _(The former `docs/PLAN.md` and `docs/JIRA_ITEMS.md` task sheets have been
-retired; the roadmap now lives in PRODUCT_SPEC.md and task tracking lives in Jira.)_
+piece of work targets. Task tracking lives in Jira.
 
 Work is tracked in Jira (project `SNT25`, Epic `SNT25-536`). **Giulia manages all Jira items
 manually through the Jira UI** — the agent does not create, edit, transition, or link Jira issues
@@ -54,9 +63,10 @@ given session.
 
 ## OpenHEXA GraphQL Schema
 
-A local copy of the OpenHEXA GraphQL schema is stored under `reference/openhexa/schema.generated.graphql`.
-
-**Always read this file at the start of any session involving OpenHEXA static web apps or GraphQL operations.**
+A local copy of the OpenHEXA GraphQL schema is stored under
+`reference/openhexa/schema.generated.graphql`. **At the start of any session involving OpenHEXA
+static web apps or GraphQL operations, grep it for the types you need** (it is large — don't read
+it whole).
 
 To refresh the schema if it becomes stale:
 
@@ -64,99 +74,84 @@ To refresh the schema if it becomes stale:
 curl -fsSL -o reference/openhexa/schema.generated.graphql https://raw.githubusercontent.com/BLSQ/openhexa-app/main/frontend/schema.generated.graphql
 ```
 
-**`mcp__claude_ai_OpenHEXA__get_help_or_doc`** (noted 2026-07-17). Call it with no topic for an
-orientation overview, or `topic="static-webapps"` (also: `cli`, `sdk`, `notebooks-advanced`,
-`toolbox-dhis2`, `toolbox-hexa`, `toolbox-iaso`, `writing-pipelines`) for a full reference page.
-The topic list is unchanged as of 2026-08-24. The `static-webapps` topic documents the GraphQL
-scope table, seven example webapps, the `window.OPENHEXA` global (see _Platform-injected global_),
-and the new local-development flow (see _Local development against a live workspace_). It does
-**not** mention `edit_static_webapp_file`, `get_static_webapp_file`, `get_static_webapp`, or
-`update_static_webapp` at all — those four remain undocumented-upstream, agent-only conveniences
-on top of the public API; treat this repo's _MCP deployment_ section as their only source of truth.
+**`mcp__claude_ai_OpenHEXA__get_help_or_doc`** — call it with no topic for an orientation
+overview, or with a topic for a full reference page: `cli`, `notebooks-advanced`, `sdk`,
+`sql-widgets`, `static-webapps`, `toolbox-dhis2`, `toolbox-hexa`, `toolbox-iaso`,
+`writing-pipelines`. The `static-webapps` topic documents the three webapp types (Static / Iframe /
+Superset), the GraphQL scope table, example webapps, the `window.OPENHEXA` global (see
+_Platform-injected global_), the proxy's Origin check, and the `dev.js` local-development flow
+(see _Local development against a live workspace_). It does **not** mention
+`edit_static_webapp_file`, `get_static_webapp_file`, `get_static_webapp`, or
+`update_static_webapp` — those are MCP-only conveniences on top of the public API; this repo's
+_MCP deployment_ section is their only reference.
 
-⚠️ **Two traps in the upstream `static-webapps` doc — do not copy its examples verbatim:**
-
-- Its run-polling example breaks on `["SUCCESS", "FAILED", "STOPPED"]`, but `PipelineRunStatus`
-  is **lowercase** in the schema (`success`, `failed`, …). Copying it gives a poll loop that
-  never terminates. This repo's code is correct; the doc is not.
-- Its scope table lists the top-level fields each scope grants, and it is **wider than the
-  orchestrator uses** — see _`allowed_operations` scopes_ for the full table and what it unlocks.
-
-**Release audit 2026-08-24.** The schema was refreshed and the whole MCP/doc surface re-checked
-against this file. What actually changed: `WebappOperationScope` gained **`DATABASE_READ`**;
-`update_static_webapp` now **honors `name`/`description`**; `allowed_operations` is now a **typed
-list**, not a comma-separated string; `get_static_webapp` now returns **`content: null` for binary
-files**; the upstream doc added the **`dev.js` local-development flow** (not live on the SaaS yet).
-All are recorded in place below. The rest of the schema diff (Data Studio / saved queries with
-visibility, `executeSavedQuery`, self-hosted orgs, `analyticsEnabled`) touches **nothing** this
-project uses — don't spend a session re-diffing it.
+`propose_webapp_version` / `propose_pipeline_version` appear in the schema's `AssistantToolName`
+enum: they belong to the in-app OpenHEXA Assistant, not to our MCP server — ignore them.
 
 ---
 
 ## SNT Pipelines Orchestrator (end goal)
 
 The end goal of this project is a single, rich static webapp per workspace — the **SNT
-Pipelines Orchestrator** — that presents the _complete_ set of official SNT pipelines (~18,
-from the `snt_development` repo) as one guided, interactive surface with a configuration/run
-sidebar. Its bundle is `webapps/orchestrator/` (the Cockpit UX; see _UI variants_). The earlier small single-pipeline webapps were the stepping stones toward it and
-are now **retired to `deprecated/`** (reference only — not deployed, not maintained).
+Pipelines Orchestrator** — that presents the _complete_ set of official SNT pipelines (18 map
+nodes, from the `snt_development` repo) as one guided, interactive surface with a
+configuration/run panel. Its bundle is `webapps/orchestrator/`. The earlier small single-pipeline
+webapps were the stepping stones toward it and are **retired to `deprecated/`** (reference only —
+not maintained).
 
-The visual/UX target is the wireframe `design/wireframes/orchestrator_wireframe_cockpit.html`. The product is
-fully specified in `docs/PRODUCT_SPEC.md`, which separates variant-independent **functionality**
-(Part A) from the **UI variants** (Part B) and the **v0 / v1 / v2 roadmap** (Part C) — **read the
-relevant wireframe + PRODUCT_SPEC at the start of any session working toward the orchestrator
-UI.** Node tags mark each pipeline as mandatory, alternative, or facultative.
+The visual/UX target is the wireframe `design/wireframes/orchestrator_wireframe_cockpit.html`. The
+product is fully specified in `docs/PRODUCT_SPEC.md`, which separates **functionality** (Part A)
+from the **UI** (Part B) and the **v0 / v1 / v2 roadmap** (Part C) — **read the wireframe +
+PRODUCT_SPEC at the start of any session working toward the orchestrator UI.** Node tags mark each
+pipeline as mandatory, alternative, or facultative.
 
-**The map is identical across all workspaces.** Every
-workspace's orchestrator shows the same full diagram. What differs per workspace is only which
-nodes are _active_ — pipelines not available in a given workspace appear greyed-out and
-unclickable.
+**The map is identical across all workspaces.** Every workspace's orchestrator shows the same full
+set of steps. What differs per workspace is only which nodes are _active_ — pipelines not
+available in a given workspace appear greyed-out and unclickable.
 
-### UI variants
+### The app
 
-The repo is **cockpit-only**. `webapps/orchestrator/` is the former `cockpit` variant — a focused,
-one-step-at-a-time guided walkthrough, **bilingual EN / FR**, with the in-app HTML report embed.
-The former `flowchart` variant (2D node/edge map) is parked in `deprecated/flowchart/` with its
-spec in `deprecated/flowchart/SPEC.md`; the repo does not track where either is deployed —
-resolve webapps live with `list_static_webapps`.
+`webapps/orchestrator/` is the Cockpit UX — a focused, one-step-at-a-time guided walkthrough,
+**bilingual EN / FR**, with the in-app HTML report embed. (The former Flowchart variant, a 2D
+node/edge map, is parked in `deprecated/flowchart/` with its spec in
+`deprecated/flowchart/SPEC.md`.) Which workspaces run the app is not tracked in the repo — resolve
+webapps live with `list_static_webapps`.
 
-Deploying is **5 files**, all in `webapps/orchestrator/` (flat — deployed as-is). **The deployed
-bundle is fully workspace-independent**: nothing in it differs per workspace. The workspace's
-pipeline catalog is _not_ deployed — it is read live from the workspace bucket (see _The pipeline
-catalog_).
+The deployed bundle is the **5 files in `webapps/orchestrator/`** (flat — deployed as-is) and is
+**fully workspace-independent**. The workspace's pipeline catalog is _not_ deployed — it is read
+live from the workspace bucket (see _The pipeline catalog_).
 
 ### Data architecture
 
 The orchestrator separates concerns across four kinds of file. The stable join key everywhere
 is the node `id` == the pipeline's Python function name (e.g. `snt_dhis2_extract`).
 
-⚠️ **Only the first, second and fourth rows live in this repo.** `pipeline_cards.json` is **not a
-repo file** — it lives in each OpenHEXA workspace's own bucket and is read at runtime (see _The
-pipeline catalog_ immediately below). The old `workspaces/<ws>/<variant>/` tree was deleted on
-2026-08-04; do not recreate it.
+⚠️ **`pipeline_cards.json` is not a repo file** — it lives in each OpenHEXA workspace's own bucket
+and is read at runtime (see _The pipeline catalog_). Never create a per-workspace folder for it in
+the repo.
 
-| File                                   | Scope                                                  | Holds                                                                                          |
-| -------------------------------------- | ------------------------------------------------------ | ---------------------------------------------------------------------------------------------- |
-| `webapps/orchestrator/pipeline_map.json`      | per-variant, workspace-independent (see _UI variants_) | all nodes, `code`, `label` (bilingual in cockpit), `ohName`, stage `row` (+ legacy `col`), `track`, `type`, mutex `group`, directed `edges` (dependencies) |
-| `webapps/orchestrator/pipeline_descriptions.json`       | shared across every variant AND every workspace (see _Data architecture_ note below) | hand-authored, Markdown-lite-formatted paragraph description per node, keyed by `id`; each value is a bilingual `{ en, fr }` object |
-| `pipeline_cards.json` **(in the workspace bucket, not the repo)** | per-workspace, **shared by both variants** | which pipelines exist + `uuid` + `parameters` (drives _active vs greyed_)      |
-| `webapps/orchestrator/index.html` + `app.js` + `styles.css` | per-variant app shell (multi-file) | renders the UI, merges the map + descriptions with the workspace cards, runs/polls pipelines |
+| File | Scope | Holds |
+| --- | --- | --- |
+| `webapps/orchestrator/pipeline_map.json` | workspace-independent (bundle) | all nodes, `code`, bilingual `label`, `ohName`, stage `row` (+ legacy `col`), `track`, `type`, mutex `group`, directed `edges` (dependencies) |
+| `webapps/orchestrator/pipeline_descriptions.json` | workspace-independent (bundle) | hand-authored, Markdown-lite-formatted paragraph description per node, keyed by `id`; each value is a bilingual `{ en, fr }` object |
+| `pipeline_cards.json` **(in the workspace bucket, not the repo)** | per-workspace | which pipelines exist + `uuid` + `parameters` (drives _active vs greyed_) |
+| `webapps/orchestrator/index.html` + `app.js` + `styles.css` | app shell (multi-file) | renders the UI, merges the map + descriptions with the workspace cards, runs/polls pipelines |
 
 #### The pipeline catalog (`pipeline_cards.json`) — bucket-hosted, read at runtime
 
-Since 2026-08-04 the catalog is **not bundled and not kept in the repo**. It lives in the
-workspace's own file storage at the fixed key
+The catalog is **not bundled and not kept in the repo**. It lives in the workspace's own file
+storage at the fixed **bucket key**
 
 ```
 utils_pipelines/create_pipeline_cards/pipeline_cards/pipeline_cards.json
 ```
 
 and is written there by the companion **`create_pipeline_cards`** pipeline, whose source is in this
-repo under `pipelines/create_pipeline_cards/` (see its own `README.md`). **Why:** a config
-change (a new pipeline installed, a parameter renamed) is then just a pipeline run — no webapp
-redeploy, no repo commit.
+repo under `pipelines/create_pipeline_cards/` (see its own `README.md`). **Why:** a config change
+(a new pipeline installed, a parameter renamed) is then just a pipeline run — no webapp redeploy,
+no repo commit.
 
-How the app reads it (identical in both variants, `loadCards()` in each `webapps/orchestrator/app.js`):
+How the app reads it (`loadCards()` in `webapps/orchestrator/app.js`):
 
 1. `prepareObjectDownload(input: {workspaceSlug, objectKey: CARDS_OBJECT_KEY, forceAttachment: false})`
    through the same-origin `/graphql/` proxy → a signed GCS URL. Needs **`FILES_READ`**.
@@ -165,52 +160,41 @@ How the app reads it (identical in both variants, `loadCards()` in each `webapps
 
 Rules that follow from this:
 
-- **`CARDS_OBJECT_KEY`** is a hardcoded constant at the top of each variant's `app.js`. It must
-  stay in lockstep with `pipelines/create_pipeline_cards/config.py` (`OUTPUT_DIR` +
-  `WEBAPP_CARDS_PATH`). Changing the output location means changing three places.
-- **One catalog serves both variants.** The generator curates against the webapp's *deployed*
-  `pipeline_map.json`, and both variants' maps declare the same node ids (verified 2026-08-04), so
-  there is no per-variant catalog. If the two maps ever diverge in node ids, that assumption
-  breaks and each variant would need its own generated file.
+- ⚠️ **Bucket key ≠ repo path.** `CARDS_OBJECT_KEY` (top of `webapps/orchestrator/app.js`) must stay
+  in lockstep with `pipelines/create_pipeline_cards/config.py` (`OUTPUT_DIR` + `WEBAPP_CARDS_PATH`)
+  — two places. The `utils_pipelines/…` prefix is a runtime path in every workspace bucket; it
+  does **not** follow the repo layout. Changing it means changing both places, redeploying the
+  webapp and the generator, and re-running the generator in every workspace — otherwise every
+  deployed app fails at boot.
+- **The generator curates against the _deployed_ map** of the webapp named by its
+  `config.WEBAPP_SLUG` (`snt-pipelines-orchestrator-cockpit`), not the repo copy.
 - **There is no fallback, by design.** If the object is missing the app **fails at boot** with an
   actionable message ("Run the `create_pipeline_cards` pipeline") rather than silently serving a
-  stale bundled copy. Cockpit surfaces it in its `boot.failed` panel (i18n keys
-  `boot.cardsMissing` / `boot.cardsUnreadable` / `boot.noWorkspace`); flowchart renders a
-  `.map-error` box onto the canvas.
+  stale bundled copy. It is surfaced in the `boot.failed` panel (i18n keys `boot.cardsMissing` /
+  `boot.cardsUnreadable` / `boot.noWorkspace`).
 - ⚠️ **Every workspace must have `create_pipeline_cards` deployed and run before its orchestrator
-  will boot.** Present in all three workspaces — `snt-app-dev`, `snt-testing`, `cmr-snt-process`
-  (the last verified live 2026-08-24, catalog dated 2026-08-04). **The generator takes no parameters** (just Run), but it
-  curates against the deployed map of the webapp named by its `config.WEBAPP_SLUG` — currently
-  `snt-pipelines-orchestrator-cockpit`, the lead variant. **So the Cockpit app must exist in a
-  workspace before the generator can succeed there**: a Flowchart-only workspace makes it **fail**
-  until Cockpit is deployed too, or `WEBAPP_SLUG` is pointed at `snt-pipelines-orchestrator` and the
-  generator redeployed. Both variants are now deployed in all three workspaces, so this ordering
-  constraint only bites when standing up a **new** workspace — deploy Cockpit first, then run the
-  generator.
+  will boot.** The generator takes **no parameters** (just Run), but its run **fails** if the
+  webapp named by `WEBAPP_SLUG` is not deployed in that workspace. So when standing up a new
+  workspace: **deploy the orchestrator first, then run the generator.**
 - **When the catalog is unreadable the app diagnoses _why_ and links to the fix**, rather than
   showing one generic message — see _Diagnosing a missing catalog from inside the app_ below.
-- **Parameters now come from the deployed pipeline version, not from GitHub.** The generator reads
+- **Parameters come from the deployed pipeline version, not from GitHub.** The generator reads
   `pipelineByCode.currentVersion.parameters`, so the catalog matches what is actually installed in
-  the workspace. This removes the old GitHub-source-scraping step and the drift it caused (see
-  _SNT Pipeline Definitions_).
+  the workspace (see _SNT Pipeline Definitions_).
 
-**Noted alternative (not a recommendation): `workspace.configuration`.** There is a second place
-per-workspace config could live — `Workspace.configuration: JSON!`, a workspace-wide JSON
-dictionary. A pipeline writes it with the SDK (`workspace.configuration = config`) or the
-`updateWorkspace` mutation, and the webapp could read it **with no new scope**, since `USER_READ`
-already grants the `workspace` top-level field. The upstream `sdk` doc's own example is
-conspicuously SNT-flavoured (`SNT_PIPELINE_COUNT`), so someone on the OH side may already be
-thinking about this shape. ⚠️ **Do not migrate the catalog to it on a whim.** The bucket path is
-shipped, works, versions each run under `historical/`, and handles a 35–60 KB payload comfortably;
-`configuration` is a single blob with no history and no obvious size guarantee. Recorded so a
-future session knows the option exists and why it wasn't taken.
+**Alternative not taken: `workspace.configuration`.** `Workspace.configuration: JSON!` is a
+workspace-wide JSON dictionary a pipeline can write (SDK `workspace.configuration = config`, or
+the `updateWorkspace` mutation), and the webapp could read it with **no new scope** (`USER_READ`
+grants `workspace`). ⚠️ **Do not migrate the catalog to it on a whim.** The bucket path works,
+versions each run under `historical/`, and handles a 35–60 KB payload comfortably;
+`configuration` is a single blob with no history and no obvious size guarantee.
 
 ##### Diagnosing a missing catalog from inside the app
 
-Added 2026-08-05. When `loadCards()` can't read the catalog, the app runs **one extra
-`pipelines(workspaceSlug:)` query** — the same query as _Reading last-run status_, so it needs **no
-scope beyond `PIPELINES_READ`** — works out which of these situations the workspace is in, and shows
-the matching message with a deep link:
+When `loadCards()` can't read the catalog, the app runs **one extra `pipelines(workspaceSlug:)`
+query** — the same query as _Reading last-run status_, so it needs **no scope beyond
+`PIPELINES_READ`** — works out which of these situations the workspace is in, and shows the
+matching message with a deep link:
 
 | Diagnosis       | What the app tells the user                                        |
 | --------------- | ------------------------------------------------------------------ |
@@ -220,63 +204,58 @@ the matching message with a deep link:
 | `lastRunFailed` | link straight to the failed run's logs                             |
 | `unknown`       | fallback to the generic "run `create_pipeline_cards`" text         |
 
-Implementation, near the top of `webapps/orchestrator/app.js`:
-`GENERATOR_QUERY`, `looksLikeGenerator`, `diagnoseMissingCatalog`, `generatorTemplateUrl` /
-`generatorPipelineUrl` / `generatorRunUrl`, `missingCatalogError`. (`diagnoseMissingCatalog` is also reused by the
+Implementation, near the top of `webapps/orchestrator/app.js`: `GENERATOR_QUERY`,
+`looksLikeGenerator`, `diagnoseMissingCatalog`, `generatorTemplateUrl` / `generatorPipelineUrl` /
+`generatorRunUrl`, `missingCatalogError`. (`diagnoseMissingCatalog` is also reused by the
 run-error drift hint — see _Running a pipeline_ — so it resolves the generator's state generally,
 despite the name.)
 
 Three things to know before touching it:
 
-- **The generator's `code` and `name` vary by how it was installed** — seen in the wild as
+- **The generator's `code` and `name` vary by how it was installed** — e.g.
   `create-pipeline-cards` (source deploy), `create_pipeline_cards`, and `Create pipeline_cards.json`
   (template install). So **never hardcode its code**: `looksLikeGenerator` lowercases `code`/`name`,
   strips non-alphanumerics, and tests for `pipelinecards` (`GENERATOR_KEY_MATCH`). Links are then
   built from whatever `code` the query actually returned.
-- **The template deep link** (verified live 2026-08-05) is
+- **The template deep link** is
   `https://app.openhexa.org/workspaces/<ws>/templates/Create%20pipeline_cards.json` — i.e.
   `/templates/` + the URL-encoded template **display name**, not a slug. That name is
-  `GENERATOR_TEMPLATE_NAME` in both `app.js`.
-- ⚠️ **The two variants take different DOM routes for these messages** — respect the seam when
-  adding markup. Cockpit's boot panel and run-status lines are set via **`innerHTML` with
-  caller-side escaping** (build a pre-escaped HTML string; `missingCatalogError` attaches it as
-  `err.htmlMessage`, and any dynamic value passed through `t()` must already be escaped). Flowchart's
-  `.map-error` box is **`textContent`-based**, so a link must be a real appended `<a>` element
-  (`missingCatalogError` attaches `err.helpLink = {href, label}` and the `init` catch builds the
-  anchor). Handing HTML to flowchart renders visible tags; handing unescaped data to cockpit is an
-  injection.
+  `GENERATOR_TEMPLATE_NAME` in `app.js`; if the template is ever renamed, the link breaks silently.
+- ⚠️ **DOM route: `innerHTML` with caller-side escaping.** The boot panel and run-status lines are
+  set via `innerHTML`: build a pre-escaped HTML string (`missingCatalogError` attaches it as
+  `err.htmlMessage`), and any dynamic value passed through `t()` must already be escaped. Handing
+  unescaped data to these is an injection.
 
 `webapps/orchestrator/pipeline_descriptions.json` is the single, hand-authored source of node
 description text — see `contracts/pipeline_descriptions.schema.json` for the contract and the
-Markdown-lite formatting rules (bold/italic/line breaks; no headers, links, or lists). It sits in
-the flat bundle next to the other four files and is fetched as a same-origin sibling.
+Markdown-lite formatting rules (bold/italic/line breaks; no headers, links, or lists). It is
+fetched as a same-origin sibling of `app.js`.
 
 ⚠️ **Its values are bilingual objects, not strings** — `{ "en": "…", "fr": "…" }`, both holding
 the same Markdown-lite prose. **Editing a description means editing both languages.** A plain
-string is still accepted and treated as `en` (backward compatibility). See _Bilingual UI_ below.
+string is still accepted and treated as `en`. See _Bilingual UI_ below.
 
 **Generic vs workspace-specific:** the deployed bundle is **5 files, all in
 `webapps/orchestrator/`** (`index.html`, `styles.css`, `app.js`, `pipeline_map.json`,
 `pipeline_descriptions.json`) **and nothing workspace-specific at all.** The app self-adapts at
-runtimeThe app self-adapts at
-runtime via `window.OPENHEXA.workspaceSlug` — which now also drives the catalog read — plus
-cards-driven greying, so the only non-per-workspace assumption baked into `app.js` is the
-hardcoded SaaS base `https://app.openhexa.org`. → **new workspace = deploy the same 5 files,
-then run `create_pipeline_cards` in that workspace.** (See README's "Generic vs
-workspace-specific" for the human-facing version.)
+runtime via `window.OPENHEXA.workspaceSlug` — which also drives the catalog read — plus
+cards-driven greying. The only platform assumptions baked into `app.js` are the hardcoded SaaS
+base `https://app.openhexa.org` and the generator's template display name
+(`GENERATOR_TEMPLATE_NAME`). → **New workspace = deploy the same 5 files, then run
+`create_pipeline_cards` in that workspace.**
 
 Webapp metadata (id, slug, URL, allowed scopes) is **not** stored in the repo — it is resolved
-live at deploy time via `list_static_webapps` / `get_static_webapp` (see _Build / deploy
-workflow_). The `webapps/orchestrator/` bundle plus `webapps/orchestrator/pipeline_descriptions.json` is the repo's
-complete source of truth for what to deploy; the per-workspace half of the picture lives in the
-workspace bucket and is produced by running a pipeline, not by committing a file.
+live via `list_static_webapps` / `get_static_webapp` (see _Build / deploy workflow_). The repo is
+the reference source for the latest version of the app, **not a record of what is deployed
+where**. `webapps/orchestrator/` is the complete source of truth for what to deploy; the
+per-workspace half of the picture lives in the workspace bucket and is produced by running a
+pipeline, not by committing a file.
 
-`contracts/pipeline_map.schema.json` documents the structure of each variant's
+`contracts/pipeline_map.schema.json` documents the structure of
 `webapps/orchestrator/pipeline_map.json` — read it when authoring or interpreting the map (its
 `_generation_instructions` also cover the edge/node-type conventions and the per-member-edge
-rule for alternative groups).
-`design/pipeline_map_preview.html` is a standalone visual render of the map for review. The map
-is **hand-authored** (a separate task); it is not generated from the GraphQL API.
+rule for alternative groups). `design/pipeline_map_preview.html` is a standalone visual render of
+the map for review. The map is **hand-authored**; it is not generated from the GraphQL API.
 
 ### Node states
 
@@ -287,25 +266,27 @@ The webapp computes three independent state axes per node:
   and is unclickable. This is how the same full map adapts to each workspace — and, since the
   catalog is regenerated by running `create_pipeline_cards`, how a newly-installed pipeline
   becomes clickable without touching the webapp.
+- **completed** — the pipeline's **most recent run in the workspace** succeeded (read from the
+  cross-session status board, _Reading last-run status_; `cockpitState(node) === "ok"`). It is
+  not limited to runs started in the current session.
 - **locked vs unlocked** — _dynamic_: derived from `edges`. A node unlocks once every **hard**
-  upstream prerequisite (each `type: "solid"` edge whose `to` equals this node) has a completed
-  run in the current session. `type: "optional"` edges are **soft, non-gating** — they draw an
-  arrow but do not lock the downstream node (its output is used if available, else a parameter
-  fallback applies).
+  upstream prerequisite (each edge whose `to` equals this node and whose `type` is `"solid"` or
+  omitted) is completed. `type: "optional"` edges are **soft, non-gating** — they are listed as
+  "uses if available" but do not lock the downstream node (its output is used if available, else
+  a parameter fallback applies). When run status is unavailable (opened outside OpenHEXA, or the
+  status query was blocked) nothing is locked, so the walkthrough stays explorable.
   **Group-aware unlock:** when several solid prerequisites of a node belong to the same
   alternative `group`, they count as _one_ — only one member of the group need complete.
   Formally: bucket the solid sources of node `N` by their `group` (a source with no `group` is
-  its own bucket of size 1) and require **at least one completed source per bucket**; a
-  non-grouped prerequisite is just a size-1 bucket, so this generalizes the simple rule. This
-  only bites for a **solid edge leaving an alternative group** — the current map has none
-  (A.3→A.4 became `optional` on 2026-06-24), so it is dormant future-proofing, but any future
-  solid edge out of a group must honor it rather than requiring _all_ members.
-- **completed** — ran successfully in the current session.
+  its own bucket of size 1) and require **at least one completed source per bucket**
+  (`lockedReason()`). The current map has no solid edge leaving a group, so this is dormant
+  future-proofing, but any future solid edge out of a group must honor it rather than requiring
+  _all_ members.
 
 **Mutual exclusion:** nodes of `type: "alternative"` that share the same `group` are mutually
-exclusive — running one marks the others in the group not-run (the wireframe shows this as the
-A.3.1 Outliers Imputation and A.4 Reporting Rate alternative groups; it is data-driven via
-`group`, not hardcoded).
+exclusive — the group member with the most recent successful run is the one "in use"
+(`computeGroupInUse()`); data-driven via `group`, not hardcoded (the A.3 outlier-imputation and
+A.4 reporting-rate groups).
 
 ### Map format
 
@@ -317,8 +298,8 @@ Order and dependencies are **explicit**, with no graph-layout library or CDN dep
   `contracts/pipeline_map.schema.json`).
 - `edges` is a list of `{from, to, type}` objects referencing node `id`s; the app uses them for
   each step's Requires / Unlocks / Uses-if-available lists and for locking. `type` is `"solid"`
-  (hard dependency — gates unlocking) or `"optional"` (soft link — listed but does not gate); omit for the
-  default.
+  or omitted (hard dependency — gates unlocking) or `"optional"` (soft link — listed but does not
+  gate).
 - Dependencies are expressed **only** as `edges`. There is no per-node prerequisite array and
   no separate layout array — order comes from the `nodes` array, and mutual exclusion from each
   node's `group`.
@@ -327,28 +308,24 @@ Order and dependencies are **explicit**, with no graph-layout library or CDN dep
 
 ### Bilingual UI (EN / FR)
 
-French is the **main interface language for v1** (PM steer, 2026-07-15 — nearly all users are
-French-speaking). It is implemented as **one webapp with a language toggle**, not as separate
-per-language builds.
-
-**Status: shipped in `cockpit` only** (2026-07-17). The `flowchart` variant remains English-only.
-Both read the same shared `webapps/orchestrator/pipeline_descriptions.json`, so the nested shape must keep working
-for both — do not "flatten" it.
+French is the **main interface language for v1** (nearly all users are French-speaking). It is
+implemented as **one webapp with a language toggle**, not as separate per-language builds. Do not
+"flatten" the nested `{ en, fr }` data shape.
 
 Where each kind of text comes from, and how it's resolved:
 
 | Tier                                          | Source                                              | Mechanism                              |
 | --------------------------------------------- | --------------------------------------------------- | -------------------------------------- |
-| App chrome (buttons, statuses, section titles) | the `I18N` table inside `webapps/orchestrator/app.js`         | `t("key", {params})`                   |
-| Node / step titles                            | `webapps/orchestrator/pipeline_map.json` → `label`            | `pickLang(label)`                      |
-| Node descriptions                             | `webapps/orchestrator/pipeline_descriptions.json` → `{ en, fr }`      | `pickLang(desc)`                       |
+| App chrome (buttons, statuses, section titles) | the `I18N` table inside `webapps/orchestrator/app.js` | `t("key", {params})`                 |
+| Node / step titles                            | `webapps/orchestrator/pipeline_map.json` → `label`   | `pickLang(label)`                      |
+| Node descriptions                             | `webapps/orchestrator/pipeline_descriptions.json` → `{ en, fr }` | `pickLang(desc)`          |
 | **Parameter labels / help / choices**          | the workspace's bucket-hosted `pipeline_cards.json`  | **not translated — English for now**   |
 
-Key rules when touching cockpit text:
+Key rules when touching app text:
 
 - **`pickLang(v)`** resolves a possibly-bilingual data value: an `{ en, fr }` object picks the
-  active language, falls back to `en`, then to `""`; a plain string is returned as-is. This is
-  why legacy flat data and the flowchart variant keep working.
+  active language, falls back to `en`, then to `""`; a plain string is returned as-is (so legacy
+  flat data keeps working).
 - **`t(key, params)`** looks up chrome strings; a missing key falls back to English, then to the
   key itself (so a typo renders visibly rather than silently blank). **Add every new chrome
   string to _both_ `I18N.en` and `I18N.fr`.**
@@ -358,67 +335,51 @@ Key rules when touching cockpit text:
 - **Language resolution order** (at boot): `?lang=` query param (wins, and is persisted) →
   `localStorage["snt_lang"]` → default `en`. Switching language sets `LANG`, rebuilds the steps,
   and re-renders everything from scratch — there is no partial-update path to maintain.
-- The flowchart variant has a one-line equivalent of `pickLang` (its `descText()` helper) that
-  just reads `.en`. If flowchart ever goes bilingual, that is the seam to widen.
 
 ⚠️ The **French strings in `I18N.fr` are drafts pending Giulia's review** (per the code comment in
 `webapps/orchestrator/app.js`). Do not present them as final copy.
 
 ### Multi-file app architecture
 
-OpenHEXA static webapps serve more than just `index.html`. Per the OpenHEXA docs:
+OpenHEXA static webapps serve more than just `index.html`: `index.html` is the entry point, and
+everything else (CSS, JS, images, JSON) is served as-is from the same origin. Reference assets with
+relative paths (`<script src="app.js">`, `<link href="styles.css">`). Platform injection only
+touches `text/html` responses; CSS, JS, and JSON files are untouched.
 
-> _"`index.html` is the entry point; everything else (CSS, JS, images, JSON fixtures) is
-> served as-is from the same origin... Reference assets with relative paths
-> (`<script src="app.js">`, `<link href="style.css">`). The injection only touches `text/html`
-> responses; CSS, JS, and JSON files are untouched."_
-
-So the orchestrator is a **multi-file bundle**, not one giant file:
-
-These **five files live together, flat, in `webapps/orchestrator/`**:
+So the orchestrator is a **multi-file bundle**, not one giant file. These **five files live
+together, flat, in `webapps/orchestrator/`**:
 
 - `index.html` — minimal shell (containers + `<link rel="stylesheet" href="styles.css">` and
-  `<script src="app.js">`; the cockpit's shell also holds the header appbar and the EN/FR toggle)
-- `styles.css` — all styling (cards, node states, sidebar, SVG arrows)
+  `<script src="app.js">`; also the header appbar and the EN/FR toggle)
+- `styles.css` — all styling
 - `app.js` — render the UI, merge map + descriptions with cards, run + poll pipelines
-- `pipeline_map.json` — this variant's map, fetched at runtime
-
+- `pipeline_map.json` — the map, fetched at runtime
 - `pipeline_descriptions.json` — node description text (see _Data architecture_)
 
-That is the **5-file bundle**. Note the deployed paths are flat — `app.js` fetches the two bundled
-JSON files as same-origin siblings (`fetch("./pipeline_map.json")`,
-`./pipeline_descriptions.json`), and the repo folder is deployed as-is. The third JSON the app needs, `pipeline_cards.json`, is **not a
-sibling and not in the bundle** — it is fetched from the workspace bucket via a signed URL (see
-_The pipeline catalog_). All the shared runtime patterns below (the `gql` helper, status polling,
-`prepareObjectDownload`, prefixed element handling) still apply — they just live in `app.js`
-rather than inline.
+`app.js` fetches the two bundled JSON files as same-origin siblings. The third JSON the app needs,
+`pipeline_cards.json`, is **not a sibling and not in the bundle** — it is fetched from the
+workspace bucket via a signed URL (see _The pipeline catalog_). The shared runtime patterns below
+(the `gql` helper, status polling, `prepareObjectDownload`) live in `app.js`.
 
 ### Build / deploy workflow
 
 - Resolve the target webapp's `id`/`slug` **live** via `list_static_webapps`. For a full bundle
-  deploy, use `mcp__claude_ai_OpenHEXA__update_static_webapp` with
-  that `id` and `files_json` as the multi-file array: one `{path, content}` object per file in
-  the bundle above. The files to send are `webapps/orchestrator/*` — **5 files, and never
-  a `pipeline_cards.json`.** For a small, targeted change to one already-deployed file, use
-  `mcp__claude_ai_OpenHEXA__edit_static_webapp_file` instead — see _MCP deployment_ below.
+  deploy, use `mcp__claude_ai_OpenHEXA__update_static_webapp` with that `id` and `files_json` as
+  the multi-file array: one `{path, content}` object per file. The files to send are
+  `webapps/orchestrator/*` — **5 files, and never a `pipeline_cards.json`.** For a small, targeted
+  change to one already-deployed file, use `mcp__claude_ai_OpenHEXA__edit_static_webapp_file`
+  instead — see _MCP deployment_ below.
 - **Confirm the workspace has a catalog before calling the deploy done.** The bundle alone is not
   a working app: check the object exists with
   `list_files(workspace_slug, prefix="utils_pipelines/create_pipeline_cards/pipeline_cards/")`. If
   it is missing, the app will hard-error at boot — the fix is to install and run
   `create_pipeline_cards` in that workspace, not to add a file to the bundle.
-- `allowed_operations`: at minimum `PIPELINES_READ, PIPELINES_RUN, FILES_READ`. Add
-  `USER_READ` if the app queries workspace connections at runtime (to populate
-  `DHIS2Connection` dropdowns). Note **`FILES_READ` is now load-bearing at boot**, not just for
-  report/output downloads — without it the catalog read fails and the app shows nothing.
+- `allowed_operations`: the app requires exactly four scopes — see _`allowed_operations` scopes_.
 - **The repo is the source of truth for the app**, and the workspace bucket is the source of truth
-  for the catalog. The bundle lives once in `webapps/orchestrator/`; no workspace
-  contributes any repo file. After a deploy there are no cards to "save back" — regenerating a
-  catalog means re-running `create_pipeline_cards`, and nothing needs committing. **Partial
-  deploys work** — `files_json` may carry only the files that changed (the others are left
-  intact); you do **not** have to resend the whole bundle every time (see _MCP deployment_ below
-  for the confirmation + caveats). You can read the live files back with `get_static_webapp_file`
-  (single file) or `get_static_webapp` (full bundle) to verify the deploy or to diff against the
-  repo.
+  for the catalog. After a deploy there is nothing to "save back". **Partial deploys work** —
+  `files_json` may carry only the files that changed (the others are left intact). Read the live
+  files back with `get_static_webapp_file` (single file) or `get_static_webapp` (full bundle) to
+  verify the deploy or to diff against the repo.
 
 ---
 
@@ -434,22 +395,15 @@ The platform injects this global at page load — the only reliable way to get t
 window.OPENHEXA.workspaceSlug;
 ```
 
-Per the official `static-webapps` help doc (checked 2026-07-17), the object actually carries two
-more fields the orchestrator doesn't currently use:
+The object carries two more fields the orchestrator doesn't use:
 
 ```js
 window.OPENHEXA = Object.freeze({
   workspaceSlug: "my-workspace",
-  webappSlug: "my-webapp",   // this webapp's own slug — e.g. "snt-pipelines-orchestrator" vs
-                              // "snt-pipelines-orchestrator-cockpit"
+  webappSlug: "my-webapp",   // this webapp's own slug
   isPublic: false,            // true for public webapps
 });
 ```
-
-`webappSlug` would let `app.js` detect its own variant at runtime (the slugs differ per variant —
-see the table in _UI variants_). **Neither variant reads it today** (verified 2026-07-31): each
-variant ships its own `app.js`, so it already knows what it is. Noted only because it is the seam
-to use if one bundle ever has to serve both variants.
 
 ### GraphQL proxy
 
@@ -463,110 +417,88 @@ fetch("/graphql/", {
 });
 ```
 
-### Local development against a live workspace (`dev.js`) — documented upstream, NOT live yet
+The proxy enforces an **Origin check** (same-origin requests only) and answers **HTTP 403** for a
+top-level field outside the webapp's scopes.
 
-⚠️ **Status as of 2026-08-24: documented but not deployed.**
-`https://app.openhexa.org/webapps/dev.js` returns a hard **404** (probed directly — not an auth
-redirect). So this cannot be used today. It is recorded here because it would remove this
-project's single biggest friction — the deploy-to-test loop — and because a future agent finding
-the upstream doc should not waste a session concluding it's broken.
+### Local development against a live workspace (`dev.js`)
 
-What the doc describes: add one script tag to `index.html` and a local page (opened over `file://`
-or any local static server) can call the **real** `/graphql/` proxy against a real workspace,
-under that webapp's actual scopes.
+OpenHEXA serves a dev script at **`https://api.openhexa.org/webapps/dev.js`** (the `api.` host —
+`app.openhexa.org/webapps/dev.js` 404s). Add one script tag to `index.html` and a local page
+(opened over `file://` or any local static server) can call the **real** `/graphql/` proxy against
+a real workspace, under that webapp's actual scopes.
 
 ```html
-<script src="https://app.openhexa.org/webapps/dev.js"></script>
+<script src="https://api.openhexa.org/webapps/dev.js"></script>
 <!-- optionally skip the picker: -->
-<script src="https://app.openhexa.org/webapps/dev.js"
-        data-workspace-slug="snt-app-dev"
-        data-webapp-slug="snt-pipelines-orchestrator-cockpit"></script>
+<script src="https://api.openhexa.org/webapps/dev.js"
+        data-workspace-slug="<workspace-slug>"
+        data-webapp-slug="<webapp-slug>"></script>
 ```
 
 A **Connect to OpenHEXA** button appears, you pick a private static webapp and approve, the page
-reloads with `window.OPENHEXA` populated, and `fetch("/graphql/")` returns real data. The doc
-states the tag is **inert once deployed** (it only activates on `file://` and `localhost`), so it
-is safe to leave in `index.html`, and that local calls respect the deployed
-`allowed_operations` exactly.
+reloads with `window.OPENHEXA` populated, and `fetch("/graphql/")` returns real data. Per the doc
+the tag is **inert once deployed** (it only activates on `file://` and `localhost`), and local
+calls respect the deployed `allowed_operations` exactly. Webapps created from OpenHEXA's default
+template already include the tag.
 
-**Before relying on it:** re-probe the URL. If it 200s, this is worth adopting deliberately — the
-whole orchestrator could then be iterated locally against `snt-app-dev`, with deploys reserved for
-finished work. Treat adding the tag to both variants' `index.html` as its own reviewed change,
-not a drive-by: it puts a third-party script tag in a production bundle.
+**The orchestrator does not use it yet.** Adopting it is its own reviewed change, not a drive-by:
+it puts a third-party script tag in a production bundle (backlog DEV-1).
 
 ### `allowed_operations` scopes
 
 The proxy enforces a whitelist of permitted GraphQL **top-level fields**. Set via the
-`allowed_operations` parameter on `update_static_webapp` / `create_static_webapp` — as of
-2026-08-24 that parameter is a **typed JSON list of enum values**, e.g.
-`["PIPELINES_READ","PIPELINES_RUN","FILES_READ","USER_READ"]`. (It used to be documented here as
-comma-separated text; it isn't.) Omit it to leave current scopes untouched; pass an empty list to
-revoke all API access.
+`allowed_operations` parameter on `update_static_webapp` / `create_static_webapp` — a **typed
+JSON list of enum values**, e.g. `["PIPELINES_READ","PIPELINES_RUN","FILES_READ","USER_READ"]`.
+Omit it to leave current scopes untouched; pass an empty list to revoke all API access.
 
-What each scope actually grants (from the official `static-webapps` doc, 2026-08-24 — wider than
-this file used to imply):
+What each scope grants (from the `static-webapps` doc — wider than the orchestrator uses):
 
 | Scope             | Top-level fields it unlocks                                                                             |
 | ----------------- | ------------------------------------------------------------------------------------------------------- |
 | `USER_READ`       | `me`, `workspace`                                                                                       |
 | `PIPELINES_READ`  | `pipeline`, `pipelines`, `pipelineByCode`, `pipelineRun`, `pipelineVersion`                              |
-| `PIPELINES_RUN`   | `runPipeline`, **`stopPipeline`**                                                                       |
-| `FILES_READ`      | `prepareObjectDownload`, **`getFileByPath`**, **`readFileContent`**                                     |
-| `FILES_WRITE`     | `prepareObjectUpload`, `createBucketFolder`, `writeFileContent`                                         |
+| `PIPELINES_RUN`   | `runPipeline`, `stopPipeline`                                                                           |
+| `FILES_READ`      | `prepareObjectDownload`, `getFileByPath`, `readFileContent`                                             |
 | `DATASETS_READ`   | `dataset`, `datasets`, `datasetVersion`, `datasetLink`                                                   |
-| `DATASETS_WRITE`  | `createDataset`, `updateDataset`, `createDatasetVersion`, `updateDatasetVersion`, `createDatasetVersionFile` |
+| `DATABASE_READ`   | `executeSavedQuery` (runs a Data Studio saved query by slug; the query must be shared with the workspace; `executeSQL` is always refused on the proxy) |
+
+`FILES_WRITE` and `DATASETS_WRITE` also exist in the enum, but the doc's table does not list what
+they grant — don't rely on a field list for them without checking.
 
 `__typename`, `__schema` and `__type` are always allowed. If a query fails with a permission error
-in the webapp, a scope is missing.
+(403) in the webapp, a scope is missing.
 
-Three capabilities in that table the orchestrator does **not** yet use, but could:
+Capabilities available under the app's existing scopes but not used (see backlog):
+`readFileContent` (an alternative to the signed-URL catalog read), `stopPipeline` (a Stop
+button), `getFileByPath` (resolve one bucket object without listing a prefix). The orchestrator
+does not need `DATABASE_READ`.
 
-- **`readFileContent(workspaceSlug, filePath, startLine, endLine)`** reads a text file's content
-  directly, under the `FILES_READ` the app already has. That is an alternative to the current
-  `prepareObjectDownload` → `fetch(signedUrl)` dance for the catalog (see _The pipeline catalog_).
-  Don't switch on a whim: the signed-URL path is shipped, works, and is also what the report embed
-  needs. Worth knowing if signed-URL expiry or CORS ever becomes a problem.
-- **`stopPipeline`** would back a Stop/Cancel button on a running node — no new scope needed
-  beyond the `PIPELINES_RUN` the app already holds.
-- **`getFileByPath`** resolves one bucket object without listing a whole prefix.
-
-⚠️ **New 8th scope: `DATABASE_READ`.** The GraphQL `WebappOperationScope` enum gained it in the
-2026-08 release (grants workspace-database reads). Two caveats: it is **not** in the MCP tools'
-`allowed_operations` enum, so it can only be granted via the OpenHEXA UI or the raw `updateWebapp`
-mutation; and it is **not** in the doc's scope table, so which fields it unlocks is unverified.
-The orchestrator does not need it — noted so its absence from the MCP enum doesn't read as a bug.
-
-⚠️ **Public webapps cannot call the GraphQL proxy at all** (confirmed in the doc, 2026-08-24).
-Every orchestrator webapp must therefore stay **private** — flipping one to public silently kills
-every query and the app cannot boot. All six orchestrator webapps are `isPublic: false` (verified
-live 2026-08-24); `list_static_webapps` returns `isPublic`, so this is cheap to check.
+⚠️ **Public webapps cannot call the GraphQL proxy at all.** The orchestrator webapp must therefore
+stay **private** — flipping it to public silently kills every query and the app cannot boot.
+Check `isPublic` live with `list_static_webapps` / `get_static_webapp`.
 
 **The orchestrator requires four scopes: `PIPELINES_READ, PIPELINES_RUN, FILES_READ, USER_READ`.**
-⚠️ **`FILES_READ` became boot-critical on 2026-08-04**: besides signing report/output downloads, it
-is what lets the app read its own `pipeline_cards.json` out of the workspace bucket (see _The
-pipeline catalog_). Without it the app now fails to load entirely, rather than merely losing its
-download links. `USER_READ` is the one most easily forgotten — it's needed for the `workspace { connections }`
-query that powers the **DHIS2-connection dropdown** in the parameter form. Without it the
-proxy rejects that query with `Operations not allowed: workspace` and the form silently falls
-back to a plain text slug input (the connection dropdown just never appears — the app doesn't
-otherwise break). This bit `snt-testing` (created June with only the first three; `USER_READ`
-added 2026-06-23). To check the scopes actually granted to a deployed app, read them **live**
-with `get_static_webapp` (it returns `allowedOperations`) — that is now the source of truth, so
-drift is caught by inspecting the live webapp rather than a stored config file.
+⚠️ **`FILES_READ` is boot-critical**: besides signing report/output downloads, it is what lets the
+app read its own `pipeline_cards.json` out of the workspace bucket (see _The pipeline catalog_).
+Without it the app fails to load entirely. `USER_READ` is the one most easily forgotten — it's
+needed for the `workspace { connections }` query that powers the **connection dropdowns**
+(DHIS2 / custom) in the parameter form. Without it the proxy rejects that query and the form falls
+back to a plain text slug input (the dropdown just never appears — the app doesn't otherwise
+break). To check the scopes actually granted to a deployed app, read them **live** with
+`get_static_webapp` (it returns `allowedOperations`).
 
 **Scopes are webapp metadata, not part of the deployed bundle.** They live on the platform's
-webapp object, set **once per webapp at create/update time** — not re-sent with every file
-deploy, and not derivable from the files. So porting the orchestrator to a new workspace is:
-(1) create the webapp **with the four scopes**, (2) deploy the 5-file bundle (4 generic +
-`pipeline_descriptions.json`), then (3) install and run `create_pipeline_cards` in that workspace
-so the catalog exists in its bucket. Three ways to set the scopes:
+webapp object, set at create/update time — not re-sent with every file deploy, and not derivable
+from the files. So porting the orchestrator to a new workspace is: (1) create the webapp **with
+the four scopes**, (2) deploy the 5-file bundle, then (3) install and run `create_pipeline_cards`
+in that workspace so the catalog exists in its bucket. Three ways to set the scopes:
 
-- **OpenHEXA UI** — the webapp settings page has an **"Allowed operations"** checklist (confirmed
-  2026-06-23 — Giulia can tick the four by hand; no agent/API needed).
+- **OpenHEXA UI** — open the webapp → **API access** tab → **Allowed operations** box, with one
+  toggle per operation (e.g. "Read pipelines").
 - **MCP** — `update_static_webapp` / `create_static_webapp` with the `allowed_operations`
-  parameter, passed as a **list** of enum values (e.g.
-  `["PIPELINES_READ","PIPELINES_RUN","FILES_READ","USER_READ"]`). `DATABASE_READ` is not
-  accepted here — use the UI or raw GraphQL for that one.
+  parameter, passed as a **list** of enum values. All eight values are accepted:
+  `PIPELINES_READ`, `PIPELINES_RUN`, `FILES_READ`, `FILES_WRITE`, `DATASETS_READ`,
+  `DATASETS_WRITE`, `USER_READ`, `DATABASE_READ`.
 - **Raw GraphQL** — the management mutation against the main OH API (`app.openhexa.org/graphql/`,
   authenticated as the user — **not** the webapp's own `/graphql/` proxy, which can't grant its
   own scopes). `createWebapp` takes the same `allowedOperations` on creation:
@@ -580,19 +512,12 @@ so the catalog exists in its bucket. Three ways to set the scopes:
   #              "allowedOperations": ["PIPELINES_READ","PIPELINES_RUN","FILES_READ","USER_READ"] } }
   ```
 
-  `allowedOperations` is a `[WebappOperationScope!]` enum with **eight** values as of the 2026-08
-  release: `PIPELINES_READ`, `PIPELINES_RUN`, `FILES_READ`, `FILES_WRITE`, `DATASETS_READ`,
-  `DATASETS_WRITE`, `USER_READ`, and the new `DATABASE_READ`. This mutation is the only
-  programmatic way to grant `DATABASE_READ` (the MCP tools' enum omits it). ⚠️ A scope-only
-  re-apply has been seen to echo stale scopes on the first call — **re-verify with
-  `get_static_webapp` after changing scopes** (a no-files re-apply makes it stick).
+After changing scopes, re-read them with `get_static_webapp` to confirm they took.
 
 ### Reading last-run status for all pipelines (cross-session status board)
 
-**Confirmed working through the static-webapp proxy under `PIPELINES_READ` alone** (status spike,
-verified live in `snt-testing`: a pipeline triggered in the OH UI showed up as `running` on the
-next app refresh — the spike webapp `t0-9-status-proxy-spike` is still there, and its local copy
-is `deprecated/snt-testing/status_spike/`). This is the query that powers the read-only status board.
+This query works through the static-webapp proxy under `PIPELINES_READ` alone (the original
+spike's local copy is `deprecated/snt-testing/status_spike/`). It powers the status board.
 
 Pipelines are fetched via the **top-level `pipelines(workspaceSlug:…)` query** — note the
 `Workspace` type has **no** `pipelines` field, so `workspace { pipelines }` does _not_ parse.
@@ -601,7 +526,7 @@ the single most-recent run with `orderBy: EXECUTION_DATE_DESC, perPage: 1`.
 
 ```graphql
 query ($ws: String!) {
-  pipelines(workspaceSlug: $ws, page: 1, perPage: 50) {
+  pipelines(workspaceSlug: $ws, page: 1, perPage: 100) {
     totalItems
     items {
       id
@@ -621,10 +546,13 @@ query ($ws: String!) {
 }
 ```
 
-`PipelineRunStatus` values: `queued`, `running`, `success`, `failed`, `stopped`, `skipped`,
-`terminating`. A pipeline with no runs returns an empty `runs.items` array (render as greyed /
-"no runs"). This is the _list_ status query; to poll a single run you triggered for its outputs,
-use the `pipelineRun(id:)` query below.
+The app's status and generator-diagnosis queries use `perPage: 100` and do not paginate — a
+workspace with more than 100 pipelines would be silently truncated (backlog APP-1).
+
+`PipelineRunStatus` values (**lowercase**): `queued`, `running`, `success`, `failed`, `stopped`,
+`skipped`, `terminating`. A pipeline with no runs returns an empty `runs.items` array (render as
+greyed / "no runs"). This is the _list_ status query; to poll a single run you triggered for its
+outputs, use the `pipelineRun(id:)` query below.
 
 ### Running a pipeline
 
@@ -645,24 +573,19 @@ mutation ($input: RunPipelineInput!) {
 
 For parameters of type `DHIS2Connection`, pass the **connection slug** (e.g. `"dhis2-nmdr-drc"`), not the UUID. List available connections with `mcp__claude_ai_OpenHEXA__list_connections`.
 
-`RunPipelineInput` carries three optional fields the orchestrator doesn't currently set (noted
-2026-08-24 — all long-standing, just never written down here):
+`RunPipelineInput` carries three optional fields the orchestrator doesn't set (ideas in the
+backlog):
 
-- `versionId: UUID` — run a specific pipeline version instead of the current one. Relevant if the
-  catalog's recorded `version_name` / `version_number` (see _SNT Pipeline Definitions_) is ever
-  used to pin runs to the version the parameter form was generated from.
-- `sendMailNotifications: Boolean` — email the triggering user on completion. Worth considering
-  for the long SNT pipelines, where users leave the tab.
-- `enableDebugLogs: Boolean` — verbose run logs, useful when linking a user to a failed run.
+- `versionId: UUID` — run a specific pipeline version instead of the current one.
+- `sendMailNotifications: Boolean` — email the triggering user on completion.
+- `enableDebugLogs: Boolean` — verbose run logs.
 
-`stopPipeline(input: {runId})` is also reachable under the app's existing `PIPELINES_RUN` scope —
-see _`allowed_operations` scopes_.
+`stopPipeline(input: {runId})` is also reachable under the app's existing `PIPELINES_RUN` scope.
 
 #### `errors` is an enum, not a message (⚠️ easy to get wrong)
 
 `RunPipelineResult.errors` is **`[PipelineError!]!` — a GraphQL enum**, so it carries codes, never
-prose. **Do not string-match it, and never render it raw** (the orchestrator used to show users a
-literal `Couldn't start the run: INVALID_CONFIG`). Compare exact values. The full enum
+prose. **Do not string-match it, and never render it raw.** Compare exact values. The full enum
 (`reference/openhexa/schema.generated.graphql`, `enum PipelineError`):
 
 `CANNOT_UPDATE_NOTEBOOK_PIPELINE`, `DUPLICATE_PIPELINE_VERSION_NAME`, `FILE_NOT_FOUND`,
@@ -671,13 +594,12 @@ literal `Couldn't start the run: INVALID_CONFIG`). Compare exact values. The ful
 `PIPELINE_DOES_NOT_SUPPORT_PARAMETERS`, `PIPELINE_NOT_FOUND`, `PIPELINE_RUNS_LIMIT_REACHED`,
 `PIPELINE_VERSION_NOT_FOUND`, `TABLE_NOT_FOUND`, `WORKSPACE_NOT_FOUND`.
 
-Both variants translate them in **`runErrorInfo(errors)`** → `{text, drift}`
-(`webapps/orchestrator/app.js`), falling through to a generic branch that
-still prints the codes so nothing is swallowed. **Four values mean the catalog no longer matches the
-installed pipeline** and are flagged `drift: true` — `INVALID_CONFIG`,
-`PIPELINE_DOES_NOT_SUPPORT_PARAMETERS`, `PIPELINE_NOT_FOUND`, `PIPELINE_VERSION_NOT_FOUND`. For
-those, the caller appends a "refresh the catalogue" line linking to the generator, via
-`catalogueRefreshHintHtml` (cockpit) / `catalogRefreshHintHtml` (flowchart), which reuse
+The app translates them in **`runErrorInfo(errors)`** → `{text, drift}`
+(`webapps/orchestrator/app.js`), falling through to a generic branch that still prints the codes
+so nothing is swallowed. **Four values mean the catalog no longer matches the installed pipeline**
+and are flagged `drift: true` — `INVALID_CONFIG`, `PIPELINE_DOES_NOT_SUPPORT_PARAMETERS`,
+`PIPELINE_NOT_FOUND`, `PIPELINE_VERSION_NOT_FOUND`. For those, the caller appends a "refresh the
+catalogue" line linking to the generator, via `catalogueRefreshHintHtml`, which reuses
 `diagnoseMissingCatalog` (see _Diagnosing a missing catalog from inside the app_).
 
 Implementation details worth preserving:
@@ -688,54 +610,53 @@ Implementation details worth preserving:
   `APP.selectedId !== nodeId`, so a slow lookup can't paint onto a different node.
 - ⚠️ **`.sb-runstatus` is `display: flex; flex-wrap: wrap`** — a `<br>` inside it becomes a flex item
   and does **not** break the line. The hint is a `<span class="rs-hint">` with `flex: 0 0 100%`
-  (styled in both `webapps/orchestrator/styles.css`). Same trap applies to any future second line there.
-- Any new mapping must be added in **both** variants, and cockpit's strings in **both** `I18N.en` and
-  `I18N.fr` (keys `runerr.*`, `link.refreshCatalogue`).
+  (in `webapps/orchestrator/styles.css`). Same trap applies to any future second line there.
+- Any new mapping needs its strings in **both** `I18N.en` and `I18N.fr` (keys `runerr.*`,
+  `link.refreshCatalogue`).
 
 ### Polling a run for status and outputs
+
+The app splits this into two queries (`app.js`): `RUN_POLL_QUERY` (`id status executionDate
+duration`) polled while the run is in flight, and an outputs query fetched once it has finished:
 
 ```graphql
 query ($id: UUID!) {
   pipelineRun(id: $id) {
-    status
-    duration
-    progress
     outputs {
       __typename
-      ... on BucketObject {
-        key
-        name
-      }
-      ... on GenericOutput {
-        uri
-      }
+      ... on BucketObject { key name type }
+      ... on GenericOutput { uri genericName: name }   # alias required: name is String! vs String
     }
     datasetVersions {
       id
+      name
       dataset {
         slug
         name
+        workspace {
+          slug
+        }
       }
     }
   }
 }
 ```
 
-`outputs` is a union type — always use `__typename` inline fragments. Terminal statuses: `success`, `failed`, `stopped`, `terminating`.
+`outputs` is a union type — always use `__typename` inline fragments. **Terminal statuses:
+`success`, `failed`, `stopped`, `skipped`.** `queued`, `running` and `terminating` are still in
+flight — keep polling through `terminating` (`isRunFinished`, `RUN_ACTIVE_STATUSES` in `app.js`).
+The app polls every 5 s for up to 40 min (`POLL_INTERVAL_MS`, `POLL_MAX_ATTEMPTS`), then shows
+"stopped watching — still running in OpenHEXA".
 
-Two fields worth knowing (both long-standing; confirmed still present 2026-08-24):
+Two fields worth knowing:
 
 - **`PipelineRunOutput` has a third member the app ignores:**
   `BucketObject | DatabaseTable | GenericOutput`. Without a `... on DatabaseTable` fragment a
   table output is fetched but silently unrendered — harmless (unions skip unmatched members), but
   it means "no outputs shown" is not proof of "no outputs produced". Add the fragment if any SNT
   pipeline starts emitting tables.
-- **`progress: Int!`** is available on every run and is not currently read — the seam to use if
+- **`progress: Int!`** is available on every run and is not read by the app — the seam to use if
   the run status line should show a percentage rather than just `running`.
-
-⚠️ **Statuses are lowercase.** The enum is `queued`, `running`, `success`, `failed`, `stopped`,
-`skipped`, `terminating` — the upstream doc's example compares against `"SUCCESS"` / `"FAILED"` /
-`"STOPPED"` and would loop forever. See the warning under _OpenHEXA GraphQL Schema_.
 
 ### Getting a signed download URL for a bucket output (e.g. HTML report)
 
@@ -753,198 +674,112 @@ mutation ($input: PrepareObjectDownloadInput!) {
 Input fields: `workspaceSlug`, `objectKey` (from the BucketObject), `forceAttachment: false`.
 
 **This mutation is not limited to run outputs** — `objectKey` may be *any* key in the workspace
-bucket. That is what lets the app read its own configuration at boot: the orchestrator signs
-`utils_pipelines/create_pipeline_cards/pipeline_cards/pipeline_cards.json` and `fetch`es it as JSON
-(see _The pipeline catalog_). The signed URLs are CORS-open, so `fetch` works cross-origin — not
-just `<iframe>`.
+bucket. That is what lets the app read its own configuration at boot (see _The pipeline catalog_).
+The signed URLs are CORS-open, so `fetch` works cross-origin — not just `<iframe>`.
 
 ### Embedding an HTML report in-app (iframe)
 
-**Confirmed feasible and shipped in the `cockpit` variant** (spike `deprecated/snt-app-dev/report-embed/`
-+ the live `report-embed-probe` webapp in `snt-app-dev`; implemented in
-`webapps/orchestrator/app.js` → `renderReportEmbeds()`).
-
-A run's HTML report can be shown **inline** rather than only linked out:
+A run's HTML report is shown **inline** rather than only linked out
+(`webapps/orchestrator/app.js` → `renderReportEmbeds()`; the original feasibility spike is in
+`deprecated/snt-app-dev/report-embed/`):
 
 - Get a signed URL via `prepareObjectDownload` with **`forceAttachment: false`** (an attachment
   disposition would download instead of render), then mount it as `<iframe src="{signedUrl}">`.
 - It works because the **GCS signed URLs send no `X-Frame-Options` / restrictive
   `frame-ancestors`**, so they are frameable from the webapp origin.
 - **Signed URLs expire.** Treat a mounted iframe as perishable: re-request a fresh URL rather
-  than caching one across a long session (the cockpit tracks whether a frame is currently mounted
+  than caching one across a long session (the app tracks whether a frame is currently mounted
   with a fresh URL and re-signs on demand).
-- The `flowchart` variant does **not** embed — it still links out to the report.
 
 ### Constructing OpenHEXA front-end URLs (dataset / pipeline-run pages)
 
-⚠️ **Do NOT derive the app host from the webapp's hostname.** On the SaaS the
-static webapp is served under `*.openhexa.io` (e.g.
-`snt-pipelines-orchestrator.openhexa.io`) but the main app UI lives at
-**`app.openhexa.org`** — a _different domain_ (`.org`, not `.io`). String-munging
-the webapp hostname (`"https://app." + hostname.split(".").slice(1).join(".")`)
-yields `app.openhexa.io`, which is wrong — that host treats `app` as a webapp slug
-and returns a 404 "Web app not found" page. Verified live 2026-06-18.
+⚠️ **Do NOT derive the app host from the webapp's hostname.** On the SaaS the static webapp is
+served under `*.openhexa.io` (e.g. `<webapp-slug>.openhexa.io`) but the main app UI lives at
+**`app.openhexa.org`** — a _different domain_ (`.org`, not `.io`). String-munging the webapp
+hostname yields `app.openhexa.io`, which is wrong — that host treats `app` as a webapp slug and
+returns a 404 "Web app not found" page.
 
 ```js
 // Hardcode the SaaS front-end base (revisit for self-hosted installs):
 var appBase = "https://app.openhexa.org";
 
-// Dataset (version) page — verified live 2026-06-19. The plain
-// /workspaces/<ws>/datasets/<slug>/ form 404s; the page needs BOTH the
-// `from/<sourceWs>` segment (workspace that owns the dataset) AND a
+// Dataset (version) page. The plain /workspaces/<ws>/datasets/<slug>/ form 404s; the page needs
+// BOTH the `from/<sourceWs>` segment (workspace that owns the dataset) AND a
 // `?version=<datasetVersionId>` query param:
 var datasetUrl =
   appBase + "/workspaces/" + workspaceSlug + "/datasets/" + datasetSlug +
   "/from/" + sourceWorkspaceSlug + "/?version=" + datasetVersionId;
-// e.g. https://app.openhexa.org/workspaces/snt-app-dev/datasets/snt-dhis2-formatted/from/snt-app-dev/?version=<versionId>
 // For a run's output datasets, get datasetSlug + sourceWorkspaceSlug + the
 // version id from pipelineRun.datasetVersions { id dataset { slug workspace { slug } } }.
 
 // Pipeline-run page (uses the pipeline CODE, not the UUID; note trailing slash):
 var runUrl =
   appBase + "/workspaces/" + workspaceSlug + "/pipelines/" + pipelineCode + "/runs/" + runId + "/";
-// e.g. https://app.openhexa.org/workspaces/snt-app-dev/pipelines/a-1-dhis2-extract/runs/<runId>/
 ```
-
-### Multi-card pattern (multiple pipelines on one page)
-
-When a single webapp hosts cards for multiple pipelines:
-
-- Prefix all element IDs with the card key (e.g. `a1_statusBox`, `a2_runBtn`)
-- Store per-pipeline config (UUID, `getConfig` fn, `validate` fn) in a `PIPELINE_CONFIG` object keyed by prefix
-- All shared functions (`gql`, `setStatus`, `showOutputs`, etc.) accept `prefix` as their first argument
-- Cards run completely independently — triggering one does not affect the other's state
 
 ### MCP deployment
 
-Two tools can push changes to a webapp; pick based on the size of the change:
+Two tools can push changes to a webapp; pick based on the size of the change. Static webapps are
+stored as **git repositories** on the platform, so every write below lands as a commit.
 
-- **`mcp__claude_ai_OpenHEXA__edit_static_webapp_file`** (added 2026-07-07) — **preferred for
-  small, targeted edits** to an existing text file (a few lines in `app.js`, a CSS tweak, one
-  card's parameters). Takes the webapp `id` (from `list_static_webapps`), a `path`, and an
-  `old_string`/`new_string` pair — the same find/replace contract as the Edit tool. The backend
-  reads the current file, applies the replacement, and commits; the agent never has to load the
-  full file into context. `old_string` must match exactly (including whitespace) and, unless
-  `replace_all: true`, must be unique in the file — include enough surrounding context. Text
-  files only (not images/binaries). Use `update_static_webapp` instead to add new files or
-  rewrite one wholesale.
+- **`mcp__claude_ai_OpenHEXA__edit_static_webapp_file`** — **preferred for small, targeted edits**
+  to an existing text file (a few lines in `app.js`, a CSS tweak, one description). Takes the
+  webapp `id` (from `list_static_webapps`), a `path`, and an `old_string`/`new_string` pair — the
+  same find/replace contract as the Edit tool. The backend reads the current file, applies the
+  replacement, and commits; the agent never has to load the full file into context. `old_string`
+  must match exactly (including whitespace) and, unless `replace_all: true`, must be unique in the
+  file — include enough surrounding context. Text files only.
 - **`mcp__claude_ai_OpenHEXA__update_static_webapp`** — for **new files**, a **wholesale
   rewrite** of a file, or the first deploy of a bundle. Takes `files_json` as a JSON array of
-  `{path, content}` objects. ✅ **`name`/`description` now work** (changed in the 2026-08 release —
-  the tool's own description says "Pass name to change the human-readable name, and description to
-  change the description"). This file previously said they were silently ignored and that renames
-  had to go through the OpenHEXA UI; that is no longer true, so a rename is a one-call fix. ⚠️ Not
-  re-verified live by this repo — a webapp rename is an outward-facing change, so **confirm with
-  Giulia before renaming anything**, and re-read with `list_static_webapps` afterwards.
-  `create_static_webapp` honors `name` too (it always did).
-  **Also (confirmed live 2026-07-17):** it takes `files_to_delete_json`, a JSON array of
-  paths to remove (e.g. `["old.js", "legacy/style.css"]`) — paths that don't exist are ignored.
-  Can be combined with `files_json` in the same call; both are applied as one commit. Not yet
-  needed by any orchestrator task, but relevant if a variant ever needs to drop a stale file
-  (e.g. retiring an old data file after a `pipeline_map.json` restructure) without a full
-  wholesale rewrite.
+  `{path, content}` objects (contents inline — it cannot read a path on disk). It also takes
+  `files_to_delete_json`, a JSON array of paths to remove (paths that don't exist are ignored);
+  both can be combined in one call and are applied as one commit. `name`/`description` are
+  honored, so a rename is one call — but a rename is outward-facing: **confirm with Giulia before
+  renaming anything**, and re-read with `list_static_webapps` afterwards. `create_static_webapp`
+  takes `name`, `description`, `files_json` and `allowed_operations` (no `isPublic` / `icon` /
+  `subdomain` — those need the UI or raw GraphQL `updateWebapp`).
 
-**Partial / incremental deploys work (confirmed live 2026-06-19; as of 2026-07-17 the tool's own
-description now says so too — previously it still said "replace all files," contradicting the
-observed behavior).** `files_json` may contain **only the files that changed** — the omitted
-files are left untouched, _not_ deleted. Verified by deploying `app.js` alone to the orchestrator
-and reading back with `get_static_webapp`: all other files (CSS, HTML, both JSON) survived
-intact. Caveats: (1) confirmed on the SaaS; (2) **always re-verify after a partial deploy** (see
-below); (3) keep the full bundle reproducible from the repo (`webapps/orchestrator/`) so a full re-deploy is always possible.
+**Partial / incremental deploys work.** `files_json` may contain **only the files that changed** —
+omitted files are left untouched, _not_ deleted. Always re-verify after a deploy (see below), and
+keep the full bundle reproducible from `webapps/orchestrator/` so a full re-deploy is always
+possible.
 
 To **read back** the currently-deployed files:
 
-- **`mcp__claude_ai_OpenHEXA__get_static_webapp_file(workspace_slug, webapp_slug, path)`**
-  (added 2026-07-07) — reads **one** file; supports `start_line`/`end_line` for large files.
-  **Preferred for verifying a single-file edit** (e.g. confirm an `edit_static_webapp_file`
-  call landed) — cheap, no Read-cap risk.
+- **`mcp__claude_ai_OpenHEXA__get_static_webapp_file(workspace_slug, webapp_slug, path)`** — reads
+  **one** text file; `start_line`/`end_line` (integers) read a slice of a large file. **Preferred
+  for verifying a single-file edit.**
 - **`mcp__claude_ai_OpenHEXA__get_static_webapp(workspace_slug, webapp_slug)`** — reads
   **every** file plus metadata (`allowedOperations`, `permissions`, each file's `content` +
-  `encoding`: `TEXT`/`BASE64`). Use for a **full drift audit** (comparing the whole live bundle
-  against the repo) or when you need the file list first. Use the **slug** (from
-  `list_static_webapps`), not the UUID, for both tools. Since scopes/allowedOperations are
-  webapp-level, not variant-level, still resolve the right webapp variant first (see _UI variants_).
-  ⚠️ **Two things to weigh before calling it.** (1) As of the 2026-08 release, **binary files
-  return `content: null`** (only `encoding: BASE64` and the path) — it no longer dumps base64
-  blobs, but it also means it cannot be used to back up an image or font. (2) It returns every
-  **text** file inline, and each `app.js` is ~90 KB — so on an orchestrator webapp this is an
-  expensive call. If you only need one file, or only the scopes, reach for
-  `get_static_webapp_file` or `list_static_webapps` instead.
+  `encoding`: `TEXT`/`BASE64`). Use for a **full drift audit**. Binary files return
+  `content: null`, so it cannot back up an image or font. It returns every **text** file inline,
+  and `app.js` alone is ~100 KB — an expensive call. If you only need one file, or only the
+  scopes, use `get_static_webapp_file` or `list_static_webapps` instead.
 
-✅ **`start_line`/`end_line` on `get_static_webapp_file` are fixed** (confirmed live 2026-07-17):
-the tool's schema now declares both as `integer` (was `string`), matching the underlying
-`readWebappFile` GraphQL field's `Int` type. Verified by reading `app.js` lines 1–15 from the
-live `snt-pipelines-orchestrator` webapp in `snt-app-dev` — returned exactly that slice with
-`success: true`, no coercion error. The previous workaround (omit both, read the whole file) is
-no longer necessary — pass both params for large files to avoid the Read-cap risk described
-below. (Previously broken/reported upstream 2026-07-08; this note previously said "currently
-broken" — that is now stale.)
+Use the **slug** (from `list_static_webapps`), not the UUID, for both read tools.
 
-**Large-file deploy friction (Read cap) — now mostly avoided.** `update_static_webapp`'s
-`files_json` carries file _contents inline_ — the tool can't read from a path on disk, so
-authoring the call means pulling the bytes into context with Read, which caps at ~25k tokens.
-The orchestrator's `app.js` is now **~90 KB** (flowchart) / **~88 KB** (cockpit) and still
-growing — well past that cap, so a single Read **truncates** it, and JSON-escaping
-(`ConvertTo-Json`) only inflates it further. `edit_static_webapp_file` sidesteps this entirely for targeted
-edits — no full-file Read, no JSON-escaping, no chunking. Everything below is now a **fallback**,
-needed only when a file must be wholesale-rewritten (not just patched) and is too large for a
-single Read.
+**Manual UI upload.** For a wholesale rewrite or a full bundle, offer the user the option to drag
+the changed file(s) from `webapps/orchestrator/` straight into the webapp in the OpenHEXA UI — no
+agent token cost (see guardrail 2). **After any deploy, read the changed file(s) back and diff
+against the repo.**
 
-**Manual UI upload (fallback for wholesale rewrites).** If a wholesale rewrite is needed and the
-escape/chunk dance below feels like overkill, offer the user the option to drag the changed
-file(s) from `webapps/orchestrator/` (the canonical local copies)
-straight into the OpenHEXA UI — no agent Read, no token cost, no size limit.
+**Version history and rollback (platform-side, not via MCP).** Because webapps are git-backed,
+the GraphQL `Webapp` type exposes `versions` (`WebappVersion { id, message, authorName,
+authorEmail, date }`), `commitDiff(ref)`, `files(ref:)`, `previewUrl`, `serveUrl` and `subdomain`;
+`UpdateWebappInput.publishedVersionId` selects which commit is served. **No MCP tool exposes
+versions, diffs or publishing a version** — they are reachable only through the OpenHEXA UI or raw
+GraphQL against the main API. Whether `previewUrl` serves an unpublished head is unverified; a
+tested rollback procedure is a backlog item (REL-3).
 
-**If a wholesale rewrite must go through the API** (confirmed 2026-06-22): write the escaped
-string to a temp file, then read it back in slices with the Bash tool (`cut -c1-20000 file`,
-`-c20001-40000 file`, …) and concatenate the slices **exactly** into the `content` value —
-ideally inside a **subagent** so the large payload stays out of the main context. Smaller files
-(`styles.css`, the JSON data files) still read in one go. **Always verify after a chunked
-deploy**: re-read live via `get_static_webapp_file` (or `get_static_webapp` for a full check)
-and diff against the local copy (e.g. a quick `node -e` length/equality check) — a single
-dropped/altered char between slices would break the file. The OpenHEXA **CLI deploys pipelines
-only, not static webapps**, so there is still no command-line deploy path (a feature request to
-the OH devs is in flight).
-
-**Re-verified 2026-08-24 — the SDK is not a deploy path either.** The `sdk` and `toolbox-hexa`
-doc summaries now both list "webapps" among what `OpenHexaClient` covers, which looks promising
-but isn't: the SDK's entire webapp surface is **read-only** — `workspace.get_webapp(slug)` and
-`client.get_webapp_by_slug(workspace_slug, webapp_slug)`, returning `name`, `url`, `description`,
-`icon`, `is_favorite`, `created_by`, `permissions`. There is **no method to create or update
-webapp files**. So MCP (`edit_static_webapp_file` / `update_static_webapp`) and the OpenHEXA UI
-remain the only two ways to deploy a bundle. Don't re-investigate this without new information;
-if a real webapp-deploy command lands it supersedes this whole chunked-read workaround.
-
-### Assembling `files_json` on Windows (PowerShell 5.1)
-
-Splitting an app into html+css+js just means a longer `files_json` array — OpenHEXA serves the
-bundle as documented (relative `<link>`/`<script>` resolve same-origin; only `index.html` is
-HTML-injected). The friction is building the JSON on Windows, not the deploy:
-
-- **Read as UTF-8 explicitly** — `Get-Content -Raw` defaults to ANSI and mangles non-ASCII
-  (`—`, emoji `📄🗂`, glyphs `✓✕⦸`) into mojibake. Use `Get-Content -Raw -Encoding UTF8`.
-- **Cast content to `[string]` before `ConvertTo-Json`** — otherwise the property serializes as
-  `{value, Count}` and balloons (~50×: a 20 KB bundle became 1.17 MB).
-- **Pass the array via `-InputObject`, do NOT pipe it** (confirmed 2026-06-22) — `$arr |
-  ConvertTo-Json` (even with the `,$arr` array-preserve comma) re-wraps each element as a
-  `{value, Count}` object instead of emitting a plain array of `{path, content}`. Use
-  `ConvertTo-Json -InputObject $arr` so you get a real top-level JSON array. Sanity-check the
-  output starts with `[`.
-- **`ConvertTo-Json` emits `<` `>` `&` `'` as escaped unicode sequences (`\uXXXX`), not
-  literal characters** — valid JSON, OpenHEXA parses and serves it fine. Don't "fix" it. (Bonus:
-  if you also escape any remaining non-ASCII to `\uXXXX`, the payload is pure ASCII, which makes
-  byte-slicing it for read-back split-safe — see the Read-cap workaround above.)
-
-Recipe (build the array, then serialize with `-InputObject` — not a pipe):
-
-```powershell
-$arr = @($files | % { [PSCustomObject]@{ path = $_; content = [string](Get-Content -Raw -Encoding UTF8 $_) } })
-ConvertTo-Json -InputObject $arr -Depth 5 -Compress | Out-File -Encoding utf8 "$env:TEMP/snt_files_json.json"
-```
+**Other deploy paths.** The OpenHEXA **CLI deploys pipelines only, not static webapps**. The
+Python SDK's webapp surface is **read-only** (`workspace.get_webapp(slug)`,
+`OpenHexaClient().get_webapp_by_slug(...)`) — no method to create or update webapp files. So MCP
+(`edit_static_webapp_file` / `update_static_webapp`), the OpenHEXA UI, and raw GraphQL
+(`updateWebapp` with `files` / `filesToDelete`) are the ways to deploy a bundle.
 
 ### Pipeline IDs are workspace-specific
 
-Pipeline **UUIDs** and **codes/slugs** both differ across workspaces for the same pipeline. The only stable identifier is the **Python function name** (e.g. `snt_dhis2_extract`) — this is used as the key in `contracts/pipeline_cards.schema.json` and as the `id` in each variant's `webapps/orchestrator/pipeline_map.json`. The app gets pipeline UUIDs at runtime from that workspace's own bucket-hosted `pipeline_cards.json`, so **UUIDs can no longer leak across workspaces**: each workspace's catalog is generated in place by running `create_pipeline_cards` there, and is never copied between workspaces. (The old failure mode — hand-copying a `pipeline_cards.json` from one workspace to another — is structurally impossible now.)
+Pipeline **UUIDs** and **codes/slugs** both differ across workspaces for the same pipeline. The only stable identifier is the **Python function name** (e.g. `snt_dhis2_extract`) — this is used as the key in `contracts/pipeline_cards.schema.json` and as the `id` in `webapps/orchestrator/pipeline_map.json`. The app gets pipeline UUIDs at runtime from that workspace's own bucket-hosted `pipeline_cards.json`, generated in place by running `create_pipeline_cards` there — so UUIDs never cross workspaces. Never copy a catalog between workspaces.
 
 ---
 
@@ -957,16 +792,15 @@ Pipeline **UUIDs** and **codes/slugs** both differ across workspaces for the sam
 `pipeline_cards.json`, in its own bucket at
 `utils_pipelines/create_pipeline_cards/pipeline_cards/pipeline_cards.json`, produced by the
 `create_pipeline_cards` pipeline (source: `pipelines/create_pipeline_cards/`, docs: its
-`README.md`). It is shared by both UI variants. See _The pipeline catalog_ above for how the app
-reads it.
+`README.md`). See _The pipeline catalog_ above for how the app reads it.
 
 **Regenerating it is the answer to almost every catalog question** — a pipeline was installed,
 removed, or had a parameter renamed; the app greys out something that should be live; a run is
 rejected with `INVALID_CONFIG` or another of the drift-flagged `PipelineError` codes (see
 _`errors` is an enum, not a message_). In all of those cases the fix is **run
-`create_pipeline_cards` in that workspace** (via the OpenHEXA UI, or `run_pipeline` if the user
-asks), not to hand-edit anything. The webapp picks the new catalog up on its next page load — no
-redeploy.
+`create_pipeline_cards` in that workspace**, not to hand-edit anything. Giulia runs pipelines
+herself: give her the run plan rather than calling `run_pipeline`, unless she asks. The webapp
+picks the new catalog up on its next page load — no redeploy.
 
 **To inspect a workspace's current catalog** (e.g. to check whether a pipeline is present, or what
 parameters it exposes):
@@ -974,32 +808,31 @@ parameters it exposes):
 - `list_files(workspace_slug, prefix="utils_pipelines/create_pipeline_cards/pipeline_cards/")` —
   cheap existence + `updatedAt` check. Do this before assuming a workspace has a catalog at all.
 - `read_file(workspace_slug, "utils_pipelines/create_pipeline_cards/pipeline_cards/pipeline_cards.json")`
-  — the full contents. ⚠️ These files are ~45–60 KB; prefer the `list_files` check, or ask the user
-  to read a value off the OpenHEXA UI, when you only need one fact.
+  — the full contents. ⚠️ These files are tens of KB; prefer the `list_files` check, or ask the
+  user to read a value off the OpenHEXA UI, when you only need one fact.
 - Previous versions are archived by the pipeline itself under `…/pipeline_cards/historical/` with a
   timestamp suffix — useful for diffing what changed between runs.
 
-**Staleness works differently now.** The catalog still carries a `generated_at` date, but its
-parameters are read from each pipeline's **deployed current version** in that workspace
+**Staleness.** The catalog carries a `generated_at` date, and its parameters are read from each
+pipeline's **deployed current version** in that workspace
 (`pipelineByCode.currentVersion.parameters`, recorded as `parameters_source:
-"openhexa_deployed"`) — not scraped from GitHub `main`. So it reflects what is actually installed,
-and the old GitHub-vs-installed drift class is gone. What can still be stale is the catalog vs the
-workspace *now*: if pipelines have been installed or upgraded since `generated_at`, re-run the
-generator. **Do not** patch a parameter by hand to "fix" drift — that desynchronises the bucket
-file from the generator and the next run silently reverts it.
+"openhexa_deployed"`). So it reflects what was installed when the generator ran. What can be stale
+is the catalog vs the workspace *now*: if pipelines have been installed or upgraded since
+`generated_at`, re-run the generator. **Do not** patch a parameter by hand to "fix" drift — that
+desynchronises the bucket file from the generator and the next run silently reverts it.
 
-Each card also records the deployed version it was built from (`version_name` / `version_number`,
-added 2026-08-04). Nothing reads them yet — they exist so a future drift check can compare them
-against the live `pipelineByCode.currentVersion` and surface a refresh prompt only on real change,
-rather than an always-visible "refresh" control that asks users to self-diagnose.
+Each card also records the deployed version it was built from (`version_name` /
+`version_number`). Nothing reads them yet — they exist so a future drift check can compare them
+against the live `pipelineByCode.currentVersion` and surface a refresh prompt only on real change
+(backlog).
 
 ### Reference: how a pipeline's parameters are declared
 
 You should not normally need this — `create_pipeline_cards` extracts parameters from the deployed
 pipeline version automatically. Keep it for reading pipeline source on GitHub, for understanding
-where the catalog's fields come from, and for the rare case of diagnosing a pipeline whose
-deployed version cannot be resolved (the generator leaves those with `id: null` and excludes them;
-see the caveats in the pipeline's `README.md`).
+where the catalog's fields come from, and for diagnosing a pipeline whose deployed version cannot
+be resolved (the generator gives those `id: null` and excludes them; see the caveats in the
+pipeline's `README.md`).
 
 **GitHub repository:** `https://github.com/BLSQ/snt_development`
 
@@ -1048,94 +881,71 @@ Do **not** look inside a `pipelines/` folder — it does not contain the correct
 - Omit `default` if its value is `None`.
 - Omit `required` if it is `False` — absence means optional.
 - If `choices` is a list of tuples `(value, label)`, keep only the value (first element).
-- The card `name` (display title) and `description` (subtitle) are **not** in the Python source. Get the display name from `list_pipelines` in OpenHEXA or ask the user. Do not invent them.
-- The `id` field is the Python function name — the first argument to `@pipeline(...)`, which is also the pipeline's folder name in the `snt_development` repo and the node `id` in each variant's `webapps/orchestrator/pipeline_map.json`.
+- The `id` field is the Python function name — the first argument to `@pipeline(...)`, which is also the pipeline's folder name in the `snt_development` repo and the node `id` in `webapps/orchestrator/pipeline_map.json`.
 
 ⚠️ **Reference only — do not hand-build a catalog from this.** The connection type names above are
 the SDK's Python classes; `create_pipeline_cards` sees OpenHEXA's own lowercase codes instead
-(`dhis2`, `custom`, `iaso`, `postgresql`, `gcs`, `s3`, `file`) and maps them to these same JSON
-values via `PARAMETER_TYPE_MAP` in its `config.py`. If a new connection type ever appears in a
-pipeline, that map is the place to extend — the webapp's form then needs a matching branch in
-`fieldControlHtml`, or the parameter falls back to a plain text input.
+(`dhis2`, `custom`, `iaso`, `postgresql`, `gcs`, `s3`, `file`) and maps them via
+`PARAMETER_TYPE_MAP` in its `config.py` (also emitting `IASOConnection`, `PostgreSQLConnection`,
+`GCSConnection`, `S3Connection`). The webapp's form has dedicated controls only for DHIS2 and
+custom connections (`fieldControlHtml`); any other connection type falls back to a plain text
+input. A new type needs a branch there for a proper control.
 
 ---
 
 ## Workspace-Specific Configuration
 
-**The repo now holds no workspace-specific artifacts at all.** Everything committed here is either
-generic or per-variant; the only per-workspace data lives in each OpenHEXA workspace's own bucket
-(see _The pipeline catalog_).
+**The repo holds no workspace-specific artifacts at all.** Everything committed here is generic;
+the only per-workspace data lives in each OpenHEXA workspace's own bucket (see _The pipeline
+catalog_).
 
 - **`webapps/orchestrator/`** — the orchestrator bundle (`index.html`, `styles.css`, `app.js`,
   `pipeline_map.json`, `pipeline_descriptions.json`), flat and deployed as-is, shared by every
-  workspace. Single source of truth for the app; there are no per-workspace copies.
+  workspace.
 - **`pipelines/`** — OpenHEXA pipelines that support the webapp itself (as opposed to the
   ~18 SNT process pipelines the orchestrator *runs*, which live in the separate `snt_development`
   repo). Currently just `create_pipeline_cards/`, which generates each workspace's catalog.
-  ⚠️ Its bucket output key still starts `utils_pipelines/…` — a runtime path, not a repo path.
+  ⚠️ Its bucket output key starts `utils_pipelines/…` — a runtime path, not a repo path.
+- **`contracts/`** — JSON contracts for the map, the descriptions and the generated catalog.
 - **`reference/openhexa/`** — external reference material (`schema.generated.graphql`).
-- **`contracts/`**, **`docs/`**, **`design/`** — contracts, consolidated docs, and WIP/design
-  explorations respectively.
+- **`docs/`**, **`design/`** — consolidated docs, and WIP/design explorations respectively.
 - **`deprecated/`** — the parked Flowchart variant, retired spikes and pre-orchestrator
   single-file webapps; history, never a template (see `deprecated/README.md`).
 
-⚠️ **There is no `workspaces/` folder.** It held `workspaces/<ws>/<variant>/pipeline_cards.json`
-and was deleted on 2026-08-04 when both variants moved to reading the catalog from the bucket. If
-you find yourself wanting to create it, you are about to reintroduce the redeploy-per-config-change
-problem that change removed. Old copies remain in git history if ever needed.
+⚠️ **There is no `workspaces/` folder, and there must not be one.** A per-workspace copy of
+`pipeline_cards.json` in the repo would reintroduce the redeploy-per-config-change problem the
+bucket-hosted catalog solves.
 
 Webapp identity and scopes (`id`, `slug`, `url`, `allowedOperations`) are **not** stored in the
 repo — resolve them live via `list_static_webapps` / `get_static_webapp` whenever you deploy or
 inspect an app.
 
-**The agent CAN now read and edit the live webapp's files directly.**
-`mcp__claude_ai_OpenHEXA__get_static_webapp(workspace_slug, webapp_slug)` (added in the 2026-06
-OH release) returns metadata, `allowedOperations`, a `permissions` block, and each file's
-`encoding` (`TEXT` for UTF-8, `BASE64` for binary) — use for a full drift audit. **Text** files
-come back with full `content`; since the 2026-08 release **binary files return `content: null`**,
-so it can't be used to retrieve an image or font. `mcp__claude_ai_OpenHEXA__get_static_webapp_file(workspace_slug, webapp_slug,
-path)` (added 2026-07-07) reads a single file (with optional `start_line`/`end_line`) — use for
-a cheap single-file check, and prefer it whenever one file will do, since the full call inlines
-every ~90 KB `app.js`. Use the **slug** (from `list_static_webapps`), not the UUID, for
-both. This means:
-
-- **The live app is an inspectable source of truth, not a black box.** Before editing an existing webapp, pull the deployed files and diff them against the repo (`webapps/orchestrator/`) to catch drift (e.g. edits made directly in the OpenHEXA UI). A live `pipeline_cards.json` still present in a webapp is a **leftover from before 2026-08-04** — nothing fetches it; it can be dropped with `files_to_delete_json`.
-- The deploy set is just `webapps/orchestrator/*` — the same 5 files for every workspace, with no per-workspace assembly step at all.
-- After a deploy, **verify** by reading the changed file(s) back (`get_static_webapp_file` for one file, `get_static_webapp` for the whole bundle) and diffing against the repo.
-- ✅ For small, targeted edits prefer `mcp__claude_ai_OpenHEXA__edit_static_webapp_file`
-  (find/replace on one file, added 2026-07-07) over `update_static_webapp` — it never needs the
-  file's full content in context. Reserve `update_static_webapp` (which does support
-  **partial/incremental deploys**, confirmed live 2026-06-19 — send only the changed files in
-  `files_json`; omitted files are left intact) for new files or wholesale rewrites. See _MCP
-  deployment_ for details + caveats.
+**The live app is an inspectable source of truth, not a black box.** Before editing an existing
+webapp, pull the deployed files and diff them against `webapps/orchestrator/` to catch drift
+(e.g. edits made directly in the OpenHEXA UI). A `pipeline_cards.json` found inside a deployed
+webapp is a leftover — nothing fetches it; it can be dropped with `files_to_delete_json`.
 
 ### How to build or update the webapp for a workspace
 
 The agent's job is to keep the `webapps/orchestrator/` bundle correct, then deploy. Keeping the
-per-workspace catalog accurate is **no longer an agent task** — it is a pipeline run (see _The
-pipeline catalog_). The primary source files are:
+per-workspace catalog accurate is **not an agent task** — it is a pipeline run (see _The pipeline
+catalog_). The primary source files are:
 
 - **`contracts/pipeline_cards.schema.json`** — the contract for the generated catalog: field definitions and type mapping.
 - **`webapps/orchestrator/pipeline_map.json`** (+ `contracts/pipeline_map.schema.json`) — the map and its contract.
-- **`webapps/orchestrator/pipeline_descriptions.json`** (+ `contracts/pipeline_descriptions.schema.json`) — the single, hand-authored source of each node's description text, shared across every variant and workspace.
+- **`webapps/orchestrator/pipeline_descriptions.json`** (+ `contracts/pipeline_descriptions.schema.json`) — the single, hand-authored source of each node's description text.
 - **`pipelines/create_pipeline_cards/`** — the generator that produces each workspace's catalog in its bucket.
 
 When building or updating the orchestrator for a workspace:
 
-1. Confirm the workspace has a catalog — `list_files(workspace_slug, prefix="utils_pipelines/create_pipeline_cards/pipeline_cards/")`. If it's missing, the app cannot boot there; installing + running `create_pipeline_cards` comes first. Read it with `read_file` only if you actually need its contents.
-2. Edit the app under `webapps/orchestrator/` (shared by all workspaces); edit `webapps/orchestrator/pipeline_descriptions.json` for description-text changes. There is nothing per-workspace to edit in the repo.
-3. Follow the runtime patterns above (prefixed IDs, shared functions, `allowed_operations`, etc.).
+1. Confirm the workspace has a catalog — `list_files(workspace_slug, prefix="utils_pipelines/create_pipeline_cards/pipeline_cards/")`. If it's missing, the app cannot boot there; installing + running `create_pipeline_cards` comes first (after the webapp exists). Read it with `read_file` only if you actually need its contents.
+2. Edit the app under `webapps/orchestrator/`; edit `webapps/orchestrator/pipeline_descriptions.json` for description-text changes. There is nothing per-workspace to edit in the repo.
+3. Follow the runtime patterns above (`gql` helper, `allowed_operations`, escaping seam, etc.).
 4. Resolve the webapp `id` via `list_static_webapps`, then deploy: for a new workspace or a
    full-bundle refresh use `mcp__claude_ai_OpenHEXA__update_static_webapp` with
    `webapps/orchestrator/*` (5 files); for a small edit to one already-deployed file use
    `mcp__claude_ai_OpenHEXA__edit_static_webapp_file` instead (see _MCP deployment_).
 5. Nothing to sync back — the repo has no per-workspace files to update after a deploy.
-
-> For the **SNT Pipelines Orchestrator** specifically, follow the multi-file architecture in
-> _SNT Pipelines Orchestrator (end goal)_ above: the map (`webapps/orchestrator/pipeline_map.json`,
-> validated against `contracts/pipeline_map.schema.json`) supplies layout and dependencies, the
-> workspace's bucket-hosted `pipeline_cards.json` supplies which nodes are active plus their
-> params/UUIDs, and the app is deployed as a bundle rather than a single inlined `index.html`.
 
 ### Session start workflow
 
@@ -1145,21 +955,23 @@ which OpenHEXA workspace they want to work on before doing anything else.**
 Then:
 
 1. Check whether the workspace has a catalog in its bucket:
-   `list_files(workspace_slug, prefix="utils_pipelines/create_pipeline_cards/pipeline_cards/")`
-   (`<ws>` = the workspace slug, hyphens). Note the `updatedAt` — that is the catalog's real age.
+   `list_files(workspace_slug, prefix="utils_pipelines/create_pipeline_cards/pipeline_cards/")`.
+   Note the `updatedAt` — that is the catalog's real age.
 2. If yes — that is the pipeline catalog; the app reads it itself at runtime. Resolve the webapp
-   `id`/`slug` live via `list_static_webapps` when you need to deploy or inspect. Read the file with `read_file` only if you need its
-   contents, not just its existence.
+   `id`/`slug` live via `list_static_webapps` when you need to deploy or inspect. Read the file
+   with `read_file` only if you need its contents, not just its existence.
 3. If no — the orchestrator cannot boot in that workspace. Tell the user, and ask them to install
    and run **`create_pipeline_cards`** there (source in `pipelines/create_pipeline_cards/`).
    It takes **no parameters** — just Run. But check that the webapp named by its
-   `config.WEBAPP_SLUG` (currently the Cockpit app) is deployed in that workspace first, since its
-   map is the curation authority and the run fails without it. Do not generate a catalog by hand
-   and do not add one to the bundle.
+   `config.WEBAPP_SLUG` is deployed in that workspace first, since its map is the curation
+   authority and the run fails without it. Do not generate a catalog by hand and do not add one
+   to the bundle.
 
-When about to **edit an existing webapp**, pull its live files with `mcp__claude_ai_OpenHEXA__get_static_webapp` first and diff them against the repo (`webapps/orchestrator/`) — this catches drift (e.g. edits made directly in the OpenHEXA UI) before you overwrite it on the next deploy.
+When about to **edit an existing webapp**, pull its live files (`get_static_webapp`, or
+`get_static_webapp_file` for the one file you'll change) and diff them against
+`webapps/orchestrator/` first — this catches drift before you overwrite it on the next deploy.
 
 Resolving workspace / app identifiers (all **live** — nothing stored in the repo):
 
 - **workspace slug** — from `list_workspaces`; used in all MCP tool calls (and injected at runtime as `window.OPENHEXA.workspaceSlug`).
-- **webapp `id` / `slug` / `url` / `allowedOperations`** — from `list_static_webapps` / `get_static_webapp`. `id` is passed to `update_static_webapp`; `slug` to `get_static_webapp`.
+- **webapp `id` / `slug` / `url` / `allowedOperations`** — from `list_static_webapps` / `get_static_webapp`. `id` is passed to `update_static_webapp` / `edit_static_webapp_file`; `slug` to the `get_*` tools.

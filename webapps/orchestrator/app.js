@@ -1,4 +1,4 @@
-/* SNT Pipelines Orchestrator — Cockpit UI variant.
+/* SNT Pipelines Orchestrator — Cockpit UI.
  *
  * A focused, one-step-at-a-time guided walkthrough (see
  * design/wireframes/orchestrator_wireframe_cockpit.html). The left rail lists
@@ -9,12 +9,7 @@
  * five A.3 outlier methods, the two A.4 reporting-rate methods) collapse into a
  * single "choose one" step.
  *
- * The bundle is self-contained and flat (webapps/orchestrator/). The live-
- * OpenHEXA machinery below — the gql helper, status/run/poll/outputs/
- * connections queries, the parameter form + config builder, and the
- * alternative-group mutual-exclusion logic — was shared with the parked
- * flowchart variant (deprecated/flowchart/), which differed only in
- * presentation (a 2D map + sidebar instead of rail + focused panel).
+ * The bundle is self-contained and flat (webapps/orchestrator/), deployed as-is.
  *
  * Data, from two different places (join key everywhere is the node `id` ==
  * the pipeline's Python function name):
@@ -137,8 +132,9 @@ var GENERATOR_QUERY =
  * ================================================================== */
 /* Where this workspace's pipeline catalog lives in the workspace bucket. Written
  * by the companion `create_pipeline_cards` pipeline — this key must stay in
- * lockstep with that pipeline's config.py (OUTPUT_DIR + WEBAPP_CARDS_PATH). It
- * is deliberately NOT part of the deployed bundle: keeping it in the bucket
+ * lockstep with that pipeline's config.py (OUTPUT_DIR + WEBAPP_CARDS_PATH). It is
+ * a bucket key, NOT a repo path: it does not follow the repo layout. The
+ * catalog is deliberately NOT part of the deployed bundle: keeping it in the bucket
  * means a config change is one pipeline run, not a redeploy. */
 var CARDS_OBJECT_KEY =
   "utils_pipelines/create_pipeline_cards/pipeline_cards/pipeline_cards.json";
@@ -492,7 +488,7 @@ function setLang(l) {
 
 // Resolve a possibly-bilingual data value. Nested { en, fr } objects pick the
 // active language (falling back to en); a plain string is returned as-is, so
-// legacy flat data still works (and the flowchart variant is unaffected).
+// legacy flat data still works.
 function pickLang(v) {
   if (v && typeof v === "object" && !Array.isArray(v)) {
     return v[LANG] != null ? v[LANG] : v.en != null ? v.en : "";
