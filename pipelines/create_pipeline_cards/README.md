@@ -35,33 +35,29 @@ running this pipeline is all that's needed to update a workspace's configuration
 commit, or redeploy. See the repo root `CLAUDE.md` / `README.md` for the full picture.
 
 Each card also records the **deployed version** its parameters were read from (`version_name`,
-`version_number`). Nothing consumes these yet — they exist so the orchestrator can later compare
-the catalog against the live pipelines and prompt for a refresh only when something has actually
-changed, rather than showing an always-on "refresh" control that asks users to self-diagnose.
+`version_number`). The orchestrator does not read them; they are there for a future drift check
+(compare against the live pipeline and prompt for a refresh only on real change).
 
 ## Parameters
 
 **None.** The pipeline takes no parameters — just run it. Everything it needs it derives from the
 workspace it runs in (`workspace.slug`) plus the constants in `config.py`.
 
-It used to take a `webapp_name` parameter (the display name of the webapp to curate against, with
-an "if empty, skip curation" fallback). That was removed on 2026-08-04: the display name had to be
-translated into a slug by listing and paging through every webapp in the workspace, and the names
-are inconsistent across workspaces while the slugs are not. The slug is now a constant:
+The webapp to curate against is identified by a slug constant:
 
 ```python
 # config.py
 WEBAPP_SLUG = "snt-pipelines-orchestrator-cockpit"
 ```
 
-- This is the webapp whose **deployed** `pipeline_map.json` is the curation authority. Cockpit is
-  the lead variant, so it is the one kept up to date.
+- This is the orchestrator webapp whose **deployed** `pipeline_map.json` is the curation authority.
 - ⚠️ **That webapp must exist in the workspace, or the run fails** with `Failed to read
-  pipeline_map.json from webapp '…'`. There is no longer an uncurated fallback — a run either
+  pipeline_map.json from webapp '…'`. There is no uncurated fallback — a run either
   curates against a real deployed map or stops. This is deliberate: silently emitting every
   pipeline in the workspace is worse than a clear failure.
-- To curate against a different webapp, edit `WEBAPP_SLUG` and redeploy the pipeline. **Look
-  the slug up live** with `list_static_webapps` — webapp slugs are editable per workspace.
+- If a workspace's orchestrator has a different slug, edit `WEBAPP_SLUG` and redeploy the
+  pipeline. **Look the slug up live** with `list_static_webapps` — webapp slugs are editable per
+  workspace.
 
 ## Output
 
@@ -72,7 +68,7 @@ overwritten silently.
 
 **This path is a contract with the webapp** — a bucket key, not a repo path (it does not follow
 where this folder lives in the repo). The webapp hardcodes it as `CARDS_OBJECT_KEY` in
-`webapps/orchestrator/app.js` and read the file via `prepareObjectDownload` → `fetch(signedUrl)` (needing
+`webapps/orchestrator/app.js` and reads the file via `prepareObjectDownload` → `fetch(signedUrl)` (needing
 the webapp's `FILES_READ` scope). Changing `OUTPUT_DIR` or `WEBAPP_CARDS_PATH` therefore means
 changing `CARDS_OBJECT_KEY` and redeploying the webapp — otherwise every orchestrator
 in every workspace stops booting.
@@ -95,11 +91,11 @@ its next page load. The pipeline does not push to the repo or touch the webapp b
   listing (e.g. notebook-based pipelines), or a missing/malformed decorator will have `id: null`
   and be excluded by curation.
 - The run **fails** if the webapp named by `config.WEBAPP_SLUG` isn't deployed in the workspace,
-  since its map is the curation authority — so the Cockpit app must be deployed there first. It is
-  now present in **all three** workspaces (`snt-app-dev`, `snt-testing`, `cmr-snt-process` —
-  verified live 2026-08-24), so this only bites when standing up a **new** workspace: deploy
-  Cockpit, then run the generator.
+  since its map is the curation authority. When standing up a new workspace: deploy the
+  orchestrator first, then run the generator.
 - Duplicate `@pipeline` ids across workspace pipelines are logged as warnings but not resolved
   automatically — deprecated duplicates should be cleaned up in the workspace.
 - `config.EXPECTED_NUM_PIPELINES` (currently `18`) is only used to log a warning if the curated
-  count doesn't match — it does not fail the run.
+  count doesn't match — it does not fail the run (so it always warns in a workspace that has only
+  a subset of the pipelines installed).
+- Each catalog carries a `_notes` string built from `config.NOTES` with the workspace slug filled in.

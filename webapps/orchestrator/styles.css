@@ -1,11 +1,11 @@
-/* SNT Pipelines Orchestrator — Cockpit UI variant.
+/* SNT Pipelines Orchestrator — Cockpit UI.
  *
  * Focused, one-step-at-a-time guided walkthrough. Left: a slim progress rail
  * (whole journey + "you are here"). Center: the focused step (deps, params,
  * run, outputs). Derived from design/wireframes/orchestrator_wireframe_cockpit.html,
  * with the wireframe's mock form/output markup replaced by the real engine's
- * classes (.finput, .btn-primary, .sb-runstatus, .extlink, …) shared with the
- * flowchart variant so the generated parameter form + live outputs look right.
+ * classes (.finput, .btn-primary, .sb-runstatus, .extlink, …) so the generated
+ * parameter form + live outputs look right.
  */
 :root {
   --ink: #23262b;

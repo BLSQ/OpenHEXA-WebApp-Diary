@@ -448,7 +448,7 @@ def initialize_pipeline_cards(workspace_slug: str) -> dict[str, str | list[dict]
     return {
         "workspace_slug": workspace_slug,
         "generated_at": date.today().isoformat(),
-        "_notes": config.NOTES,
+        "_notes": config.NOTES.format(workspace_slug=workspace_slug),
         "pipelines": [],
     }
 
@@ -479,8 +479,9 @@ def move_files_to_historical(dir_path: Path) -> None:
 
 
 def save_json(pipeline_cards: dict[str, str | list[dict]], output_dir: Path):
-    """Save the pipeline cards to a JSON file with a standard name, archiving any
-    previous version into a ``historical/`` subfolder.
+    """Save the pipeline cards to a JSON file with a standard name.
+
+    Archiving the previous version is done beforehand by ``move_files_to_historical``.
 
     Parameters
     ----------

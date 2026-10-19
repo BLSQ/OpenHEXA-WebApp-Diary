@@ -35,9 +35,8 @@ PARAMETER_TYPE_MAP = {
 }
 WEBAPP_MAP_PATH = "pipeline_map.json"
 # Slug of the orchestrator webapp whose deployed pipeline_map.json is the
-# curation authority. Slugs are stable across workspaces (unlike the display
-# names).
-# Both variants declare the same node ids, so either map curates identically.
+# curation authority. The orchestrator uses this same slug in every workspace;
+# if a workspace's orchestrator has a different slug, change it here and redeploy.
 WEBAPP_SLUG = "snt-pipelines-orchestrator-cockpit"
 QUERY_WEBAPP_FILE = """
     query readWebappFile($workspaceSlug: String!, $webappSlug: String!, $path: String!) {
@@ -47,9 +46,11 @@ QUERY_WEBAPP_FILE = """
         }
     }
 """
-NOTES = "Catalog for the SNT App Dev workspace (18 pipelines). All of the IDs are workspace-specific. "
+NOTES = "Catalog for the {workspace_slug} workspace. All of the IDs are workspace-specific."
 PARAMETERS_SOURCE = "openhexa_deployed"
 EXPECTED_NUM_PIPELINES = 18
 PIPELINES_PER_PAGE = 50
+# Bucket path, NOT a repo path: do not change it with the repo layout. OUTPUT_DIR +
+# "/" + WEBAPP_CARDS_PATH must equal CARDS_OBJECT_KEY in webapps/orchestrator/app.js.
 OUTPUT_DIR = "utils_pipelines/create_pipeline_cards/pipeline_cards"
 WEBAPP_CARDS_PATH = "pipeline_cards.json"

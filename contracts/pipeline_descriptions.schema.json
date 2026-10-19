@@ -4,14 +4,13 @@
   "_generation_instructions": [
     "1. This file is hand-authored by a human (Giulia), not AI-generated — agents should not invent or rewrite description text here without being asked to.",
     "2. Keyed by pipeline `id` (the Python function name), the same join key used in pipeline_map.json and pipeline_cards.json.",
-    "3. A short paragraph is expected (a few sentences), not a one-liner — this supersedes the old per-node `description` field that used to live in pipeline_map.json.",
+    "3. A short paragraph is expected (a few sentences), not a one-liner. Descriptions live only here — pipeline_map.json has no `description` field.",
     "4. Bump `version` (YYYY-MM-DD) when descriptions change.",
     "5. Adding a new pipeline to the map? Add its id here too, or the app falls back to an empty description for that node."
   ],
 
   "_formatting": [
     "Values support a small Markdown-lite subset, rendered client-side by app.js (function mdLite): **bold** or __bold__, *italic* or _italic_, and single newlines become <br> line breaks. Nothing else — no headers, links, lists, or raw HTML; anything that isn't one of those markers is escaped and shown literally.",
-    "In native (non-HTML) contexts — e.g. a card's title=\"...\" tooltip attribute — the markers are stripped instead of rendered (function stripMd), so tooltips show plain text while the sidebar/panel shows the formatted version.",
     "In JSON, write a literal newline inside the string as \\n, e.g. \"First sentence.\\nSecond sentence.\"."
   ],
 
