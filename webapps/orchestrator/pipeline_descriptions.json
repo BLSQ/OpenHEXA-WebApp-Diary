@@ -1,5 +1,5 @@
 {
-  "_description": "Hand-authored pipeline descriptions, shared across every UI variant and every workspace. Keyed by pipeline id (the Python function name — same join key used everywhere else). This is the SINGLE place to edit a pipeline's description text; see schemas/pipeline_descriptions.schema.json for the contract, formatting rules, and deploy notes. Each value is a { \"en\": ..., \"fr\": ... } object (bilingual); the app resolves the active language via pickLang() and falls back to `en`. A plain string is still accepted (treated as `en`) for backward compatibility.",
+  "_description": "Hand-authored pipeline descriptions, identical for every workspace. Keyed by pipeline id (the Python function name — same join key used everywhere else). This is the SINGLE place to edit a pipeline's description text; see contracts/pipeline_descriptions.schema.json for the contract and formatting rules. Each value is a { \"en\": ..., \"fr\": ... } object (bilingual); the app resolves the active language via pickLang() and falls back to `en`. A plain string is still accepted (treated as `en`) for backward compatibility.",
   "version": "2026-07-17",
   "descriptions": {
     "snt_dhis2_extract": {

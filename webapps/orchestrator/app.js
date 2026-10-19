@@ -9,12 +9,12 @@
  * five A.3 outlier methods, the two A.4 reporting-rate methods) collapse into a
  * single "choose one" step.
  *
- * This variant is a self-contained bundle (CLAUDE.md: variants do not share
- * files). The live-OpenHEXA machinery below — the gql helper, status/run/poll/
- * outputs/connections queries, the parameter form + config builder, and the
- * alternative-group mutual-exclusion logic — mirrors the flowchart variant's
- * app.js so behaviour stays identical; only the presentation layer differs
- * (rail + focused panel instead of a 2D map + sidebar).
+ * The bundle is self-contained and flat (webapps/orchestrator/). The live-
+ * OpenHEXA machinery below — the gql helper, status/run/poll/outputs/
+ * connections queries, the parameter form + config builder, and the
+ * alternative-group mutual-exclusion logic — was shared with the parked
+ * flowchart variant (deprecated/flowchart/), which differed only in
+ * presentation (a 2D map + sidebar instead of rail + focused panel).
  *
  * Data, from two different places (join key everywhere is the node `id` ==
  * the pipeline's Python function name):
@@ -321,8 +321,8 @@ async function loadData() {
 /* Merge the shared map with this workspace's cards. Every map node is kept; a
  * node is *available* iff its id matches a pipeline in the cards (with a uuid),
  * otherwise it renders as "not installed" (greyed / missing). Description text
- * comes from the shared, hand-authored app/pipeline_descriptions.json (one
- * copy across all variants/workspaces), not from the map or the cards. */
+ * comes from the shared, hand-authored pipeline_descriptions.json (one
+ * copy across all workspaces), not from the map or the cards. */
 function mergeNodes(map, cards, descriptions) {
   var cardsById = {};
   var pipelines = (cards && cards.pipelines) || [];
@@ -363,7 +363,7 @@ function escapeHtml(s) {
 }
 
 // Small Markdown-lite renderer for hand-authored pipeline descriptions
-// (app/pipeline_descriptions.json): bold and italic markers, and newlines
+// (pipeline_descriptions.json): bold and italic markers, and newlines
 // (`\n`) -> <br>. Nothing else (no headers/links/lists) — text is escaped first,
 // so any other markup is shown literally rather than executed.
 function mdLite(s) {
@@ -444,7 +444,7 @@ function workspaceSlug() {
  * ------------------------------------------------------------------ *
  * The cockpit is bilingual (English / French). Scope of this phase:
  * app chrome (this string table), the hand-authored node descriptions
- * (app/pipeline_descriptions.json), and node/step titles
+ * (pipeline_descriptions.json), and node/step titles
  * (pipeline_map.json `label`) — all resolved via pickLang(). Parameter
  * labels/help + dropdown choices (from pipeline_cards.json) stay English
  * for now. The whole panel re-renders from scratch on every render, so

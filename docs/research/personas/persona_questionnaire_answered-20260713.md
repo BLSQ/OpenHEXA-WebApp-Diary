@@ -2,7 +2,7 @@
 
 **Status:** For PM review · 2026-06-14
 
-**Companion to:** [`PRODUCT_SPEC.md`](https://github.com/BLSQ/OpenHEXA-WebApp-Diary/blob/main/knowledge/PRODUCT_SPEC.md) (this sharpens §3 "Target user" and §5/§9 scope into decisions) and [`orchestrator_wireframe.html`](https://github.com/BLSQ/OpenHEXA-WebApp-Diary/blob/main/knowledge/orchestrator_wireframe.html)
+**Companion to:** [`PRODUCT_SPEC.md`](../../PRODUCT_SPEC.md) (this sharpens §3 "Target user" and §5/§9 scope into decisions) and [`orchestrator_wireframe.html`](../../../deprecated/flowchart/orchestrator_wireframe.html)
 
 **Purpose (two audiences):**
 

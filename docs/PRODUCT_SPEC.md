@@ -31,8 +31,8 @@
 > the variant framing in Part B. The devs own the technical-feasibility catalogue (§6).
 >
 > **Sources for this revision:** the answered persona questionnaire
-> (`docs/personas/persona_questionnaire_answered-20260713.md`) and the deployed orchestrator
-> bundles in the repo (`app/flowchart/`, `app/cockpit/`).  
+> (`docs/research/personas/persona_questionnaire_answered-20260713.md`) and the orchestrator
+> bundle in the repo (`webapps/orchestrator/`; the parked Flowchart bundle is in `deprecated/flowchart/`).  
 > Features the app _already implements_ are described in the
 > present tense; things not yet built are flagged and placed in the roadmap (Part C).
 
@@ -162,7 +162,7 @@ The persona below is the agreed design target. **Design for the floor, not the c
   every workspace and country. **It does not change per workspace.** What differs per workspace is
   only _which_ pipelines are installed (installed → active; not installed → greyed).
 - The map is **authored separately** (by the SNT team, validated with the PM) and supplied to each
-  variant as a **standalone file** (`app/<variant>/pipeline_map.json`) — _not_ hard-coded into the
+  variant as a **standalone file** (`webapps/orchestrator/pipeline_map.json`) — _not_ hard-coded into the
   page. It captures, per node: **type** (mandatory / alternative / facultative), the **group** that
   ties mutually-exclusive alternatives together, grid **position** (row/col), and the directed
   **dependency edges** between pipelines (`solid` = hard dependency; `optional` = soft link).
@@ -241,7 +241,7 @@ read by the app at page load via a signed URL. Three consequences worth knowing 
 # Part B — UI/UX variants (same functionality, different shell)
 
 > Both variants render the **same functionality catalogue** (§6) over the **same map data**. They
-> are **independently-deployable bundles** (`app/cockpit/`, `app/flowchart/`) that do not share
+> are **independently-deployable bundles** (`webapps/orchestrator/`, `deprecated/flowchart/app/`) that do not share
 > files, so their UIs can drift. What follows describes only the _presentation and interaction_ —
 > not the underlying capabilities, which are defined once in Part A.
 
@@ -264,33 +264,16 @@ each — see §9.1), with the narrative layer reconsidered later as a possible v
   couple of pipelines as a template; Giulia completes the rest.
   **🔨 In progress — 2 of 18 expanded** (as of 2026-07-31): `snt_dhis2_extract` (A.1) and
   `snt_dhis2_formatting` (A.2) now carry full paragraphs; the remaining 16 are still one-liners.
-  The delivery mechanism is done — text lives in `app/pipeline_descriptions.json` (one shared copy,
+  The delivery mechanism is done — text lives in `webapps/orchestrator/pipeline_descriptions.json` (one shared copy,
   bilingual `{en, fr}`), so completing this is **content authoring, not development**.
 - Renders the full functionality set (F1–F10): status per step, parameter form + preview, run +
   poll, outputs/report links, mutual-exclusion notices, and lock/unlock state.
 - **Desktop only** (landscape). Not designed for mobile/tablet.
 
-## 8. Flowchart variant — the 2D map _(side product, may follow)_
+## 8. Flowchart variant — parked
 
-**Strategic role:** developed **as a side product** (Giulia's preference), it may follow the
-Cockpit into user-facing releases later. It is currently the more broadly-deployed variant.
-Target UX: `design/wireframes/orchestrator_wireframe.html` (⚠️ **to be updated to current UX!**) and consider variants like `design/wireframes/orchestrator_frosted.html`.
-
-- **Whole-process 2D canvas.** Two regions: a **canvas** (left/main) with the flow chart and a
-  **side panel** (right) that opens when a card is selected.
-- The canvas is a **pan-and-zoom surface** (drag to pan, wheel or +/–/fit buttons to zoom) with a
-  collapsible **legend** (arrow types + tracks) pinned in the corner, so the whole map fits on
-  screen and the meaning of arrows/tracks is always at hand.
-- **The pipeline card (on the canvas)** shows: code + name (e.g. "A.1 · DHIS2 Extract"); a **type
-  cue** (mandatory = corner badge; alternatives = "choose one" group box; facultative = unbadged);
-  live **status**; **last execution** date-time with a ↗ link to that run; and **state**
-  (_available_ vs _greyed_; for alternative groups, _in use_ vs _superseded_; locked vs unlocked).
-- **The side panel (on card click)** renders the full functionality set (F1–F10) for the selected
-  pipeline: latest-run status line, description, README link, the parameter form + preview, the
-  Run button, latest outputs, the link to the live OpenHEXA run, and any alternative-group /
-  lock notice. For a **greyed (not-installed)** pipeline it instead explains the pipeline is part
-  of the standard map but isn't installed here, and links to its README + the templates page.
-- **Desktop only** (landscape).
+The Flowchart (2D map) variant is parked in `deprecated/flowchart/`; its spec and roadmap
+are in `deprecated/flowchart/SPEC.md`.
 
 ### 8.1 Shared UI rules (both variants)
 
@@ -311,14 +294,14 @@ Target UX: `design/wireframes/orchestrator_wireframe.html` (⚠️ **to be updat
   choice in §10 in favour of collapsing the whole section.
   ⚠️ **Not built:** the **per-type counts** in the collapsed header (_"Requires (2 pipelines)"_,
   _"Unlocks (11 pipelines)"_) — the header reads just "Dependencies". Still open whether the counts
-  are wanted now that the block is collapsed by default. **Flowchart: not built** (still full lists).
+  are wanted now that the block is collapsed by default.
 - **Embed the HTML report (v1). ✅ Built (Cockpit) — feasibility confirmed.** Rather than only link
   out to the run's HTML report (F6), its **content renders in a box at the bottom of the step** so
   the user reads the result without leaving the app. **The technical question is answered:** the
   report's GCS signed URL sends no `X-Frame-Options` / restrictive `frame-ancestors`, so it is
   safely frameable from the webapp origin — implemented as an `<iframe>` on a freshly-signed URL
   (signed URLs expire, so the frame is re-signed on demand). Validated by the
-  `archive/snt-app-dev/report-embed/` spike first. **Flowchart: not built** (still links out).
+  `deprecated/snt-app-dev/report-embed/` spike first.
 - **Documentation source — README drift (planned v1).** The detail panel links out to each
   pipeline's **README on GitHub `main`** (F3), which reflects the _latest_ pipeline version and may
   not match the (possibly older) version **installed** in the workspace. v1 resolves this. A
@@ -366,21 +349,9 @@ Items in _italics_ are open decisions (see §10) placed at their **recommended**
 | **Team & scheduling**        | Single shared status board (F1)                               | —                                                                                                                         | _"Who is running what" visibility_; surface **scheduled/automated** runs (v2)                |
 | **Setup self-service**       | Uses connections by slug only (F5); BLSQ sets up config/conns | —                                                                                                                         | _User-set connections_ / readiness checks, pending platform + ownership decisions            |
 
-### 9.2 Flowchart roadmap _(side product — may follow Cockpit)_
+### 9.2 Flowchart roadmap
 
-| Aspect                        | v0 — today                                                  | v1 — first real users (adds…)                                                       | v2 — longer term (adds…)                                            |
-| ----------------------------- | ----------------------------------------------------------- | ---------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
-| **Functionality (F1–F10)**    | ✅ Full set built (§6)                                      | — (baseline carries forward)                                                       | —                                                                  |
-| **Deployment scope**          | Deployed to `snt-app-dev`, `snt-testing`, `cmr-snt-process` | Exposed to real users **if/when promoted** after Cockpit                           | Further workspaces as a power-user alternative                     |
-| **Map UX**                    | Pan/zoom 2D canvas + collapsible legend; card + side panel  | Polish (fit-to-screen defaults, legend clarity) for real-user readiness            | Larger-map ergonomics (mini-map / grouping) as the map grows       |
-| **Per-pipeline descriptions** | Placeholder / partial one-liners                            | **Short paragraph per pipeline** — ✅ **inherited automatically** (shared `pipeline_descriptions.json`), so tracks Cockpit's 2-of-18 | Richer descriptions                          |
-| **Documentation source**      | README link out to GitHub `main` (F3)                       | **Resolve GitHub-README vs installed-version drift** (shared with Cockpit) — _not built_ | —                                                            |
-| **Dependencies display**      | Full Requires/Unlocks/Uses lists in panel                   | **Collapsible dependencies** (as built in Cockpit) — _not built, needs porting_    | —                                                                  |
-| **Report viewing**            | HTML report opens via signed-URL link-out (F6)              | **Embed report content in a box** — _not built, needs porting_ (feasibility now confirmed by Cockpit) | —                                            |
-| **Localization**              | English only                                                | **French — confirmed main interface language** (aligned with Cockpit) — _not built_; reads the `en` side of the shared bilingual data | French-first; additional languages |
-| **Failure help**              | Link out to the OpenHEXA run on failure (F10)               | —                                                                                  | _Plain-language failure summary in-app + deeper run Messages_ (recommended v2) |
-| **Guidance intelligence**     | Legend + type cues; static dependency model (F8/F9)         | Improved in-panel guidance/legend                                                  | _Active "recommend the next step"_ (recommended v2)                |
-| **Team & scheduling**         | Single shared status board (F1)                             | —                                                                                  | _"Who is running what"_; surface **scheduled/automated** runs (v2) |
+Parked — see `deprecated/flowchart/SPEC.md`.
 
 ## 10. Open decisions for the PM (with recommended version placement)
 
@@ -448,7 +419,7 @@ confirm or move it. Placing these is the main purpose of this document.
     **Technical point resolved:** the report **can** be safely embedded — its GCS signed URL sends
     no `X-Frame-Options` / restrictive `frame-ancestors`, so an `<iframe>` from the webapp origin
     works. Signed URLs expire, so the frame is mounted on a freshly-signed URL and re-signed on
-    demand. Proven by the `archive/snt-app-dev/report-embed/` spike, then implemented. **Remaining
+    demand. Proven by the `deprecated/snt-app-dev/report-embed/` spike, then implemented. **Remaining
     for v1:** port to Flowchart if/when it goes user-facing. _(New, 2026-07-15; spiked and built
     the same day.)_
 
