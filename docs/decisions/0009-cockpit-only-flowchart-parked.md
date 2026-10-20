@@ -18,7 +18,10 @@ per-variant line references) and the deploy paths.
 
 - The repo is **cockpit-only**: `webapps/orchestrator/` is the one maintained UI.
 - Flowchart is parked, unchanged, in `deprecated/flowchart/`, with its spec and roadmap extracted
-  to `deprecated/flowchart/SPEC.md` and revival steps in `deprecated/flowchart/README.md`.
+  to `deprecated/flowchart/SPEC.md` and revival steps in `deprecated/flowchart/README.md`. Since the
+  cut-over these live only in the archived predecessor repo
+  ([`deprecated/flowchart/`](https://github.com/BLSQ/OpenHEXA-WebApp-Diary/tree/bbd02388f0104d809e55a81f5b84b29ce6b569bd/deprecated/flowchart);
+  [ADR 0013](0013-fresh-repo-without-history.md)).
 
 ## Consequences
 
