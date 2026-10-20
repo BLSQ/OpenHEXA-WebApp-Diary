@@ -31,6 +31,12 @@ and Flowchart was moved here unchanged.
   deployments**; resolve live with `list_static_webapps` if it matters. Whether to unpublish them
   is a backlog item.
 
+## Open question
+
+Whether a 2D map should ever become user-facing — as its own webapp beside the guided
+walkthrough, as a switchable view, or not at all (would two "flavours" confuse users?) — is
+undecided. The decision to park it: `docs/decisions/0009-cockpit-only-flowchart-parked.md`.
+
 ## Reviving it
 
 1. Copy `app/` into its own folder under `webapps/` (e.g. `webapps/orchestrator_flowchart/`) and

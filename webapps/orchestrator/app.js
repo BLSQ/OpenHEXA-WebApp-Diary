@@ -1984,7 +1984,7 @@ function renderCockpit() {
   // Turn each labelled section (Dependencies, Choose a method, Parameters,
   // Latest outputs) into its own collapsible box. The description block above
   // Dependencies isn't a `.sec`, so it stays permanently open. Dependencies
-  // starts collapsed (it's the tallest — PRODUCT_SPEC #9).
+  // starts collapsed (it's the tallest — PRODUCT_SPEC §8, Dependencies).
   makeSectionsCollapsible(ck, [t("heading.dependencies").toLowerCase()]);
 
   // If a run for this node is already in flight (navigated away + back), reflect
@@ -2342,7 +2342,7 @@ async function openBucketObject(key, a) {
 }
 
 /* ------------------------------------------------------------------ *
- * Inline HTML-report preview (F6 embed — PRODUCT_SPEC §9.1 / #10).
+ * Inline HTML-report preview (F6 embed — PRODUCT_SPEC §8, Embedded HTML report).
  * Option A: <iframe src={signed URL}>. GCS signed URLs send no
  * X-Frame-Options, so the report renders in-frame (probe-confirmed,
  * host storage.googleapis.com). Signed URLs expire (~1h), so we
