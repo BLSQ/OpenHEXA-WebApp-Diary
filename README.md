@@ -1,3 +1,5 @@
+> **Moved.** Development continues in https://github.com/BLSQ/snt_webapp_orchestrator. This repo is archived.
+
 # SNT Pipelines Orchestrator
 
 An OpenHEXA static webapp that lets a country team **see, configure and run the whole SNT
