@@ -34,6 +34,7 @@ who made it move on. Format after Michael Nygard's
 | [0010](0010-hardcoded-saas-front-end-base.md) | The SaaS front-end base `app.openhexa.org` is hardcoded | Accepted | not recorded |
 | [0011](0011-repo-is-not-a-deployment-record.md) | The repo is the reference source, not a deployment record | Accepted | 2026-10-19 |
 | [0012](0012-one-folder-per-deployable-unit.md) | One self-contained folder per deployable unit | Accepted | 2026-10-19 |
+| [0013](0013-fresh-repo-without-history.md) | A fresh public repo from one snapshot; history and `deprecated/` stay in the archived repo | Accepted | 2026-10-20 |
 
 ## Template
 

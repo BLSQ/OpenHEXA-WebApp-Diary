@@ -49,7 +49,7 @@ both, re-run the generator everywhere).
 ### <a id="doc-2"></a>DOC-2 · Fill "not recorded" ADR dates from git history
 
 ADRs 0004–0007 and 0010 say "Date: not recorded". `git log` on the old `CLAUDE.md` / `README.md`
-(this repo, before the cut-over) may date them. Needs Giulia's OK to run `git log`; update only the
+in the archived predecessor repo `BLSQ/OpenHEXA-WebApp-Diary` may date them. Needs Giulia's OK to run `git log`; update only the
 date line, never the decision.
 
 ## Release & deploy
@@ -92,7 +92,8 @@ nothing fetches it. Remove with `update_static_webapp(files_to_delete_json=…)`
 ### <a id="ops-3"></a>OPS-3 · Delete leftover spike webapps?
 
 `t0-9-status-proxy-spike` (snt-testing) and `report-embed-probe` (snt-app-dev) may still exist. Their
-source is in `deprecated/`.
+source is in the archived repo's
+[`deprecated/`](https://github.com/BLSQ/OpenHEXA-WebApp-Diary/tree/bbd02388f0104d809e55a81f5b84b29ce6b569bd/deprecated).
 
 ### <a id="gen-1"></a>GEN-1 · Push the generator to each workspace
 

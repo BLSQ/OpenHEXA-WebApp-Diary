@@ -50,7 +50,6 @@ reference/openhexa/           schema.generated.graphql — external; grep it, ne
 docs/                         PRODUCT_SPEC · ARCHITECTURE · OPENHEXA_WEBAPP_RUNTIME · DEPLOYMENT ·
                               BACKLOG · decisions/ (ADRs) · research/personas/
 design/                       cockpit wireframes, map preview, grid editor (not contracts)
-deprecated/                   parked Flowchart UI + retired spikes — history, never a template
 .claude/                      settings.json + the destructive-git hook
 ignore/                       local, git-ignored scratch (plans, audits)
 ```
@@ -127,4 +126,4 @@ docs link to it.
 | GraphQL types | grep [`reference/openhexa/schema.generated.graphql`](reference/openhexa/schema.generated.graphql) |
 | SNT vocabulary | `snt_development` [`docs/GLOSSARY.md`](https://github.com/BLSQ/snt_development/blob/main/docs/GLOSSARY.md) |
 | SNT pipeline source | `https://github.com/BLSQ/snt_development` — `<pipeline_id>/pipeline.py` at the root (not `pipelines/`) |
-| The parked Flowchart UI, old spikes | [`deprecated/README.md`](deprecated/README.md) |
+| Pre-cut-over history, the parked Flowchart UI, old spikes | archived repo `BLSQ/OpenHEXA-WebApp-Diary` — [ADR 0013](docs/decisions/0013-fresh-repo-without-history.md) |

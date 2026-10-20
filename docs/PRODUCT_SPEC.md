@@ -27,7 +27,8 @@
 > research — [`research/personas/persona_questionnaire_answered-20260713.md`](research/personas/persona_questionnaire_answered-20260713.md);
 > UX target — [`design/wireframes/orchestrator_wireframe_cockpit.html`](../design/wireframes/orchestrator_wireframe_cockpit.html).
 > The parked Flowchart (2D map) UI has its own spec in
-> [`deprecated/flowchart/SPEC.md`](../deprecated/flowchart/SPEC.md).
+> [`deprecated/flowchart/SPEC.md`](https://github.com/BLSQ/OpenHEXA-WebApp-Diary/blob/bbd02388f0104d809e55a81f5b84b29ce6b569bd/deprecated/flowchart/SPEC.md)
+> in the archived predecessor repo.
 
 ---
 
@@ -335,7 +336,8 @@ confirm or move it. Item numbers are stable references; resolved items keep thei
 7. **Which UI ships — _resolved._** The guided walkthrough (Cockpit) is the one UI; the 2D map
    (Flowchart) is parked ([ADR 0009](decisions/0009-cockpit-only-flowchart-parked.md)). Whether a 2D
    map ever becomes user-facing is recorded with the parked code in
-   [`deprecated/flowchart/README.md`](../deprecated/flowchart/README.md).
+   [`deprecated/flowchart/README.md`](https://github.com/BLSQ/OpenHEXA-WebApp-Diary/blob/bbd02388f0104d809e55a81f5b84b29ce6b569bd/deprecated/flowchart/README.md)
+   in the archived predecessor repo.
 8. **Documentation source — README drift vs "Template Documentation" — _v1._** The detail panel
    links to each pipeline's README on GitHub `main`, which may not match the version **installed**
    in the workspace. A candidate route: pipelines installed from a template carry a **"Template
