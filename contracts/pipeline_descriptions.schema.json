@@ -18,7 +18,7 @@
     "Bilingual (English / French). Each description value is a { \"en\": ..., \"fr\": ... } object; both hold the same Markdown-lite prose, one per language.",
     "The app resolves the active language via pickLang() and falls back to `en` (then to \"\").",
     "Backward compatible: a plain string value is still accepted and treated as `en`. New/edited entries should use the { en, fr } object form.",
-    "When adding a pipeline, provide BOTH `en` and `fr`. French drafts are authored/reviewed by Giulia (agents translate on request, per CLAUDE.md — do not invent description prose unprompted)."
+    "When adding a pipeline, provide BOTH `en` and `fr`. French drafts are authored/reviewed by Giulia (agents translate on request, per webapps/orchestrator/CLAUDE.md — do not invent description prose unprompted)."
   ],
 
 

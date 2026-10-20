@@ -32,11 +32,14 @@ For the workspace it runs in, it:
 The output matches the contract in `contracts/pipeline_cards.schema.json`. **It is consumed in place:**
 the orchestrator webapp fetches it straight out of the workspace's file storage at page load, so
 running this pipeline is all that's needed to update a workspace's configuration — nothing to copy,
-commit, or redeploy. See the repo root `CLAUDE.md` / `README.md` for the full picture.
+commit, or redeploy. The full picture is in [`docs/ARCHITECTURE.md`](../../docs/ARCHITECTURE.md#the-pipeline-catalog);
+the reasons in ADRs [0002](../../docs/decisions/0002-catalog-in-workspace-bucket.md) (catalog in the
+bucket), [0003](../../docs/decisions/0003-catalog-parameters-from-deployed-version.md) (parameters
+from the deployed version) and [0004](../../docs/decisions/0004-generator-curates-against-deployed-map.md)
+(curation against the deployed map).
 
 Each card also records the **deployed version** its parameters were read from (`version_name`,
-`version_number`). The orchestrator does not read them; they are there for a future drift check
-(compare against the live pipeline and prompt for a refresh only on real change).
+`version_number`). The orchestrator does not read them yet ([UI-8](../../docs/BACKLOG.md#ui-8)).
 
 ## Parameters
 
@@ -99,3 +102,34 @@ its next page load. The pipeline does not push to the repo or touch the webapp b
   count doesn't match — it does not fail the run (so it always warns in a workspace that has only
   a subset of the pipelines installed).
 - Each catalog carries a `_notes` string built from `config.NOTES` with the workspace slug filled in.
+
+## Reference: how an SNT pipeline declares its parameters
+
+The generator reads parameters from the deployed version through the API, so you should not need
+this — except to read pipeline source on GitHub, or to diagnose a pipeline that comes out with
+`id: null`.
+
+Source: `https://raw.githubusercontent.com/BLSQ/snt_development/main/{pipeline_id}/pipeline.py` —
+each pipeline is a folder at the **root** of `snt_development` named after its Python function name
+(not under its `pipelines/` folder). The `id` is the first argument of `@pipeline("...")`.
+
+Parameters are `@parameter` decorators stacked above the function; top-to-bottom is the display
+order. Each maps to one entry of the card's `parameters` array:
+
+```python
+@parameter(
+    "param_key",            # → "key"
+    name="Display Label",   # → "label"
+    help="Help text",       # → "help"
+    type=bool,              # → "type"
+    default=True,           # → "default"  (omitted if None)
+    required=False,         # → "required" (omitted if False)
+    choices=["a", "b"],     # → "choices"  (omitted if absent; for (value, label) tuples keep the value)
+)
+```
+
+Python types `bool`, `int`, `float`, `str`, `File` map to the same names. Connection parameters
+reach the generator as OpenHEXA's lowercase codes (`dhis2`, `custom`, `iaso`, `postgresql`, `gcs`,
+`s3`, `file`) and are mapped by `PARAMETER_TYPE_MAP` in `config.py` to `DHIS2Connection`,
+`CustomConnection`, `IASOConnection`, `PostgreSQLConnection`, `GCSConnection`, `S3Connection`,
+`File`. The contract is [`contracts/pipeline_cards.schema.json`](../../contracts/pipeline_cards.schema.json).
